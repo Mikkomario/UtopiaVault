@@ -41,6 +41,12 @@ public class DatabaseTest
 		String user = "root";
 		String address = "jdbc:mysql://localhost:3306/";
 		
+		if (args.length == 0)
+		{
+			System.out.println("Please provide the necessary arguments: password (required), "
+					+ "user (default = root), address (default = jdbc:mysql://localhost:3306/)");
+			System.exit(0);
+		}
 		if (args.length > 0)
 			password = args[0];
 		if (args.length > 1)
@@ -53,19 +59,28 @@ public class DatabaseTest
 		
 		try
 		{
+			System.out.println("Initializes settings");
+			
 			DatabaseSettings.initialize(address, user, password, TestTable.values(), 10);
 			
 			// Inserts data
+			System.out.println("Inserts data");
+			// TODO: Multitabling doesn't work yet
 			insert(30, possibleNames, possibleAdditionals);
 			// Updates data
+			System.out.println("Updates data");
+			// TODO: Doesn't work yet
 			update();
 			// Reads data
+			System.out.println("Reads data");
 			read();
 			// Finds data
+			System.out.println("Finds data");
 			System.out.println("The number of 'ones': " + 
 					DatabaseAccessor.findMatchingData(TestTable.DEFAULT, "name", "'one'", 
 					"id").size());
 			// Removes data
+			System.out.println("Removes data");
 			removeTestData();
 			
 			System.out.println("OK!");
@@ -89,7 +104,7 @@ public class DatabaseTest
 		{
 			DatabaseAccessor.insert(TestTable.DEFAULT, "'" + 
 					possibleNames[random.nextInt(possibleNames.length)] + "', " + 
-					possibleAdditionals[random.nextInt(possibleAdditionals.length)]);
+					possibleAdditionals[random.nextInt(possibleAdditionals.length)], "id");
 		}
 	}
 	
@@ -103,7 +118,7 @@ public class DatabaseTest
 		{
 			List<String> columnNames = DatabaseTable.readColumnNamesFromDatabase(TestTable.DEFAULT);
 			
-			for (int i = 1; i < DatabaseSettings.getTableHandler().getTableAmount(TestTable.DEFAULT); i++)
+			for (int i = 1; i <= DatabaseSettings.getTableHandler().getTableAmount(TestTable.DEFAULT); i++)
 			{
 				System.out.println("Table number " + i + ":");
 				
@@ -136,7 +151,7 @@ public class DatabaseTest
 		
 		try
 		{
-			for (int i = 1; i < 
+			for (int i = 1; i <= 
 					DatabaseSettings.getTableHandler().getTableAmount(TestTable.DEFAULT); i++)
 			{
 				accessor.executeStatement("DELETE FROM " + 

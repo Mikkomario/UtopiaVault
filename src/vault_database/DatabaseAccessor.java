@@ -343,7 +343,9 @@ public class DatabaseAccessor
 	}
 	
 	/**
-	 * Inserts new data to the given table
+	 * Inserts new data to the given table. In case of an indexed table, remember to also call 
+	 * {@link MultiTableHandler#informAboutNewRow(DatabaseTable, int)} once the method has 
+	 * completed.
 	 * @param targetTable The table the data will be inserted into
 	 * @param columnData The data posted to the table (in the same order as in the tables). 
 	 * All data will be considered to be strings
@@ -357,7 +359,9 @@ public class DatabaseAccessor
 	}
 	
 	/**
-	 * Inserts new data to the given table
+	 * Inserts new data to the given table. In case of an indexed table, remember to also call 
+	 * {@link MultiTableHandler#informAboutNewRow(DatabaseTable, int)} once the method has 
+	 * completed.
 	 * @param targetTable The table the data will be inserted into
 	 * @param columnData The data posted to the table (in the same order as in the tables). 
 	 * Each value should be separated with a ','. Auto-increment id shouldn't be included. 
@@ -386,7 +390,8 @@ public class DatabaseAccessor
 	
 	/**
 	 * Inserts new data into the given table while also collecting and returning the 
-	 * auto-generated id.
+	 * auto-generated id. Also informs the multiTableHandler about the addition. This should 
+	 * be used for auto-indexing tables.
 	 * @param targetTable The table the data is inserted into
 	 * @param columnData The data inserted into the table
 	 * @param idColumnName The name of the auto-increment id column
@@ -403,7 +408,8 @@ public class DatabaseAccessor
 	
 	/**
 	 * Inserts new data into the given table while also collecting and returning the 
-	 * auto-generated id.
+	 * auto-generated id. Also informs the multiTableHandler about the addition. This 
+	 * should be used for auto-indexing tables.
 	 * @param targetTable The table the data is inserted into
 	 * @param columnData The data posted to the table (in the same order as in the tables). 
 	 * Each value should be separated with a ','. Auto-increment id shouldn't be included. 
@@ -436,7 +442,11 @@ public class DatabaseAccessor
 			autoKeys = statement.getGeneratedKeys();
 			
 			if (autoKeys.next())
-				return autoKeys.getInt(idColumnName);
+			{
+				int id = autoKeys.getInt(idColumnName);
+				DatabaseSettings.getTableHandler().informAboutNewRow(targetTable, id);
+				return id;
+			}
 		}
 		finally
 		{
@@ -500,7 +510,7 @@ public class DatabaseAccessor
 	{
 		DatabaseAccessor accessor = new DatabaseAccessor(table.getDatabaseName());
 		
-		for (int i = 1; i < DatabaseSettings.getTableHandler().getTableAmount(table); i++)
+		for (int i = 1; i <= DatabaseSettings.getTableHandler().getTableAmount(table); i++)
 		{
 			accessor.executeStatement("UPDATE " + table.getTableName() + i + 
 					" SET " + changeColumn + " = " + newValue + " WHERE " + targetColumn + 
@@ -534,7 +544,7 @@ public class DatabaseAccessor
 	private static String getInsertStatement(DatabaseTable table, String columnDataString)
 	{
 		StringBuilder statement = new StringBuilder();
-		statement.append("INSERT INTO");
+		statement.append("INSERT INTO ");
 		statement.append(DatabaseSettings.getTableHandler().getLatestTableName(table));
 		statement.append(" values (");
 		
