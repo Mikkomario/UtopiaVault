@@ -17,8 +17,8 @@ public class MultiTableHandler
 	// ATTRIBUTES	--------------------------------------------------------------------
 	
 	private final int MAXROWCOUNT;
-	private static final String DBNAME = "multitable_db";
-	private static final String INFOTABLENAME = "tableamounts";
+	private final String DBNAME;
+	private final String INFOTABLENAME;
 	
 	// How many instances there are of each table
 	private HashMap<DatabaseTable, Integer> tableAmounts;
@@ -39,6 +39,33 @@ public class MultiTableHandler
 	{
 		// Initializes attributes
 		this.MAXROWCOUNT = maxRowCount;
+		this.DBNAME = "multitable_db";
+		this.INFOTABLENAME = "tableamounts";
+		
+		this.tableAmounts = new HashMap<DatabaseTable, Integer>();
+		this.possibleTables = possibleTables;
+		
+		// Loads / initializes the data from the database
+		loadData();
+	}
+	
+	/**
+	 * Creates a new MultiTableHandler. The handler's status is retrieved from a database.
+	 * @param possibleTables All the possible tables that could be handled by this handler
+	 * @param maxRowCount How many rows there should be in a single table at maximum
+	 * @param databaseName The name of the database that holds the multitable data
+	 * @param tableName The name of the table that holds the multitable data
+	 * @throws SQLException If the given table is malformed or missing
+	 * @throws DatabaseUnavailableException If the database couldn't be accessed
+	 */
+	public MultiTableHandler(DatabaseTable[] possibleTables, int maxRowCount, 
+			String databaseName, String tableName) throws DatabaseUnavailableException, 
+			SQLException
+	{
+		// Initializes attributes
+		this.MAXROWCOUNT = maxRowCount;
+		this.DBNAME = databaseName;
+		this.INFOTABLENAME = tableName;
 		
 		this.tableAmounts = new HashMap<DatabaseTable, Integer>();
 		this.possibleTables = possibleTables;
@@ -146,9 +173,9 @@ public class MultiTableHandler
 	private void saveStateIntoDatabase(DatabaseTable updatedTable) throws SQLException, 
 			DatabaseUnavailableException
 	{
-		DatabaseAccessor accessor = new DatabaseAccessor(DBNAME);
+		DatabaseAccessor accessor = new DatabaseAccessor(this.DBNAME);
 		
-		accessor.executeStatement("UPDATE " + INFOTABLENAME + " SET latestIndex = " + 
+		accessor.executeStatement("UPDATE " + this.INFOTABLENAME + " SET latestIndex = " + 
 				getTableAmount(updatedTable) + " WHERE tableName = '" + 
 				updatedTable.getTableName() + "'");
 		
@@ -161,14 +188,14 @@ public class MultiTableHandler
 		if (!this.tableAmounts.isEmpty())
 			return;
 		
-		DatabaseAccessor accessor = new DatabaseAccessor(DBNAME);
+		DatabaseAccessor accessor = new DatabaseAccessor(this.DBNAME);
 		
 		PreparedStatement statement = null;
 		ResultSet results = null;
 		
 		try
 		{
-			statement = accessor.getPreparedStatement("SELECT * from " + INFOTABLENAME);
+			statement = accessor.getPreparedStatement("SELECT * from " + this.INFOTABLENAME);
 			results = statement.executeQuery();
 			
 			while (results.next())
@@ -204,12 +231,12 @@ public class MultiTableHandler
 		}
 		
 		// Removes the existing data
-		accessor.executeStatement("DELETE FROM " + INFOTABLENAME);
+		accessor.executeStatement("DELETE FROM " + this.INFOTABLENAME);
 		
 		// Inserts the new data
 		for (DatabaseTable table : this.tableAmounts.keySet())
 		{
-			accessor.executeStatement("INSERT INTO " + INFOTABLENAME + " VALUES ('" + 
+			accessor.executeStatement("INSERT INTO " + this.INFOTABLENAME + " VALUES ('" + 
 					table.getTableName() + "', " + this.tableAmounts.get(table) + ")");
 		}
 	}

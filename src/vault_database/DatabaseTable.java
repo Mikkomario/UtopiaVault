@@ -1,5 +1,11 @@
 package vault_database;
 
+import java.sql.PreparedStatement;
+import java.sql.ResultSet;
+import java.sql.SQLException;
+import java.util.ArrayList;
+import java.util.List;
+
 /**
  * This class is an interface for all classes who need to represent tables in a database. 
  * DatabaseTables are used in multiTableHandling, for example. The subclasses should be 
@@ -31,4 +37,48 @@ public interface DatabaseTable
 	 * @return The name of the table this ResourceTable represents
 	 */
 	public String getTableName();
+	
+	
+	// OTHER METHODS	----------------------------
+	
+	/**
+	 * Reads the names of all the columns in the given table. This doesn't include the 
+	 * auto-increment id, however.
+	 * @param table The table whose columns are checked
+	 * @return A list containing the names of the columns in the table
+	 * @throws DatabaseUnavailableException If the database couldn't be accessed
+	 * @throws SQLException If the table doesn't exist
+	 */
+	public static List<String> readColumnNamesFromDatabase(DatabaseTable table) throws 
+			DatabaseUnavailableException, SQLException
+	{
+		DatabaseAccessor accessor = new DatabaseAccessor(table.getDatabaseName());
+		PreparedStatement statement = accessor.getPreparedStatement("DESCRIBE " + 
+				DatabaseSettings.getTableHandler().getTableNameForIndex(table, 1, false));
+		ResultSet result = null;
+		List<String> columnNames = new ArrayList<>();
+		
+		try
+		{
+			result = statement.executeQuery();
+			// Reads the field names
+			while (result.next())
+			{
+				columnNames.add(result.getString("Field"));
+			}
+		}
+		finally
+		{
+			// Closes the connections
+			DatabaseAccessor.closeResults(result);
+			DatabaseAccessor.closeStatement(statement);
+			accessor.closeConnection();
+		}
+		
+		// Removes the id column (always first) in case there is (or should be) one
+		if (table.usesIndexing())
+			columnNames.remove(0);
+		
+		return columnNames;
+	}
 }
