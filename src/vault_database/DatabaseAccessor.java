@@ -315,12 +315,17 @@ public class DatabaseAccessor
 		for (int i = 1; i <= tables; i++)
 		{	
 			StringBuilder statementString = new StringBuilder("SELECT * FROM " + 
-					table.getTableName() + i + " WHERE ");
-			for (int keyIndex = 0; keyIndex < keyColumns.length; keyIndex ++)
+					table.getTableName() + i);
+			
+			if (keyColumns.length > 0)
 			{
-				if (keyIndex != 0)
-					statementString.append(" AND ");
-				statementString.append(keyColumns[keyIndex] + " = " + keyValues[keyIndex]);
+				statementString.append(" WHERE ");
+				for (int keyIndex = 0; keyIndex < keyColumns.length; keyIndex ++)
+				{
+					if (keyIndex != 0)
+						statementString.append(" AND ");
+					statementString.append(keyColumns[keyIndex] + " = " + keyValues[keyIndex]);
+				}
 			}
 			
 			PreparedStatement statement = 
