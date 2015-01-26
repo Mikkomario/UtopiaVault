@@ -568,7 +568,7 @@ public class DatabaseAccessor
 		{
 			if (i != 0)
 				columnDataString.append(", ");
-			columnDataString.append("'" + columnData + "'");
+			columnDataString.append("'" + columnData.get(i) + "'");
 		}
 		
 		return columnDataString.toString();

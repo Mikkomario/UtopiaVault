@@ -91,6 +91,7 @@ public class MultiTableHandler
 		if (!table.usesIndexing())
 			return 1;
 		
+		// TODO: Nullpointer?
 		return this.tableAmounts.get(table);
 	}
 	
