@@ -508,16 +508,51 @@ public class DatabaseAccessor
 			String targetValue, String changeColumn, String newValue) throws SQLException, 
 			DatabaseUnavailableException
 	{
+		String[] changeColumns = {changeColumn};
+		String[] newValues = {newValue};
+		update(table, targetColumn, targetValue, changeColumns, newValues);
+	}
+	
+	/**
+	 * Updates a set of columns for certain rows
+	 * @param table The table in which the update is done
+	 * @param targetColumn The column which should contain the targetValue
+	 * @param targetValue The value the column should have in order to be updated
+	 * @param changeColumns The columns which are being updated
+	 * @param newValues The new values given to the changeColumns
+	 * @throws SQLException If the update fails
+	 * @throws DatabaseUnavailableException If the database couldn't be accessed
+	 */
+	public static void update(DatabaseTable table, String targetColumn, String targetValue, 
+			String[] changeColumns, String[] newValues) throws SQLException, DatabaseUnavailableException
+	{
 		DatabaseAccessor accessor = new DatabaseAccessor(table.getDatabaseName());
 		
-		for (int i = 1; i <= DatabaseSettings.getTableHandler().getTableAmount(table); i++)
+		try
 		{
-			accessor.executeStatement("UPDATE " + table.getTableName() + i + 
-					" SET " + changeColumn + " = " + newValue + " WHERE " + targetColumn + 
-					" = " + targetValue);
+			for (int i = 1; i <= DatabaseSettings.getTableHandler().getTableAmount(table); i++)
+			{
+				StringBuilder statementBuilder = new StringBuilder("UPDATE ");
+				statementBuilder.append(table.getTableName() + i);
+				statementBuilder.append(" SET ");
+				
+				for (int columnIndex = 0; columnIndex < changeColumns.length; columnIndex ++)
+				{
+					if (columnIndex != 0)
+						statementBuilder.append(", ");
+					statementBuilder.append(changeColumns[columnIndex] + " = " + 
+						newValues[columnIndex]);
+				}
+				
+				statementBuilder.append(" WHERE " + targetColumn + " = " + targetValue);
+				
+				accessor.executeStatement(statementBuilder.toString());
+			}
 		}
-		
-		accessor.closeConnection();
+		finally
+		{
+			accessor.closeConnection();
+		}
 	}
 	
 	private static String getColumnDataString(List<String> columnData)

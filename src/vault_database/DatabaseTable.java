@@ -38,6 +38,11 @@ public interface DatabaseTable
 	 */
 	public String getTableName();
 	
+	/**
+	 * @return The names of the columns in this database
+	 */
+	public List<String> getColumnNames();
+	
 	
 	// OTHER METHODS	----------------------------
 	

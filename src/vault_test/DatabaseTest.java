@@ -3,6 +3,7 @@ package vault_test;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Random;
 
@@ -65,11 +66,9 @@ public class DatabaseTest
 			
 			// Inserts data
 			System.out.println("Inserts data");
-			// TODO: Multitabling doesn't work yet
 			insert(30, possibleNames, possibleAdditionals);
 			// Updates data
 			System.out.println("Updates data");
-			// TODO: Doesn't work yet
 			update();
 			// Reads data
 			System.out.println("Reads data");
@@ -103,8 +102,8 @@ public class DatabaseTest
 		for (int i = 0; i < amount; i++)
 		{
 			DatabaseAccessor.insert(TestTable.DEFAULT, "'" + 
-					possibleNames[random.nextInt(possibleNames.length)] + "', " + 
-					possibleAdditionals[random.nextInt(possibleAdditionals.length)], "id");
+					possibleNames[random.nextInt(possibleNames.length)] + "', '" + 
+					possibleAdditionals[random.nextInt(possibleAdditionals.length)] + "'", "id");
 		}
 	}
 	
@@ -201,6 +200,21 @@ public class DatabaseTest
 		public String getTableName()
 		{
 			return "test";
+		}
+
+		@Override
+		public List<String> getColumnNames()
+		{
+			try
+			{
+				return DatabaseTable.readColumnNamesFromDatabase(this);
+			}
+			catch (DatabaseUnavailableException | SQLException e)
+			{
+				System.err.println("Can't read column names");
+				e.printStackTrace();
+				return new ArrayList<>();
+			}
 		}
 	}
 }
