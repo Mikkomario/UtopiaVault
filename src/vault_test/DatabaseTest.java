@@ -62,7 +62,7 @@ public class DatabaseTest
 		{
 			System.out.println("Initializes settings");
 			
-			DatabaseSettings.initialize(address, user, password, TestTable.values(), 10);
+			DatabaseSettings.initialize(address, user, password, TestTable.values(), 20);
 			
 			// Inserts data
 			System.out.println("Inserts data");
@@ -165,7 +165,7 @@ public class DatabaseTest
 	
 	private static void update() throws SQLException, DatabaseUnavailableException
 	{
-		DatabaseAccessor.update(TestTable.DEFAULT, "name", "'one'", "additional", "1");
+		DatabaseAccessor.update(TestTable.DEFAULT, "name", "one", "additional", "1");
 	}
 	
 	

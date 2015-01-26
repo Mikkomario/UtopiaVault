@@ -353,7 +353,8 @@ public class DatabaseAccessor
 	 * completed.
 	 * @param targetTable The table the data will be inserted into
 	 * @param columnData The data posted to the table (in the same order as in the tables). 
-	 * All data will be considered to be strings
+	 * All data will be considered to be strings. No brackets are required around any piece of 
+	 * data
 	 * @throws SQLException If the insert failed
 	 * @throws DatabaseUnavailableException If the database couldn't be accessed
 	 */
@@ -398,7 +399,7 @@ public class DatabaseAccessor
 	 * auto-generated id. Also informs the multiTableHandler about the addition. This should 
 	 * be used for auto-indexing tables.
 	 * @param targetTable The table the data is inserted into
-	 * @param columnData The data inserted into the table
+	 * @param columnData The data inserted into the table. No brackets needed.
 	 * @param idColumnName The name of the auto-increment id column
 	 * @return The id generated during the insert
 	 * @throws DatabaseUnavailableException If the database couldn't be accessed
@@ -503,9 +504,10 @@ public class DatabaseAccessor
 	 * Updates a value in a column for certain rows
 	 * @param table The table in which the update is done
 	 * @param targetColumn The column which should contain the targetValue
-	 * @param targetValue The value the column should have in order to be updated
+	 * @param targetValue The value the column should have in order to be updated. No brackets 
+	 * needed.
 	 * @param changeColumn The column which is being updated
-	 * @param newValue The new value given to the changeColumn
+	 * @param newValue The new value given to the changeColumn. No brackets needed.
 	 * @throws SQLException If the update fails
 	 * @throws DatabaseUnavailableException If the database couldn't be accessed
 	 */
@@ -522,9 +524,10 @@ public class DatabaseAccessor
 	 * Updates a set of columns for certain rows
 	 * @param table The table in which the update is done
 	 * @param targetColumn The column which should contain the targetValue
-	 * @param targetValue The value the column should have in order to be updated
+	 * @param targetValue The value the column should have in order to be updated. No brackets 
+	 * needed.
 	 * @param changeColumns The columns which are being updated
-	 * @param newValues The new values given to the changeColumns
+	 * @param newValues The new values given to the changeColumns. No brackets needed.
 	 * @throws SQLException If the update fails
 	 * @throws DatabaseUnavailableException If the database couldn't be accessed
 	 */
@@ -545,11 +548,11 @@ public class DatabaseAccessor
 				{
 					if (columnIndex != 0)
 						statementBuilder.append(", ");
-					statementBuilder.append(changeColumns[columnIndex] + " = " + 
-						newValues[columnIndex]);
+					statementBuilder.append(changeColumns[columnIndex] + " = '" + 
+						newValues[columnIndex] + "'");
 				}
 				
-				statementBuilder.append(" WHERE " + targetColumn + " = " + targetValue);
+				statementBuilder.append(" WHERE " + targetColumn + " = '" + targetValue + "'");
 				
 				accessor.executeStatement(statementBuilder.toString());
 			}
