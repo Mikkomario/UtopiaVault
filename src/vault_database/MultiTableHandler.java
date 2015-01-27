@@ -4,6 +4,7 @@ import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.HashMap;
+import java.util.Map;
 
 /**
  * MultiTableHandler makes possible to divide a big chunk of data into multiple tables. 
@@ -21,20 +22,19 @@ public class MultiTableHandler
 	private final String INFOTABLENAME;
 	
 	// How many instances there are of each table
-	private HashMap<DatabaseTable, Integer> tableAmounts;
-	private DatabaseTable[] possibleTables;
+	private Map<DatabaseTable, Integer> tableAmounts;
+	private Map<String, Integer> unparsedTableAmounts;
 	
 	
 	// CONSTRUCTOR	--------------------------------------------------------------------
 	
 	/**
 	 * Creates a new MultiTableHandler. The handler's status is retrieved from a database.
-	 * @param possibleTables All the possible tables that could be handled by this handler
 	 * @param maxRowCount How many rows there should be in a single table at maximum
 	 * @throws SQLException If the given table is malformed or missing
 	 * @throws DatabaseUnavailableException If the database couldn't be accessed
 	 */
-	public MultiTableHandler(DatabaseTable[] possibleTables, int maxRowCount) 
+	public MultiTableHandler(int maxRowCount) 
 			throws DatabaseUnavailableException, SQLException
 	{
 		// Initializes attributes
@@ -42,8 +42,8 @@ public class MultiTableHandler
 		this.DBNAME = "multitable_db";
 		this.INFOTABLENAME = "tableamounts";
 		
-		this.tableAmounts = new HashMap<DatabaseTable, Integer>();
-		this.possibleTables = possibleTables;
+		this.tableAmounts = new HashMap<>();
+		this.unparsedTableAmounts = new HashMap<>();
 		
 		// Loads / initializes the data from the database
 		loadData();
@@ -51,24 +51,22 @@ public class MultiTableHandler
 	
 	/**
 	 * Creates a new MultiTableHandler. The handler's status is retrieved from a database.
-	 * @param possibleTables All the possible tables that could be handled by this handler
 	 * @param maxRowCount How many rows there should be in a single table at maximum
 	 * @param databaseName The name of the database that holds the multitable data
 	 * @param tableName The name of the table that holds the multitable data
 	 * @throws SQLException If the given table is malformed or missing
 	 * @throws DatabaseUnavailableException If the database couldn't be accessed
 	 */
-	public MultiTableHandler(DatabaseTable[] possibleTables, int maxRowCount, 
-			String databaseName, String tableName) throws DatabaseUnavailableException, 
-			SQLException
+	public MultiTableHandler(int maxRowCount, String databaseName, String tableName) throws 
+			DatabaseUnavailableException, SQLException
 	{
 		// Initializes attributes
 		this.MAXROWCOUNT = maxRowCount;
 		this.DBNAME = databaseName;
 		this.INFOTABLENAME = tableName;
 		
-		this.tableAmounts = new HashMap<DatabaseTable, Integer>();
-		this.possibleTables = possibleTables;
+		this.tableAmounts = new HashMap<>();
+		this.unparsedTableAmounts = new HashMap<>();
 		
 		// Loads / initializes the data from the database
 		loadData();
@@ -84,14 +82,15 @@ public class MultiTableHandler
 	 * @return How many tables of that type there currently are
 	 */
 	public int getTableAmount(DatabaseTable table)
-	{
+	{	
 		if (table == null)
 			return 0;
 		
 		if (!table.usesIndexing())
 			return 1;
 		
-		// TODO: Nullpointer?
+		updateTableAmount(table, -1);
+		
 		return this.tableAmounts.get(table);
 	}
 	
@@ -114,20 +113,9 @@ public class MultiTableHandler
 		
 		// Creates new tables until one can be found for the given id
 		if (createIfNecessary)
-		{
-			try
-			{
-				while (getTableNumberForID(id) > getTableAmount(table))
-				{
-					increaseTableAmount(table);
-				}
-			}
-			catch (SQLException | DatabaseUnavailableException e)
-			{
-				System.err.println("Failed to increase the table amount");
-				e.printStackTrace();
-			}
-		}
+			updateTableAmount(table, id);
+		else
+			updateTableAmount(table, -1);
 		
 		return table.getTableName() + getTableNumberForID(id);
 	}
@@ -140,47 +128,88 @@ public class MultiTableHandler
 	 */
 	public String getLatestTableName(DatabaseTable table)
 	{
+		updateTableAmount(table, -1);
 		return table.getTableName() + getTableAmount(table);
 	}
 	
 	/**
-	 * Informs the MultiTableHandler that a new row was added to a table. The MultiTableHandler 
-	 * requires this information for the system to work.
+	 * Informs the MultiTableHandler that a new row may have been added to a table. 
+	 * The MultiTableHandler requires this information for the system to work.
 	 * 
 	 * @param table The table type that was updated
-	 * @param newID The index of the new addition (if applicable)
+	 * @param latestID The index of the new addition (if applicable). Use -1 if no index data 
+	 * could be found
 	 */
-	public void informAboutNewRow(DatabaseTable table, int newID)
-	{
-		// If the table doesn't use indexing, doesn't do anything
+	public void updateTableAmount(DatabaseTable table, int latestID)
+	{		
+		// If the table doesn't use indexing, doesn't register it's amount
 		if (!table.usesIndexing())
 			return;
 		
-		// Also checks that the index would actually create a new table and creates a new table if necessary
-		if (getTableNumberForID(newID + 1) > getTableAmount(table))
+		// If the table isn't yet registered, remembers it
+		registerTable(table);
+		
+		// If there is no table of the given type, adds it to the database as well
+		if (!this.tableAmounts.containsKey(table))
 		{
+			this.tableAmounts.put(table, 1);
+			
+			DatabaseAccessor accessor = new DatabaseAccessor(this.DBNAME);
 			try
 			{
-				increaseTableAmount(table);
+				accessor.executeStatement("INSERT INTO " + this.INFOTABLENAME + " VALUES ('" + 
+						table.getTableName() + "', " + this.tableAmounts.get(table) + ")");
 			}
 			catch (SQLException | DatabaseUnavailableException e)
 			{
-				System.err.println("Failed to update the table amounts");
+				System.err.println("Failed to update table amounts");
 				e.printStackTrace();
+			}
+			finally
+			{
+				accessor.closeConnection();
+			}
+		}
+		
+		// Otherwise checks if the tableAmount should be increased
+		if (latestID >= 0)
+		{
+			while (getTableNumberForID(latestID + 1) > getTableAmount(table))
+			{
+				increaseTableAmount(table);
 			}
 		}
 	}
 	
-	private void saveStateIntoDatabase(DatabaseTable updatedTable) throws SQLException, 
-			DatabaseUnavailableException
+	private void registerTable(DatabaseTable table)
+	{
+		String tableName = table.getTableName();
+		if (this.unparsedTableAmounts.containsKey(tableName))
+		{
+			this.tableAmounts.put(table, this.unparsedTableAmounts.get(tableName));
+			this.unparsedTableAmounts.remove(tableName);
+		}
+	}
+	
+	private void saveStateIntoDatabase(DatabaseTable updatedTable)
 	{
 		DatabaseAccessor accessor = new DatabaseAccessor(this.DBNAME);
 		
-		accessor.executeStatement("UPDATE " + this.INFOTABLENAME + " SET latestIndex = " + 
-				getTableAmount(updatedTable) + " WHERE tableName = '" + 
-				updatedTable.getTableName() + "'");
-		
-		accessor.closeConnection();
+		try
+		{
+			accessor.executeStatement("UPDATE " + this.INFOTABLENAME + " SET latestIndex = " + 
+					getTableAmount(updatedTable) + " WHERE tableName = '" + 
+					updatedTable.getTableName() + "'");
+		}
+		catch (SQLException | DatabaseUnavailableException e)
+		{
+			System.err.println("Failed to update the table amounts");
+			e.printStackTrace();
+		}
+		finally
+		{
+			accessor.closeConnection();
+		}
 	}
 	
 	private void loadData() throws DatabaseUnavailableException, SQLException
@@ -190,7 +219,6 @@ public class MultiTableHandler
 			return;
 		
 		DatabaseAccessor accessor = new DatabaseAccessor(this.DBNAME);
-		
 		PreparedStatement statement = null;
 		ResultSet results = null;
 		
@@ -203,54 +231,15 @@ public class MultiTableHandler
 			{
 				String tableName = results.getString("tableName");
 				int latestIndex = results.getInt("latestIndex");
-				this.tableAmounts.put(parseTableFromString(tableName), latestIndex);
+				this.unparsedTableAmounts.put(tableName, latestIndex);
 			}
 		}
 		finally
 		{
 			DatabaseAccessor.closeResults(results);
 			DatabaseAccessor.closeStatement(statement);
+			accessor.closeConnection();
 		}
-		
-		// If no data was read, initializes the data manually and also records it to the database
-		if (this.tableAmounts.isEmpty())
-			initializeDataAsNew(accessor);
-		
-		accessor.closeConnection();
-	}
-	
-	private void initializeDataAsNew(DatabaseAccessor accessor) throws SQLException, 
-			DatabaseUnavailableException
-	{
-		// Initializes the object's local data
-		for (DatabaseTable table : this.possibleTables)
-		{
-			if (!table.usesIndexing())
-				continue;
-			
-			this.tableAmounts.put(table, 1);
-		}
-		
-		// Removes the existing data
-		accessor.executeStatement("DELETE FROM " + this.INFOTABLENAME);
-		
-		// Inserts the new data
-		for (DatabaseTable table : this.tableAmounts.keySet())
-		{
-			accessor.executeStatement("INSERT INTO " + this.INFOTABLENAME + " VALUES ('" + 
-					table.getTableName() + "', " + this.tableAmounts.get(table) + ")");
-		}
-	}
-	
-	private DatabaseTable parseTableFromString(String tableName)
-	{
-		for (DatabaseTable table : this.possibleTables)
-		{
-			if (table.getTableName().equalsIgnoreCase(tableName))
-				return table;
-		}
-		
-		return null;
 	}
 	
 	private int getTableNumberForID(int id)
@@ -265,7 +254,7 @@ public class MultiTableHandler
 	}
 	
 	// Creates a new empty table like the previous one, the new table uses different auto_indexing
-	private void increaseTableAmount(DatabaseTable table) throws SQLException, DatabaseUnavailableException
+	private void increaseTableAmount(DatabaseTable table)
 	{
 		String oldTableName = getLatestTableName(table);
 		
@@ -287,6 +276,11 @@ public class MultiTableHandler
 				accessor.executeStatement("ALTER TABLE " + newTableName + " AUTO_INCREMENT = " + 
 						newIncrement);
 			}
+		}
+		catch (SQLException | DatabaseUnavailableException e)
+		{
+			System.err.println("Failed to increase the table amount");
+			e.printStackTrace();
 		}
 		finally
 		{

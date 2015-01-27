@@ -271,7 +271,7 @@ public class DatabaseAccessor
 	 * @param table The table type that should contain the information
 	 * @param keyColumn The name of the column where the key is
 	 * @param keyValue The value which the column must have in order for the row to make it 
-	 * to the result
+	 * to the result. No brackets required.
 	 * @param valueColumn From which column the returned value is extracted from
 	 * @return A list containing all the collected values
 	 * @throws SQLException If the given values were invalid
@@ -294,7 +294,7 @@ public class DatabaseAccessor
 	 * @param table The table type that should contain the information
 	 * @param keyColumns The names of the columns where the keys are
 	 * @param keyValues The values which the columns must have in order for the row to make 
-	 * it to the result
+	 * it to the result. No brackets required.
 	 * @param valueColumn From which column the returned value is extracted from
 	 * @return A list containing all the collected values
 	 * @throws SQLException If the given values were invalid
@@ -324,7 +324,8 @@ public class DatabaseAccessor
 				{
 					if (keyIndex != 0)
 						statementString.append(" AND ");
-					statementString.append(keyColumns[keyIndex] + " = " + keyValues[keyIndex]);
+					statementString.append(keyColumns[keyIndex] + " = '" + 
+							keyValues[keyIndex] + "'");
 				}
 			}
 			
@@ -349,7 +350,7 @@ public class DatabaseAccessor
 	
 	/**
 	 * Inserts new data to the given table. In case of an indexed table, remember to also call 
-	 * {@link MultiTableHandler#informAboutNewRow(DatabaseTable, int)} once the method has 
+	 * {@link MultiTableHandler#updateTableAmount(DatabaseTable, int)} once the method has 
 	 * completed.
 	 * @param targetTable The table the data will be inserted into
 	 * @param columnData The data posted to the table (in the same order as in the tables). 
@@ -357,17 +358,34 @@ public class DatabaseAccessor
 	 * data
 	 * @throws SQLException If the insert failed
 	 * @throws DatabaseUnavailableException If the database couldn't be accessed
+	 * @throws InvalidTableTypeException If the table uses indexing
 	 */
 	public static void insert(DatabaseTable targetTable, List<String> columnData) throws 
-			SQLException, DatabaseUnavailableException
+			SQLException, DatabaseUnavailableException, InvalidTableTypeException
 	{
 		insert(targetTable, getColumnDataString(columnData));
 	}
 	
 	/**
 	 * Inserts new data to the given table. In case of an indexed table, remember to also call 
-	 * {@link MultiTableHandler#informAboutNewRow(DatabaseTable, int)} once the method has 
+	 * {@link MultiTableHandler#updateTableAmount(DatabaseTable, int)} once the method has 
 	 * completed.
+	 * @param targetTable The table the data will be inserted into
+	 * @param columnData The data posted to the table (in the same order as in the tables). 
+	 * All data will be considered to be strings. No brackets are required around any piece of 
+	 * data
+	 * @param newID The identifier of the new entity
+	 * @throws SQLException If the insert failed
+	 * @throws DatabaseUnavailableException If the database couldn't be accessed
+	 */
+	public static void insert(DatabaseTable targetTable, List<String> columnData, int newID) 
+			throws SQLException, DatabaseUnavailableException
+	{
+		insert(targetTable, getColumnDataString(columnData), newID);
+	}
+	
+	/**
+	 * Inserts new data to the given table.
 	 * @param targetTable The table the data will be inserted into
 	 * @param columnData The data posted to the table (in the same order as in the tables). 
 	 * Each value should be separated with a ','. Auto-increment id shouldn't be included. 
@@ -375,8 +393,29 @@ public class DatabaseAccessor
 	 * For example "'one', 2, 'three'".
 	 * @throws SQLException If the insert failed
 	 * @throws DatabaseUnavailableException If the database couldn't be accessed
+	 * @throws InvalidTableTypeException If the table uses indexing
 	 */
 	public static void insert(DatabaseTable targetTable, String columnData) throws 
+			SQLException, DatabaseUnavailableException, InvalidTableTypeException
+	{
+		if (targetTable.usesIndexing())
+			throw new InvalidTableTypeException("No index provided on indexed table insert");
+		
+		insert(targetTable, columnData, -1);
+	}
+	
+	/**
+	 * Inserts new data to the given table.
+	 * @param targetTable The table the data will be inserted into
+	 * @param columnData The data posted to the table (in the same order as in the tables). 
+	 * Each value should be separated with a ','. Auto-increment id shouldn't be included. 
+	 * If the value is to be considered a string, it should be surrounded by "'" brackets. 
+	 * For example "'one', 2, 'three'".
+	 * @param newID The identifier of the object that is being inserted
+	 * @throws SQLException If the insert failed
+	 * @throws DatabaseUnavailableException If the database couldn't be accessed
+	 */
+	public static void insert(DatabaseTable targetTable, String columnData, int newID) throws 
 			SQLException, DatabaseUnavailableException
 	{
 		// Opens connection
@@ -385,13 +424,17 @@ public class DatabaseAccessor
 		// Inserts data
 		try
 		{
-			accessor.executeStatement(getInsertStatement(targetTable, columnData));
+			accessor.executeStatement(getInsertStatement(targetTable, columnData, newID));
 		}
 		finally
 		{
 			// Closes connection
 			accessor.closeConnection();
 		}
+		
+		// Updates the table amounts
+		if (targetTable.usesIndexing())
+			DatabaseSettings.getTableHandler().updateTableAmount(targetTable, newID);
 	}
 	
 	/**
@@ -405,9 +448,11 @@ public class DatabaseAccessor
 	 * @throws DatabaseUnavailableException If the database couldn't be accessed
 	 * @throws SQLException If the insert failed or if the table doesn't use auto-increment 
 	 * indexing
+	 * @throws InvalidTableTypeException If the table doesn't use auto-increment indexing
 	 */
 	public static int insert(DatabaseTable targetTable, List<String> columnData, 
-			String idColumnName) throws DatabaseUnavailableException, SQLException
+			String idColumnName) throws DatabaseUnavailableException, SQLException, 
+			InvalidTableTypeException
 	{
 		return insert(targetTable, getColumnDataString(columnData), idColumnName);
 	}
@@ -426,14 +471,16 @@ public class DatabaseAccessor
 	 * @throws DatabaseUnavailableException If the database couldn't be accessed
 	 * @throws SQLException If the insert failed or if the table doesn't use auto-increment 
 	 * indexing
+	 * @throws InvalidTableTypeException If the table doesn't use auto-increment indexing
 	 */
 	public static int insert(DatabaseTable targetTable, String columnData, 
-			String idColumnName) throws SQLException, DatabaseUnavailableException
+			String idColumnName) throws SQLException, DatabaseUnavailableException, 
+			InvalidTableTypeException
 	{
 		// Doesn't work if the table doesn't use auto-increment
 		if (!targetTable.usesAutoIncrementIndexing())
-			throw new SQLException("The table " + targetTable.getTableName() + 
-					" doesn't use auto-increment indexing so no id can be retrieved");
+			throw new InvalidTableTypeException(
+					"No id can be retrieved since the table doesn't use auto-indexing");
 		
 		DatabaseAccessor accessor = new DatabaseAccessor(targetTable.getDatabaseName());
 		PreparedStatement statement = null;
@@ -442,7 +489,7 @@ public class DatabaseAccessor
 		try
 		{
 			statement = accessor.getPreparedStatement(getInsertStatement(targetTable, 
-					columnData), true);
+					columnData, -1), true);
 			statement.execute();
 			
 			autoKeys = statement.getGeneratedKeys();
@@ -450,7 +497,7 @@ public class DatabaseAccessor
 			if (autoKeys.next())
 			{
 				int id = autoKeys.getInt(idColumnName);
-				DatabaseSettings.getTableHandler().informAboutNewRow(targetTable, id);
+				DatabaseSettings.getTableHandler().updateTableAmount(targetTable, id);
 				return id;
 			}
 		}
@@ -584,11 +631,18 @@ public class DatabaseAccessor
 	}
 	*/
 	
-	private static String getInsertStatement(DatabaseTable table, String columnDataString)
+	private static String getInsertStatement(DatabaseTable table, String columnDataString, 
+			int index)
 	{
 		StringBuilder statement = new StringBuilder();
 		statement.append("INSERT INTO ");
-		statement.append(DatabaseSettings.getTableHandler().getLatestTableName(table));
+		
+		if (index < 0)
+			statement.append(DatabaseSettings.getTableHandler().getLatestTableName(table));
+		else
+			statement.append(DatabaseSettings.getTableHandler().getTableNameForIndex(
+					table, index, true));
+		
 		statement.append(" values (");
 		
 		if (table.usesAutoIncrementIndexing())

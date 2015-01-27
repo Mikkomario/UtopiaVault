@@ -11,6 +11,7 @@ import vault_database.DatabaseAccessor;
 import vault_database.DatabaseSettings;
 import vault_database.DatabaseTable;
 import vault_database.DatabaseUnavailableException;
+import vault_database.InvalidTableTypeException;
 
 /**
  * This class tests the basic database features
@@ -62,7 +63,7 @@ public class DatabaseTest
 		{
 			System.out.println("Initializes settings");
 			
-			DatabaseSettings.initialize(address, user, password, TestTable.values(), 20);
+			DatabaseSettings.initialize(address, user, password, 20);
 			
 			// Inserts data
 			System.out.println("Inserts data");
@@ -76,7 +77,7 @@ public class DatabaseTest
 			// Finds data
 			System.out.println("Finds data");
 			System.out.println("The number of 'ones': " + 
-					DatabaseAccessor.findMatchingData(TestTable.DEFAULT, "name", "'one'", 
+					DatabaseAccessor.findMatchingData(TestTable.DEFAULT, "name", "one", 
 					"id").size());
 			// Removes data
 			System.out.println("Removes data");
@@ -84,7 +85,7 @@ public class DatabaseTest
 			
 			System.out.println("OK!");
 		}
-		catch (DatabaseUnavailableException | SQLException e)
+		catch (Exception e)
 		{
 			System.err.println("FAILURE!");
 			e.printStackTrace();
@@ -95,7 +96,8 @@ public class DatabaseTest
 	// OTHER METHODS	-------------------------
 	
 	private static void insert(int amount, String[] possibleNames, 
-			Integer[] possibleAdditionals) throws SQLException, DatabaseUnavailableException
+			Integer[] possibleAdditionals) throws SQLException, DatabaseUnavailableException, 
+			InvalidTableTypeException
 	{
 		Random random = new Random();
 		

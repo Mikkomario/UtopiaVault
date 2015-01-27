@@ -9,7 +9,8 @@ import java.util.List;
 /**
  * This class is an interface for all classes who need to represent tables in a database. 
  * DatabaseTables are used in multiTableHandling, for example. The subclasses should be 
- * enumerations rather than normal classes.
+ * enumerations rather than normal classes. In case a normal class inherits this class, it 
+ * should override its equals method.
  * 
  * @author Mikko Hilpinen
  * @since 25.7.2014
@@ -19,7 +20,7 @@ public interface DatabaseTable
 	// ABSTRACT METHODS	----------------------------------------------------------
 	
 	/**
-	 * @return Is indexing used in this table
+	 * @return Is integer indexing used in this table
 	 */
 	public boolean usesIndexing();
 	
@@ -86,4 +87,30 @@ public interface DatabaseTable
 		
 		return columnNames;
 	}
+	
+	/**
+	 * Combines two sets of possible database table values together. This can be used when 
+	 * initializing the multiTableHandler, for example.
+	 * @param a The first set of possible tables
+	 * @param b The second set of possible tables
+	 * @return A combined set of possible tables
+	 */
+	/*
+	public static DatabaseTable[] combinePossibleTables(DatabaseTable[] a, DatabaseTable[] b)
+	{
+		DatabaseTable[] combined = new DatabaseTable[a.length + b.length];
+		
+		for (int i = 0; i < a.length; i++)
+		{
+			combined[i] = a[i];
+		}
+		
+		for (int i = 0; i < b.length; i++)
+		{
+			combined[a.length + i] = b[i];
+		}
+		
+		return combined;
+	}
+	*/
 }
