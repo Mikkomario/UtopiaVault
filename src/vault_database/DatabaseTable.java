@@ -82,7 +82,7 @@ public interface DatabaseTable
 		}
 		
 		// Removes the id column (always first) in case there is (or should be) one
-		if (table.usesIndexing())
+		if (table.usesAutoIncrementIndexing())
 			columnNames.remove(0);
 		
 		return columnNames;

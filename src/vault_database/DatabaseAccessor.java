@@ -281,10 +281,32 @@ public class DatabaseAccessor
 			String keyValue, String valueColumn) throws DatabaseUnavailableException, 
 			SQLException
 	{
+		return findMatchingData(table, keyColumn, keyValue, valueColumn, -1);
+	}
+	
+	/**
+	 * Performs a search through all the tables of a certain type in order to find the 
+	 * matching column data.
+	 * 
+	 * @param table The table type that should contain the information
+	 * @param keyColumn The name of the column where the key is
+	 * @param keyValue The value which the column must have in order for the row to make it 
+	 * to the result. No brackets required.
+	 * @param valueColumn From which column the returned value is extracted from
+	 * @param limit The amount of results that should be returned at maximum. Use a negative 
+	 * value if you don't want to pose a limit.
+	 * @return A list containing all the collected values
+	 * @throws SQLException If the given values were invalid
+	 * @throws DatabaseUnavailableException If the database couldn't be accessed
+	 */
+	public static List<String> findMatchingData(DatabaseTable table, String keyColumn, 
+			String keyValue, String valueColumn, int limit) throws DatabaseUnavailableException, 
+			SQLException
+	{
 		String[] keyColumns = {keyColumn};
 		String[] keyValues = {keyValue};
 		
-		return findMatchingData(table, keyColumns, keyValues, valueColumn);
+		return findMatchingData(table, keyColumns, keyValues, valueColumn, limit);
 	}
 	
 	/**
@@ -304,47 +326,88 @@ public class DatabaseAccessor
 			String[] keyValues, String valueColumn) throws DatabaseUnavailableException, 
 			SQLException
 	{
+		return findMatchingData(table, keyColumns, keyValues, valueColumn, -1);
+	}
+	
+	/**
+	 * Performs a search through all the tables of a certain type in order to find the 
+	 * matching column data.
+	 * 
+	 * @param table The table type that should contain the information
+	 * @param keyColumns The names of the columns where the keys are
+	 * @param keyValues The values which the columns must have in order for the row to make 
+	 * it to the result. No brackets required.
+	 * @param valueColumn From which column the returned value is extracted from
+	 * @param limit The amount of results that should be returned at maximum. Use a negative 
+	 * value if you don't want to pose a limit.
+	 * @return A list containing all the collected values
+	 * @throws SQLException If the given values were invalid
+	 * @throws DatabaseUnavailableException If the database couldn't be accessed
+	 */
+	public static List<String> findMatchingData(DatabaseTable table, String[] keyColumns, 
+			String[] keyValues, String valueColumn, int limit) throws 
+			DatabaseUnavailableException, SQLException
+	{
 		List<String> resultData = new ArrayList<>();
 		
 		// Performs a database query
 		DatabaseAccessor accessor = new DatabaseAccessor(table.getDatabaseName());
 		
-		int tables = DatabaseSettings.getTableHandler().getTableAmount(table);
-		
-		// Goes through all the userData tables in order
-		for (int i = 1; i <= tables; i++)
-		{	
-			StringBuilder statementString = new StringBuilder("SELECT * FROM " + 
-					table.getTableName() + i);
+		try
+		{
+			int tables = DatabaseSettings.getTableHandler().getTableAmount(table);
+			int matchesFound = 0;
 			
-			if (keyColumns.length > 0)
-			{
-				statementString.append(" WHERE ");
-				for (int keyIndex = 0; keyIndex < keyColumns.length; keyIndex ++)
+			// Goes through all the userData tables in order
+			for (int i = 1; i <= tables; i++)
+			{	
+				StringBuilder statementString = new StringBuilder("SELECT * FROM " + 
+						table.getTableName() + i);
+				
+				if (keyColumns.length > 0)
 				{
-					if (keyIndex != 0)
-						statementString.append(" AND ");
-					statementString.append(keyColumns[keyIndex] + " = '" + 
-							keyValues[keyIndex] + "'");
+					statementString.append(" WHERE ");
+					for (int keyIndex = 0; keyIndex < keyColumns.length; keyIndex ++)
+					{
+						if (keyIndex != 0)
+							statementString.append(" AND ");
+						statementString.append(keyColumns[keyIndex] + " = '" + 
+								keyValues[keyIndex] + "'");
+					}
+				}
+				
+				// The amount of returned values may be limited already in the query
+				if (limit >= 0)
+					statementString.append(" LIMIT " + (limit - matchesFound));
+				
+				PreparedStatement statement = null;
+				ResultSet results = null;
+				
+				try
+				{
+					statement = accessor.getPreparedStatement(statementString.toString());
+					results = statement.executeQuery();
+					
+					while (results.next())
+					{
+						resultData.add(results.getString(valueColumn));
+						matchesFound ++;
+					}
+				}
+				finally
+				{
+					DatabaseAccessor.closeResults(results);
+					DatabaseAccessor.closeStatement(statement);
+					
+					if (limit >= 0 && matchesFound >= limit)
+						break;
 				}
 			}
-			
-			PreparedStatement statement = 
-					accessor.getPreparedStatement(statementString.toString());
-			ResultSet results = null;
-			
-			results = statement.executeQuery();
-			
-			while (results.next())
-			{
-				resultData.add(results.getString(valueColumn));
-			}
-			
-			DatabaseAccessor.closeResults(results);
-			DatabaseAccessor.closeStatement(statement);
 		}
-		
-		accessor.closeConnection();
+		finally
+		{
+			accessor.closeConnection();
+		}
 		return resultData;
 	}
 	
@@ -367,9 +430,7 @@ public class DatabaseAccessor
 	}
 	
 	/**
-	 * Inserts new data to the given table. In case of an indexed table, remember to also call 
-	 * {@link MultiTableHandler#updateTableAmount(DatabaseTable, int)} once the method has 
-	 * completed.
+	 * Inserts new data to the given table.
 	 * @param targetTable The table the data will be inserted into
 	 * @param columnData The data posted to the table (in the same order as in the tables). 
 	 * All data will be considered to be strings. No brackets are required around any piece of 
@@ -516,7 +577,7 @@ public class DatabaseAccessor
 	 * @param targetTable The table type from which data is removed
 	 * @param targetColumn The column which is used for checking whether data should be deleted.
 	 * @param targetValue The value which the column must have in order for the data to be 
-	 * deleted
+	 * deleted. Brackets aren't necessary.
 	 * @throws SQLException If the deletion failed
 	 * @throws DatabaseUnavailableException If the database couldn't be accessed
 	 */
@@ -534,9 +595,9 @@ public class DatabaseAccessor
 				statement.append(i);
 				statement.append(" WHERE ");
 				statement.append(targetColumn);
-				statement.append(" = ");
+				statement.append(" = '");
 				statement.append(targetValue);
-				statement.append(";");
+				statement.append("';");
 				
 				accessor.executeStatement(statement.toString());
 			}
@@ -647,7 +708,7 @@ public class DatabaseAccessor
 		
 		if (table.usesAutoIncrementIndexing())
 			statement.append("null, ");
-		
+			
 		statement.append(columnDataString);
 		
 		statement.append(");");
