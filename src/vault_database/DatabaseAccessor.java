@@ -10,6 +10,8 @@ import java.util.ArrayList;
 import java.util.List;
 
 import vault_database.DatabaseSettings.UninitializedSettingsException;
+import vault_recording.DatabaseReadable;
+import vault_recording.DatabaseWritable;
 
 /**
  * DatabaseAccessProvider is used to access and modify data in a database. 
@@ -412,21 +414,80 @@ public class DatabaseAccessor
 	}
 	
 	/**
-	 * Inserts new data to the given table. In case of an indexed table, remember to also call 
-	 * {@link MultiTableHandler#updateTableAmount(DatabaseTable, int)} once the method has 
-	 * completed.
-	 * @param targetTable The table the data will be inserted into
-	 * @param columnData The data posted to the table (in the same order as in the tables). 
-	 * All data will be considered to be strings. No brackets are required around any piece of 
-	 * data
-	 * @throws SQLException If the insert failed
-	 * @throws DatabaseUnavailableException If the database couldn't be accessed
-	 * @throws InvalidTableTypeException If the table uses indexing
+	 * Finds the primary keys from the rows with matching data
+	 * @param table The table that is searched through
+	 * @param keyColumn The name of the column that holds the key data
+	 * @param keyValue The key data that is searched for
+	 * @return A list of all the primary keys with matching data
+	 * @throws DatabaseUnavailableException If the database couldn't be reached
+	 * @throws SQLException If the search couldn't be performed
+	 * @throws InvalidTableTypeException If the table doesn't have a primary key column
 	 */
-	public static void insert(DatabaseTable targetTable, List<String> columnData) throws 
-			SQLException, DatabaseUnavailableException, InvalidTableTypeException
+	public static List<String> findMatchingIDs(DatabaseTable table, 
+			String keyColumn, String keyValue) throws DatabaseUnavailableException, 
+			SQLException, InvalidTableTypeException
 	{
-		insert(targetTable, getColumnDataString(columnData));
+		checkPrimaryKeyColumn(table);
+		return DatabaseAccessor.findMatchingData(table, keyColumn, keyValue, 
+				table.getPrimaryColumnName());
+	}
+	
+	/**
+	 * Finds the primary keys from the rows with matching data
+	 * @param table The table that is searched through
+	 * @param keyColumns The names of the columns that hold the key data
+	 * @param keyValues The key data that is searched for
+	 * @return A list of all the primary keys with matching data
+	 * @throws DatabaseUnavailableException If the database couldn't be reached
+	 * @throws SQLException If the search couldn't be performed
+	 * @throws InvalidTableTypeException If the table doesn't have a primary key column
+	 */
+	public static List<String> findMatchingIDs(DatabaseTable table, String[] keyColumns, 
+			String[] keyValues) throws DatabaseUnavailableException, SQLException, InvalidTableTypeException
+	{
+		checkPrimaryKeyColumn(table);
+		return DatabaseAccessor.findMatchingData(table, keyColumns, keyValues, 
+				table.getPrimaryColumnName());
+	}
+	
+	/**
+	 * Finds the primary keys from the rows with matching data
+	 * @param table The table that is searched through
+	 * @param keyColumn The name of the column that holds the key data
+	 * @param keyValue The key data that is searched for
+	 * @param limit How many keys will be returned at maximum
+	 * @return A list of all the primary keys with matching data
+	 * @throws DatabaseUnavailableException If the database couldn't be reached
+	 * @throws SQLException If the search couldn't be performed
+	 * @throws InvalidTableTypeException If the table doesn't have a primary key column
+	 */
+	public static List<String> findMatchingIDs(DatabaseTable table, 
+			String keyColumn, String keyValue, int limit) throws DatabaseUnavailableException, 
+			SQLException, InvalidTableTypeException
+	{
+		checkPrimaryKeyColumn(table);
+		return DatabaseAccessor.findMatchingData(table, keyColumn, keyValue, 
+				table.getPrimaryColumnName(), limit);
+	}
+	
+	/**
+	 * Finds the primary keys from the rows with matching data
+	 * @param table The table that is searched through
+	 * @param keyColumns The names of the columns that hold the key data
+	 * @param keyValues The key data that is searched for
+	 * @param limit How many keys will be returned at maximum
+	 * @return A list of all the primary keys with matching data
+	 * @throws DatabaseUnavailableException If the database couldn't be reached
+	 * @throws SQLException If the search couldn't be performed
+	 * @throws InvalidTableTypeException If the table doesn't have a primary key column
+	 */
+	public static List<String> findMatchingIDs(DatabaseTable table, String[] keyColumns, 
+			String[] keyValues, int limit) throws DatabaseUnavailableException, SQLException, 
+			InvalidTableTypeException
+	{
+		checkPrimaryKeyColumn(table);
+		return DatabaseAccessor.findMatchingData(table, keyColumns, keyValues, 
+				table.getPrimaryColumnName(), limit);
 	}
 	
 	/**
@@ -434,7 +495,26 @@ public class DatabaseAccessor
 	 * @param targetTable The table the data will be inserted into
 	 * @param columnData The data posted to the table (in the same order as in the tables). 
 	 * All data will be considered to be strings. No brackets are required around any piece of 
-	 * data
+	 * data. If the table uses auto-increment indexing, the columnData shouldn't contain the 
+	 * primary key and it should be placed first in the table.
+	 * @return The integer index if one was generated during auto-increment indexing. -1 otherwise.
+	 * @throws SQLException If the insert failed
+	 * @throws DatabaseUnavailableException If the database couldn't be accessed
+	 * @throws InvalidTableTypeException If the table uses integer indexing but not 
+	 * auto-increment indexing
+	 */
+	public static int insert(DatabaseTable targetTable, List<String> columnData) throws 
+			SQLException, DatabaseUnavailableException, InvalidTableTypeException
+	{
+		return insert(targetTable, getColumnDataString(columnData));
+	}
+	
+	/**
+	 * Inserts new data to the given table.
+	 * @param targetTable The table the data will be inserted into
+	 * @param columnData The data posted to the table (in the same order as in the tables). 
+	 * All data will be considered to be strings. No brackets are required around any piece of 
+	 * data. The index should be included.
 	 * @param newID The identifier of the new entity
 	 * @throws SQLException If the insert failed
 	 * @throws DatabaseUnavailableException If the database couldn't be accessed
@@ -449,29 +529,35 @@ public class DatabaseAccessor
 	 * Inserts new data to the given table.
 	 * @param targetTable The table the data will be inserted into
 	 * @param columnData The data posted to the table (in the same order as in the tables). 
-	 * Each value should be separated with a ','. Auto-increment id shouldn't be included. 
-	 * If the value is to be considered a string, it should be surrounded by "'" brackets. 
-	 * For example "'one', 2, 'three'".
+	 * Strings need to be surrounded with brackets ('). 
+	 * If the table uses auto-increment indexing, the columnData shouldn't contain the 
+	 * primary key and it should be placed first in the table.
+	 * @return The integer index if one was generated during auto-increment indexing. -1 otherwise.
 	 * @throws SQLException If the insert failed
 	 * @throws DatabaseUnavailableException If the database couldn't be accessed
-	 * @throws InvalidTableTypeException If the table uses indexing
+	 * @throws InvalidTableTypeException If the table uses indexing but not auto-increment indexing.
 	 */
-	public static void insert(DatabaseTable targetTable, String columnData) throws 
+	public static int insert(DatabaseTable targetTable, String columnData) throws 
 			SQLException, DatabaseUnavailableException, InvalidTableTypeException
 	{
-		if (targetTable.usesIndexing())
-			throw new InvalidTableTypeException("No index provided on indexed table insert");
-		
-		insert(targetTable, columnData, -1);
+		if (targetTable.usesAutoIncrementIndexing())
+			return insertWithAutoIncrement(targetTable, columnData);
+		else
+		{
+			if (targetTable.usesIntegerIndexing())
+				throw new InvalidTableTypeException("No index provided on indexed table insert");
+			
+			insert(targetTable, columnData, -1);
+			return -1;
+		}
 	}
 	
 	/**
-	 * Inserts new data to the given table.
+	 * Inserts new data to the given table
 	 * @param targetTable The table the data will be inserted into
 	 * @param columnData The data posted to the table (in the same order as in the tables). 
-	 * Each value should be separated with a ','. Auto-increment id shouldn't be included. 
-	 * If the value is to be considered a string, it should be surrounded by "'" brackets. 
-	 * For example "'one', 2, 'three'".
+	 * No brackets required. Strings need to be surrounded with brackets ('). 
+	 * The index should be included.
 	 * @param newID The identifier of the object that is being inserted
 	 * @throws SQLException If the insert failed
 	 * @throws DatabaseUnavailableException If the database couldn't be accessed
@@ -494,82 +580,64 @@ public class DatabaseAccessor
 		}
 		
 		// Updates the table amounts
-		if (targetTable.usesIndexing())
+		if (targetTable.usesIntegerIndexing())
 			DatabaseSettings.getTableHandler().updateTableAmount(targetTable, newID);
 	}
 	
 	/**
-	 * Inserts new data into the given table while also collecting and returning the 
-	 * auto-generated id. Also informs the multiTableHandler about the addition. This should 
-	 * be used for auto-indexing tables.
-	 * @param targetTable The table the data is inserted into
-	 * @param columnData The data inserted into the table. No brackets needed.
-	 * @param idColumnName The name of the auto-increment id column
-	 * @return The id generated during the insert
-	 * @throws DatabaseUnavailableException If the database couldn't be accessed
-	 * @throws SQLException If the insert failed or if the table doesn't use auto-increment 
-	 * indexing
-	 * @throws InvalidTableTypeException If the table doesn't use auto-increment indexing
+	 * Inserts the object's data into the database. If the object's data already exists in the 
+	 * database, updates it instead of inserting new data.
+	 * @param object The object that will be written into the database
+	 * @throws SQLException If the writing fails
+	 * @throws DatabaseUnavailableException If the database can't be accessed
 	 */
-	public static int insert(DatabaseTable targetTable, List<String> columnData, 
-			String idColumnName) throws DatabaseUnavailableException, SQLException, 
-			InvalidTableTypeException
+	public static void insert(DatabaseWritable object) throws SQLException, 
+			DatabaseUnavailableException
 	{
-		return insert(targetTable, getColumnDataString(columnData), idColumnName);
-	}
-	
-	/**
-	 * Inserts new data into the given table while also collecting and returning the 
-	 * auto-generated id. Also informs the multiTableHandler about the addition. This 
-	 * should be used for auto-indexing tables.
-	 * @param targetTable The table the data is inserted into
-	 * @param columnData The data posted to the table (in the same order as in the tables). 
-	 * Each value should be separated with a ','. Auto-increment id shouldn't be included. 
-	 * If the value is to be considered a string, it should be surrounded by "'" brackets. 
-	 * For example "'one', 2, 'three'".
-	 * @param idColumnName The name of the auto-increment id column
-	 * @return The id generated during the insert
-	 * @throws DatabaseUnavailableException If the database couldn't be accessed
-	 * @throws SQLException If the insert failed or if the table doesn't use auto-increment 
-	 * indexing
-	 * @throws InvalidTableTypeException If the table doesn't use auto-increment indexing
-	 */
-	public static int insert(DatabaseTable targetTable, String columnData, 
-			String idColumnName) throws SQLException, DatabaseUnavailableException, 
-			InvalidTableTypeException
-	{
-		// Doesn't work if the table doesn't use auto-increment
-		if (!targetTable.usesAutoIncrementIndexing())
-			throw new InvalidTableTypeException(
-					"No id can be retrieved since the table doesn't use auto-indexing");
-		
-		DatabaseAccessor accessor = new DatabaseAccessor(targetTable.getDatabaseName());
-		PreparedStatement statement = null;
-		ResultSet autoKeys = null;
-		
 		try
 		{
-			statement = accessor.getPreparedStatement(getInsertStatement(targetTable, 
-					columnData, -1), true);
-			statement.execute();
-			
-			autoKeys = statement.getGeneratedKeys();
-			
-			if (autoKeys.next())
+			// If the object already exists, updates it instead
+			if (objectIsInDatabase(object))
+				update(object);
+			else
 			{
-				int id = autoKeys.getInt(idColumnName);
-				DatabaseSettings.getTableHandler().updateTableAmount(targetTable, id);
-				return id;
+				// Finds the object's column data
+				List<String> columnNames = object.getTable().getColumnNames();
+				List<String> columnValues = new ArrayList<>();
+				for (String columnName : columnNames)
+				{
+					columnValues.add(object.getColumnValue(columnName));
+				}
+				
+				// If auto-increment indexing is used, the object will be informed accordingly
+				if (object.getTable().usesAutoIncrementIndexing())
+				{
+					// Modifies column data (doesn't include the first auto-increment slot)
+					columnValues.remove(0);
+					
+					object.newIndexGenerated(insert(object.getTable(), columnValues));
+				}
+				else
+				{
+					// Otherwise the index will be provided by the object
+					if (object.getTable().usesIntegerIndexing())
+					{
+						int newIndex = Integer.parseInt(object.getColumnValue(
+								object.getTable().getPrimaryColumnName()));
+						insert(object.getTable(), columnValues, newIndex);
+					}
+					// Or not used at all
+					else
+						insert(object.getTable(), columnValues);
+				}
 			}
 		}
-		finally
+		catch (InvalidTableTypeException e)
 		{
-			DatabaseAccessor.closeResults(autoKeys);
-			DatabaseAccessor.closeStatement(statement);
-			accessor.closeConnection();
+			// This should never be reached
+			System.err.println(
+					"DatabaseAccessor.insert(DatabaseWritable) isn't working correctly");
 		}
-		
-		return 0;
 	}
 	
 	/**
@@ -671,6 +739,175 @@ public class DatabaseAccessor
 		}
 	}
 	
+	/**
+	 * Updates an object's data into the database. If the object doesn't exist in the 
+	 * database, nothing is changed.
+	 * @param object The object whose data will be updated to the database.
+	 * @throws InvalidTableTypeException If the object's table doesn't have a primary column.
+	 * @throws SQLException If the operation failed.
+	 * @throws DatabaseUnavailableException If the database couldn't be reached.
+	 */
+	public static void update(DatabaseWritable object) throws InvalidTableTypeException, 
+			SQLException, DatabaseUnavailableException
+	{
+		// This only works if the object table uses primary keys and the object has one
+		String primaryColumnName = object.getTable().getPrimaryColumnName();
+		if (primaryColumnName == null)
+			throw new InvalidTableTypeException("The table " + object.getTable() + 
+					" doesn't have a primary column");
+		
+		String id = object.getColumnValue(primaryColumnName);
+		if (id == null)
+			return;
+		
+		// Collects the data required for the operation
+		List<String> updatedColumns = object.getTable().getColumnNames();
+		updatedColumns.remove(primaryColumnName);
+		String[] updatedValues = new String[updatedColumns.size()];
+		for (int i = 0; i < updatedValues.length; i++)
+		{
+			updatedValues[i] = object.getColumnValue(updatedColumns.get(i));
+		}
+		
+		// Performs the update
+		update(object.getTable(), primaryColumnName, id, 
+				updatedColumns.toArray(new String[0]), updatedValues);
+	}
+	
+	/**
+	 * Checks if an object already has its data stored in a database. If the object's table 
+	 * doesn't have a primary column, this can't be determined and false will be returned.
+	 * @param object The object that may or may not exist in the database
+	 * @return Does the database already contain the object's data
+	 * @throws DatabaseUnavailableException If the database couldn't be reached
+	 * @throws SQLException If the operation failed
+	 */
+	public static boolean objectIsInDatabase(DatabaseWritable object) throws 
+			DatabaseUnavailableException, SQLException
+	{
+		// If the table doesn't have primary columns, can't determine if the object exists 
+		// in the table
+		String primaryColumnName = object.getTable().getPrimaryColumnName();
+		if (primaryColumnName == null)
+			return false;
+		
+		String id = object.getColumnValue(object.getTable().getPrimaryColumnName());
+		
+		// If the object can't determine it's id, it is probably collecting it from 
+		// auto-increment data and hence not written yet
+		if (id == null)
+			return false;
+		
+		// Otherwise simply checks if the primary key is in use
+		return !findMatchingData(object.getTable(), primaryColumnName, id, primaryColumnName, 
+				1).isEmpty();
+	}
+	
+	/**
+	 * Reads the object's data from the database and informs the object
+	 * @param object The object that will be informed about the readings
+	 * @param objectIdentifier The identifier with which the object is stored in the database 
+	 * (primary key)
+	 * @return Could any data be found. If false, the object may be unusable.
+	 * @throws DatabaseUnavailableException If the database couldn't be reached.
+	 * @throws SQLException If the operation failed.
+	 */
+	public static boolean readObjectData(DatabaseReadable object, String objectIdentifier) 
+			throws DatabaseUnavailableException, SQLException
+	{
+		DatabaseAccessor accessor = null;
+		PreparedStatement statement = null;
+		ResultSet results = null;
+		
+		try
+		{
+			accessor = new DatabaseAccessor(object.getTable().getDatabaseName());
+			
+			// Parses the identifier, if necessary
+			int id = 0;
+			if (object.getTable().usesIntegerIndexing())
+				id = Integer.parseInt(objectIdentifier);
+			
+			statement = accessor.getPreparedStatement(new StringBuilder(
+					"SELECT * FROM ").append(
+					DatabaseSettings.getTableHandler().getTableNameForIndex(object.getTable(), 
+					id, false)).append(" WHERE ").append(
+					object.getTable().getPrimaryColumnName()).append(" = '").append(
+					objectIdentifier + "'").toString());
+			
+			results = statement.executeQuery();
+			
+			if (results.next())
+			{
+				// Goes through the columns and informs the object about their contents
+				for (String field : object.getTable().getColumnNames())
+				{
+					object.setValue(field, results.getString(field));
+				}
+				
+				return true;
+			}
+			else
+				return false;
+		}
+		finally
+		{
+			if (accessor != null)
+				accessor.closeConnection();
+		}
+	}
+	
+	/**
+	 * Inserts new data into the given table while also collecting and returning the 
+	 * auto-generated id. Also informs the multiTableHandler about the addition. This 
+	 * should be used for auto-indexing tables.
+	 * @param targetTable The table the data is inserted into
+	 * @param columnData The data posted to the table (in the same order as in the tables). 
+	 * Strings need to be surrounded with brackets (')
+	 * @param idColumnName The name of the auto-increment id column
+	 * @return The id generated during the insert
+	 * @throws DatabaseUnavailableException If the database couldn't be accessed
+	 * @throws SQLException If the insert failed or if the table doesn't use auto-increment 
+	 * indexing
+	 * @throws InvalidTableTypeException If the table doesn't use auto-increment indexing
+	 */
+	private static int insertWithAutoIncrement(DatabaseTable targetTable, String columnData) 
+			throws SQLException, DatabaseUnavailableException, InvalidTableTypeException
+	{
+		// Doesn't work if the table doesn't use auto-increment
+		if (!targetTable.usesAutoIncrementIndexing())
+			throw new InvalidTableTypeException(
+					"No id can be retrieved since the table doesn't use auto-increment indexing");
+		
+		DatabaseAccessor accessor = new DatabaseAccessor(targetTable.getDatabaseName());
+		PreparedStatement statement = null;
+		ResultSet autoKeys = null;
+		
+		try
+		{
+			statement = accessor.getPreparedStatement(getInsertStatement(targetTable, 
+					columnData, -1), true);
+			statement.execute();
+			
+			autoKeys = statement.getGeneratedKeys();
+			
+			if (autoKeys.next())
+			{
+				int id = autoKeys.getInt(targetTable.getPrimaryColumnName());
+				DatabaseSettings.getTableHandler().updateTableAmount(targetTable, id);
+				return id;
+			}
+		}
+		finally
+		{
+			DatabaseAccessor.closeResults(autoKeys);
+			DatabaseAccessor.closeStatement(statement);
+			accessor.closeConnection();
+		}
+		
+		return 0;
+	}
+	
 	private static String getColumnDataString(List<String> columnData)
 	{
 		StringBuilder columnDataString = new StringBuilder();
@@ -714,5 +951,12 @@ public class DatabaseAccessor
 		statement.append(");");
 		
 		return statement.toString();
+	}
+	
+	private static void checkPrimaryKeyColumn(DatabaseTable table) throws InvalidTableTypeException
+	{
+		if (table.getPrimaryColumnName() == null)
+			throw new InvalidTableTypeException(
+					"table " + table + " doesn't have a primary key column");
 	}
 }

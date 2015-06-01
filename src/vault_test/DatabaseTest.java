@@ -1,7 +1,5 @@
 package vault_test;
 
-import java.sql.PreparedStatement;
-import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.List;
@@ -12,6 +10,8 @@ import vault_database.DatabaseSettings;
 import vault_database.DatabaseTable;
 import vault_database.DatabaseUnavailableException;
 import vault_database.InvalidTableTypeException;
+import vault_recording.DatabaseReadable;
+import vault_recording.DatabaseWritable;
 
 /**
  * This class tests the basic database features
@@ -67,10 +67,13 @@ public class DatabaseTest
 			
 			// Inserts data
 			System.out.println("Inserts data");
-			insert(30, possibleNames, possibleAdditionals);
+			List<TestDatabaseEntity> data = insert(30, possibleNames, possibleAdditionals);
+			// Reads data
+			System.out.println("Reads data");
+			read();
 			// Updates data
 			System.out.println("Updates data");
-			update();
+			update(data);
 			// Reads data
 			System.out.println("Reads data");
 			read();
@@ -81,7 +84,10 @@ public class DatabaseTest
 					"id").size());
 			// Removes data
 			System.out.println("Removes data");
-			removeTestData();
+			removeTestData(data);
+			// Reads data
+			System.out.println("Reads data");
+			read();
 			
 			System.out.println("OK!");
 		}
@@ -95,79 +101,146 @@ public class DatabaseTest
 	
 	// OTHER METHODS	-------------------------
 	
-	private static void insert(int amount, String[] possibleNames, 
-			Integer[] possibleAdditionals) throws SQLException, DatabaseUnavailableException, 
-			InvalidTableTypeException
+	private static List<TestDatabaseEntity> insert(int amount, String[] possibleNames, 
+			Integer[] possibleAdditionals) throws SQLException, DatabaseUnavailableException
 	{
 		Random random = new Random();
+		List<TestDatabaseEntity> data = new ArrayList<>();
 		
 		for (int i = 0; i < amount; i++)
 		{
-			DatabaseAccessor.insert(TestTable.DEFAULT, "'" + 
-					possibleNames[random.nextInt(possibleNames.length)] + "', '" + 
-					possibleAdditionals[random.nextInt(possibleAdditionals.length)] + "'", "id");
+			data.add(new TestDatabaseEntity(possibleNames[random.nextInt(possibleNames.length)], 
+					possibleAdditionals[random.nextInt(possibleAdditionals.length)]));
+		}
+		
+		return data;
+	}
+	
+	private static void read() throws DatabaseUnavailableException, SQLException, InvalidTableTypeException
+	{
+		List<String> ids = DatabaseAccessor.findMatchingIDs(TestTable.DEFAULT, new String[0], 
+				new String[0]);
+		
+		for (String id : ids)
+		{
+			System.out.println(new TestDatabaseEntity(id));
 		}
 	}
 	
-	private static void read() throws DatabaseUnavailableException, SQLException
+	private static void removeTestData(List<TestDatabaseEntity> data) throws SQLException, 
+			DatabaseUnavailableException
 	{
-		DatabaseAccessor accessor = new DatabaseAccessor(TestTable.DEFAULT.getDatabaseName());
-		PreparedStatement statement = null;
-		ResultSet result = null;
-		
-		try
+		for (TestDatabaseEntity entity : data)
 		{
-			List<String> columnNames = DatabaseTable.readColumnNamesFromDatabase(TestTable.DEFAULT);
+			entity.delete();
+		}
+	}
+	
+	private static void update(List<TestDatabaseEntity> data) throws 
+			InvalidTableTypeException, SQLException, DatabaseUnavailableException
+	{
+		for (TestDatabaseEntity entity: data)
+		{
+			entity.changeAdditional(7);
+		}
+	}
+	
+	
+	// SUBCLASSES	-----------------------------
+	
+	private static class TestDatabaseEntity implements DatabaseReadable, DatabaseWritable
+	{
+		// ATTRIBUTES	------------------------
+		
+		private String id, name;
+		private int additional;
+		
+		
+		// CONSTRUCTOR	------------------------
+		
+		public TestDatabaseEntity(String name, int additional) throws SQLException, DatabaseUnavailableException
+		{
+			this.id = null;
+			this.name = name;
+			this.additional = additional;
 			
-			for (int i = 1; i <= DatabaseSettings.getTableHandler().getTableAmount(TestTable.DEFAULT); i++)
-			{
-				System.out.println("Table number " + i + ":");
-				
-				statement = accessor.getPreparedStatement("SELECT * FROM " + 
-						TestTable.DEFAULT.getTableName() + i);
-				result = statement.executeQuery();
-				
-				while (result.next())
-				{
-					StringBuilder row = new StringBuilder();
-					for (String columnName : columnNames)
-					{
-						row.append(columnName + " = " + result.getString(columnName) + ", ");
-					}
-					System.out.println(row.toString());
-				}
-			}
+			DatabaseAccessor.insert(this);
 		}
-		finally
-		{
-			DatabaseAccessor.closeResults(result);
-			DatabaseAccessor.closeStatement(statement);
-			accessor.closeConnection();
-		}
-	}
-	
-	private static void removeTestData() throws SQLException, DatabaseUnavailableException
-	{
-		DatabaseAccessor accessor = new DatabaseAccessor(TestTable.DEFAULT.getDatabaseName());
 		
-		try
+		public TestDatabaseEntity(String id) throws DatabaseUnavailableException, SQLException
 		{
-			for (int i = 1; i <= 
-					DatabaseSettings.getTableHandler().getTableAmount(TestTable.DEFAULT); i++)
+			if (!DatabaseAccessor.readObjectData(this, id))
 			{
-				accessor.executeStatement("DELETE FROM " + 
-						TestTable.DEFAULT.getTableName() + i);
+				System.out.println(this);
+				System.err.println("Couldn't find object data for id: " + id);
+				this.name = "error";
+				this.additional = 0;
+			}
+			
+			this.id = id;
+		}
+		
+		
+		// IMPLEMENTED METHODS	--------------------
+		
+		@Override
+		public String toString()
+		{
+			return this.name + "(" + this.id + ") " + this.additional;
+		}
+		
+		@Override
+		public String getColumnValue(String columnName)
+		{
+			switch (columnName)
+			{
+				case "id": return this.id;
+				case "name": return this.name;
+				case "additional": return this.additional + "";
+			}
+			
+			System.err.println("Can't provide data for column " + columnName);
+			return null;
+		}
+
+		@Override
+		public void newIndexGenerated(int newIndex)
+		{
+			this.id = newIndex + "";
+		}
+
+		@Override
+		public DatabaseTable getTable()
+		{
+			return TestTable.DEFAULT;
+		}
+
+		@Override
+		public void setValue(String columnName, String readValue)
+		{
+			switch (columnName)
+			{
+				case "id": this.id = readValue; break;
+				case "name": this.name = readValue; break;
+				// TODO: "five" is given here for some random reason
+				case "additional": this.additional = Integer.parseInt(readValue); break;
 			}
 		}
-		finally
+		
+		
+		// OTHER METHODS	---------------------
+		
+		public void delete() throws SQLException, DatabaseUnavailableException
 		{
-			accessor.closeConnection();
+			DatabaseAccessor.delete(getTable(), getTable().getPrimaryColumnName(), this.id);
 		}
-	}
-	
-	private static void update() throws SQLException, DatabaseUnavailableException
-	{
-		DatabaseAccessor.update(TestTable.DEFAULT, "name", "one", "additional", "1");
+		
+		public void changeAdditional(int newAdditional) throws InvalidTableTypeException, 
+				SQLException, DatabaseUnavailableException
+		{
+			this.additional = newAdditional;
+			DatabaseAccessor.update(this);
+		}
 	}
 	
 	
@@ -181,7 +254,7 @@ public class DatabaseTest
 		DEFAULT;
 
 		@Override
-		public boolean usesIndexing()
+		public boolean usesIntegerIndexing()
 		{
 			return true;
 		}
@@ -209,7 +282,8 @@ public class DatabaseTest
 		{
 			try
 			{
-				return DatabaseTable.readColumnNamesFromDatabase(this);
+				return DatabaseTable.getColumnNamesFromColumnInfo(
+						DatabaseTable.readColumnInfoFromDatabase(this));
 			}
 			catch (DatabaseUnavailableException | SQLException e)
 			{
@@ -217,6 +291,12 @@ public class DatabaseTest
 				e.printStackTrace();
 				return new ArrayList<>();
 			}
+		}
+
+		@Override
+		public String getPrimaryColumnName()
+		{
+			return "id";
 		}
 	}
 }

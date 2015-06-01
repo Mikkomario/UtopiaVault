@@ -4,6 +4,7 @@ import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.List;
 
 /**
@@ -22,10 +23,11 @@ public interface DatabaseTable
 	/**
 	 * @return Is integer indexing used in this table
 	 */
-	public boolean usesIndexing();
+	public boolean usesIntegerIndexing();
 	
 	/**
 	 * @return Does this table use indexing that uses auto-increment
+	 * @see #readColumnInfoFromDatabase(DatabaseTable)
 	 */
 	public boolean usesAutoIncrementIndexing();
 	
@@ -41,28 +43,68 @@ public interface DatabaseTable
 	
 	/**
 	 * @return The names of the columns in this database
+	 * @see #readColumnInfoFromDatabase(DatabaseTable)
 	 */
 	public List<String> getColumnNames();
+	
+	/**
+	 * @return The name of the column that contains the entity's primary identifier. Null if 
+	 * the table doesn't have a primary column.
+	 * @see #findPrimaryColumnInfo(Collection)
+	 */
+	public String getPrimaryColumnName();
 	
 	
 	// OTHER METHODS	----------------------------
 	
 	/**
-	 * Reads the names of all the columns in the given table. This doesn't include the 
-	 * auto-increment id, however.
+	 * Finds the primary column from the given set of columns
+	 * @param columnSet A collection of columns
+	 * @return The (first) primary column in the set
+	 * @see #readColumnInfoFromDatabase(DatabaseTable)
+	 */
+	public static ColumnInfo findPrimaryColumnInfo(Collection<ColumnInfo> columnSet)
+	{
+		for (ColumnInfo info : columnSet)
+		{
+			if (info.isPrimary())
+				return info;
+		}
+		
+		return null;
+	}
+	
+	/**
+	 * Finds the column names from the column information
+	 * @param columnInfo The column information from a single table
+	 * @return All the column names in a single table
+	 */
+	public static List<String> getColumnNamesFromColumnInfo(List<ColumnInfo> columnInfo)
+	{
+		List<String> columnNames = new ArrayList<>();
+		for (ColumnInfo info : columnInfo)
+		{
+			columnNames.add(info.getColumnName());
+		}
+		
+		return columnNames;
+	}
+	
+	/**
+	 * Reads the information of all the columns in the given table.
 	 * @param table The table whose columns are checked
-	 * @return A list containing the names of the columns in the table
+	 * @return A list containing the information about the columns in the table
 	 * @throws DatabaseUnavailableException If the database couldn't be accessed
 	 * @throws SQLException If the table doesn't exist
 	 */
-	public static List<String> readColumnNamesFromDatabase(DatabaseTable table) throws 
+	public static List<ColumnInfo> readColumnInfoFromDatabase(DatabaseTable table) throws 
 			DatabaseUnavailableException, SQLException
 	{
 		DatabaseAccessor accessor = new DatabaseAccessor(table.getDatabaseName());
 		PreparedStatement statement = accessor.getPreparedStatement("DESCRIBE " + 
 				DatabaseSettings.getTableHandler().getTableNameForIndex(table, 1, false));
 		ResultSet result = null;
-		List<String> columnNames = new ArrayList<>();
+		List<ColumnInfo> columnInfo = new ArrayList<>();
 		
 		try
 		{
@@ -70,7 +112,10 @@ public interface DatabaseTable
 			// Reads the field names
 			while (result.next())
 			{
-				columnNames.add(result.getString("Field"));
+				String name = result.getString("Field");
+				boolean primary = "PRI".equalsIgnoreCase(result.getString("Key"));
+				boolean autoInc = "auto_increment".equalsIgnoreCase(result.getString("Extra"));
+				columnInfo.add(new ColumnInfo(name, primary, autoInc));
 			}
 		}
 		finally
@@ -81,36 +126,80 @@ public interface DatabaseTable
 			accessor.closeConnection();
 		}
 		
-		// Removes the id column (always first) in case there is (or should be) one
-		if (table.usesAutoIncrementIndexing())
-			columnNames.remove(0);
-		
-		return columnNames;
+		return columnInfo;
 	}
 	
+	
+	// SUBCLASSES	--------------------------
+	
 	/**
-	 * Combines two sets of possible database table values together. This can be used when 
-	 * initializing the multiTableHandler, for example.
-	 * @param a The first set of possible tables
-	 * @param b The second set of possible tables
-	 * @return A combined set of possible tables
+	 * ColumnInfo is a simple description of a single column in a table
+	 * @author Mikko Hilpinen
+	 * @since 30.5.2015
 	 */
-	/*
-	public static DatabaseTable[] combinePossibleTables(DatabaseTable[] a, DatabaseTable[] b)
+	public static class ColumnInfo
 	{
-		DatabaseTable[] combined = new DatabaseTable[a.length + b.length];
+		// ATTRIBUTES	----------------------
 		
-		for (int i = 0; i < a.length; i++)
+		private String name;
+		private boolean autoIncrement, primary;
+		
+		
+		// CONSTRUCTOR	----------------------
+		
+		/**
+		 * Creates a new column information
+		 * @param name The name of the column
+		 * @param primary Does the column hold a primary key
+		 * @param autoIncrement Does the column use auto-increment indexing
+		 */
+		public ColumnInfo(String name, boolean primary, boolean autoIncrement)
 		{
-			combined[i] = a[i];
+			this.name = name;
+			this.primary = primary;
+			this.autoIncrement = autoIncrement;
 		}
 		
-		for (int i = 0; i < b.length; i++)
+		
+		// IMPLEMENTED METHODS	---------------
+		
+		@Override
+		public String toString()
 		{
-			combined[a.length + i] = b[i];
+			String s = this.name;
+			if (this.primary)
+				s += " PRI";
+			if (this.autoIncrement)
+				s += " auto-increment";
+			
+			return s;
 		}
 		
-		return combined;
+		
+		// GETTERS & SETTERS	---------------
+		
+		/**
+		 * @return The name of the column
+		 */
+		public String getColumnName()
+		{
+			return this.name;
+		}
+		
+		/**
+		 * @return Does the column hold a primary key
+		 */
+		public boolean isPrimary()
+		{
+			return this.primary;
+		}
+		
+		/**
+		 * @return Does the column use auto-increment indexing
+		 */
+		public boolean usesAutoIncrementIndexing()
+		{
+			return this.autoIncrement;
+		}
 	}
-	*/
 }

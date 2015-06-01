@@ -86,7 +86,7 @@ public class MultiTableHandler
 		if (table == null)
 			return 0;
 		
-		if (!table.usesIndexing())
+		if (!table.usesIntegerIndexing())
 			return 1;
 		
 		updateTableAmount(table, -1);
@@ -108,7 +108,7 @@ public class MultiTableHandler
 	public String getTableNameForIndex(DatabaseTable table, int id, boolean createIfNecessary)
 	{
 		// The system is a bit different for tables that don't use indexing
-		if (!table.usesIndexing())
+		if (!table.usesIntegerIndexing())
 			return table.getTableName() + "1"; 
 		
 		// Creates new tables until one can be found for the given id
@@ -143,7 +143,7 @@ public class MultiTableHandler
 	public void updateTableAmount(DatabaseTable table, int latestID)
 	{		
 		// If the table doesn't use indexing, doesn't register it's amount
-		if (!table.usesIndexing())
+		if (!table.usesIntegerIndexing())
 			return;
 		
 		// If the table isn't yet registered, remembers it
