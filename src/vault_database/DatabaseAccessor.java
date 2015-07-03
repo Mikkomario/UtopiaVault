@@ -490,6 +490,8 @@ public class DatabaseAccessor
 				table.getPrimaryColumnName(), limit);
 	}
 	
+	// TODO: Add a method for finding all the ids
+	
 	/**
 	 * Inserts new data to the given table.
 	 * @param targetTable The table the data will be inserted into
@@ -826,7 +828,16 @@ public class DatabaseAccessor
 			// Parses the identifier, if necessary
 			int id = 0;
 			if (object.getTable().usesIntegerIndexing())
-				id = Integer.parseInt(objectIdentifier);
+			{
+				try
+				{
+					id = Integer.parseInt(objectIdentifier);
+				}
+				catch (NumberFormatException e)
+				{
+					return false;
+				}
+			}
 			
 			statement = accessor.getPreparedStatement(new StringBuilder(
 					"SELECT * FROM ").append(
