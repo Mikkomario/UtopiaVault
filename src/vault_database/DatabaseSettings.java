@@ -1,7 +1,5 @@
 package vault_database;
 
-import java.sql.SQLException;
-
 /**
  * DatabaseSettings is a static collection of variables that are used in 
  * database accessing and handling. Most of the variables are protected so they can only be 
@@ -27,12 +25,6 @@ public class DatabaseSettings
 	 */
 	private static String user;
 	
-	/**
-	 * The MultiTableHandler is used for handling table indexing and is needed by the 
-	 * classes that insert data into tables
-	 */
-	private static MultiTableHandler tableHandler;
-	
 	
 	// CONSTRUCTOR	----------------------------------------------------
 	
@@ -43,14 +35,6 @@ public class DatabaseSettings
 	
 	
 	// GETTERS & SETTERS	--------------------------------------------
-	
-	/**
-	 * @return The multiTableHandler used when accessing the databases
-	 */
-	public static MultiTableHandler getTableHandler()
-	{
-		return tableHandler;
-	}
 	
 	/**
 	 * @return The server hosting the database (doesn't include database name)
@@ -118,38 +102,6 @@ public class DatabaseSettings
 		user = newUser;
 	}
 	
-	/**
-	 * Initializes the multiTableHandler if it hasn't been initialized yet. 
-	 * Use the file provided in the data folder to create the multitable database
-	 * 
-	 * @param maxRowCount How many rows can a single table hold
-	 * @throws SQLException If the given table is malformed or missing
-	 * @throws DatabaseUnavailableException If the database couldn't be accessed
-	 */
-	public static void initializeMultiTableHandler(int maxRowCount) throws 
-			DatabaseUnavailableException, SQLException
-	{
-		if (tableHandler == null)
-			tableHandler = new MultiTableHandler(maxRowCount);
-	}
-	
-	/**
-	 * Initializes the multiTableHandler if it hasn't been initialized yet. 
-	 * Use the file provided in the data folder to create the multitable database
-	 * 
-	 * @param maxRowCount How many rows can a single table hold
-	 * @param databaseName The name of the database that holds the multitable data
-	 * @param tableName The name of the table that holds the multitable data
-	 * @throws SQLException If the given table is malformed or missing
-	 * @throws DatabaseUnavailableException If the database couldn't be accessed
-	 */
-	public static void initializeMultiTableHandler(int maxRowCount, String databaseName, 
-			String tableName) throws DatabaseUnavailableException, SQLException
-	{
-		if (tableHandler == null)
-			tableHandler = new MultiTableHandler(maxRowCount, databaseName, tableName);
-	}
-	
 	
 	// OTHER METHODS	--------------------------------
 	
@@ -161,41 +113,13 @@ public class DatabaseSettings
 	 * the name of the database. For example: "jdbc:mysql://localhost:3306/"
 	 * @param user The userName used when connecting to the server
 	 * @param password The password used when connecting to the server
-	 * @param maxRowCount How many rows can a single table hold
-	 * @throws SQLException If the given table is malformed or missing
-	 * @throws DatabaseUnavailableException If the database couldn't be accessed
 	 */
-	public static void initialize(String connectionTarget, String user, String password, 
-			int maxRowCount) throws DatabaseUnavailableException, SQLException
+	public static void initialize(String connectionTarget, String user, String password)
 	{
 		setConnectionTarget(connectionTarget);
 		setUser(user);
 		setPassword(password);
-		initializeMultiTableHandler(maxRowCount);
-	}
-	
-	/**
-	 * Initializes the databaseSettings to the given values. 
-	 * Use the file provided in the data folder to create the multitable database
-	 * 
-	 * @param connectionTarget The MariaDB server to be used. Should not include 
-	 * the name of the database. For example: "jdbc:mysql://localhost:3306/"
-	 * @param user The userName used when connecting to the server
-	 * @param password The password used when connecting to the server
-	 * @param maxRowCount How many rows can a single table hold
-	 * @param databaseName The name of the database that holds the multitable data
-	 * @param tableName The name of the table that holds the multitable data
-	 * @throws SQLException If the given table is malformed or missing
-	 * @throws DatabaseUnavailableException If the database couldn't be accessed
-	 */
-	public static void initialize(String connectionTarget, String user, String password, 
-			int maxRowCount, String databaseName, 
-			String tableName) throws DatabaseUnavailableException, SQLException
-	{
-		setConnectionTarget(connectionTarget);
-		setUser(user);
-		setPassword(password);
-		initializeMultiTableHandler(maxRowCount, databaseName, tableName);
+		//initializeMultiTableHandler(maxRowCount);
 	}
 	
 	

@@ -3,6 +3,7 @@ package vault_database;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.sql.Types;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
@@ -19,11 +20,6 @@ import java.util.List;
 public interface DatabaseTable
 {
 	// ABSTRACT METHODS	----------------------------------------------------------
-	
-	/**
-	 * @return Is integer indexing used in this table
-	 */
-	public boolean usesIntegerIndexing();
 	
 	/**
 	 * @return Does this table use indexing that uses auto-increment
@@ -48,11 +44,16 @@ public interface DatabaseTable
 	public List<String> getColumnNames();
 	
 	/**
-	 * @return The name of the column that contains the entity's primary identifier. Null if 
-	 * the table doesn't have a primary column.
+	 * @return The column that contains the entity's primary identifier. Null if 
+	 * the table doesn't have a primary column (which is not recommended, by the way).
 	 * @see #findPrimaryColumnInfo(Collection)
 	 */
-	public String getPrimaryColumnName();
+	public ColumnInfo getPrimaryColumn();
+	
+	/**
+	 * @return All the information about the columns in the table
+	 */
+	public List<ColumnInfo> getColumnInfo();
 	
 	
 	// OTHER METHODS	----------------------------
@@ -84,7 +85,7 @@ public interface DatabaseTable
 		List<String> columnNames = new ArrayList<>();
 		for (ColumnInfo info : columnInfo)
 		{
-			columnNames.add(info.getColumnName());
+			columnNames.add(info.getName());
 		}
 		
 		return columnNames;
@@ -101,13 +102,13 @@ public interface DatabaseTable
 			DatabaseUnavailableException, SQLException
 	{
 		DatabaseAccessor accessor = new DatabaseAccessor(table.getDatabaseName());
-		PreparedStatement statement = accessor.getPreparedStatement("DESCRIBE " + 
-				DatabaseSettings.getTableHandler().getTableNameForIndex(table, 1, false));
+		PreparedStatement statement = null;
 		ResultSet result = null;
 		List<ColumnInfo> columnInfo = new ArrayList<>();
 		
 		try
 		{
+			statement =accessor.getPreparedStatement("DESCRIBE " + table.getTableName());
 			result = statement.executeQuery();
 			// Reads the field names
 			while (result.next())
@@ -115,7 +116,8 @@ public interface DatabaseTable
 				String name = result.getString("Field");
 				boolean primary = "PRI".equalsIgnoreCase(result.getString("Key"));
 				boolean autoInc = "auto_increment".equalsIgnoreCase(result.getString("Extra"));
-				columnInfo.add(new ColumnInfo(name, primary, autoInc));
+				int type = parseType(result.getString("Type"));
+				columnInfo.add(new ColumnInfo(name, primary, autoInc, type));
 			}
 		}
 		finally
@@ -127,6 +129,47 @@ public interface DatabaseTable
 		}
 		
 		return columnInfo;
+	}
+	
+	/**
+	 * Parses an sql type from a string
+	 * @param s A string that represents a data type. For example "varchar(32)"
+	 * @return The data type represented by the string
+	 * @see Types
+	 */
+	public static int parseType(String s)
+	{
+		String lower = s.toLowerCase();
+		if (lower.startsWith("tiny"))
+			return parseType(s.substring(4));
+		if (lower.startsWith("big"))
+			return parseType(s.substring(3));
+		if (lower.startsWith("medium"))
+			return parseType(s.substring(6));
+		if (lower.startsWith("small"))
+			return parseType(s.substring(5));
+		if (lower.startsWith("varchar"))
+			return Types.VARCHAR;
+		if (lower.startsWith("int"))
+			return Types.INTEGER;
+		if (lower.startsWith("boolean"))
+			return Types.BOOLEAN;
+		if (lower.startsWith("float"))
+			return Types.FLOAT;
+		if (lower.startsWith("decimal"))
+			return Types.DECIMAL;
+		if (lower.startsWith("double"))
+			return Types.DOUBLE;
+		if (lower.startsWith("char"))
+			return Types.CHAR;
+		if (lower.startsWith("date"))
+			return Types.DATE;
+		if (lower.startsWith("timestamp"))
+			return Types.TIMESTAMP;
+		if (lower.startsWith("time"))
+			return Types.TIME;
+		
+		return Types.OTHER;
 	}
 	
 	
@@ -143,6 +186,7 @@ public interface DatabaseTable
 		
 		private String name;
 		private boolean autoIncrement, primary;
+		private int type;
 		
 		
 		// CONSTRUCTOR	----------------------
@@ -152,12 +196,14 @@ public interface DatabaseTable
 		 * @param name The name of the column
 		 * @param primary Does the column hold a primary key
 		 * @param autoIncrement Does the column use auto-increment indexing
+		 * @param type The data type of the column's value
 		 */
-		public ColumnInfo(String name, boolean primary, boolean autoIncrement)
+		public ColumnInfo(String name, boolean primary, boolean autoIncrement, int type)
 		{
 			this.name = name;
 			this.primary = primary;
 			this.autoIncrement = autoIncrement;
+			this.type = type;
 		}
 		
 		
@@ -181,7 +227,7 @@ public interface DatabaseTable
 		/**
 		 * @return The name of the column
 		 */
-		public String getColumnName()
+		public String getName()
 		{
 			return this.name;
 		}
@@ -200,6 +246,15 @@ public interface DatabaseTable
 		public boolean usesAutoIncrementIndexing()
 		{
 			return this.autoIncrement;
+		}
+		
+		/**
+		 * @return The data type of the column value
+		 * @see Types
+		 */
+		public int getType()
+		{
+			return this.type;
 		}
 	}
 }

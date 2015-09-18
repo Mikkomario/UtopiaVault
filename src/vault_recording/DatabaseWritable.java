@@ -1,24 +1,18 @@
 package vault_recording;
 
-import vault_database.DatabaseTable;
+import java.util.Collection;
 
 /**
  * These objects can be written into database.
  * @author Mikko Hilpinen
  * @since 30.5.2015
  */
-public interface DatabaseWritable
+public interface DatabaseWritable extends DatabaseStorable
 {
 	/**
-	 * @return The table this object should be written into
+	 * @return The object's attributes
 	 */
-	public DatabaseTable getTable();
-	
-	/**
-	 * @param columnName The name of the column that needs to be written
-	 * @return A value that will be saved into the column
-	 */
-	public String getColumnValue(String columnName);
+	public Collection<Attribute> getAttributes();
 	
 	/**
 	 * This method will be called if a new index is generated for the object through 
@@ -26,4 +20,49 @@ public interface DatabaseWritable
 	 * @param newIndex The index that was generated
 	 */
 	public void newIndexGenerated(int newIndex);
+	
+	/**
+	 * Returns one of the object's attributes. Not case-sensitive.
+	 * @param object The object whose attributes are requested
+	 * @param attributeName The name of the attribute
+	 * @return Model's attribute with the given name, null if no such attribute exists
+	 */
+	public static Attribute getAttributeByName(DatabaseWritable object, String attributeName)
+	{
+		for (Attribute attribute : object.getAttributes())
+		{
+			if (attribute.getName().equalsIgnoreCase(attributeName))
+				return attribute;
+		}
+		
+		return null;
+	}
+	
+	/**
+	 * Returns one of the object's attributes. Not case-sensitive.
+	 * @param object The object whose attributes are requested
+	 * @param columnName The name of the column represented by the attribute
+	 * @return Model's attribute with the given name, null if no such attribute exists
+	 */
+	public static Attribute getAttributeByColumnName(DatabaseWritable object, 
+			String columnName)
+	{
+		for (Attribute attribute : object.getAttributes())
+		{
+			if (attribute.getDescription().getColumnName().equalsIgnoreCase(columnName))
+				return attribute;
+		}
+		
+		return null;
+	}
+	
+	/**
+	 * Returns the object's index attribute
+	 * @param object The object whose attribute is retrieved
+	 * @return The attribute that contains the object's index
+	 */
+	public static Attribute getIndexAttribute(DatabaseWritable object)
+	{
+		return getAttributeByColumnName(object, object.getTable().getPrimaryColumn().getName());
+	}
 }

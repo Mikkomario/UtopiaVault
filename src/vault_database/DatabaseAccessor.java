@@ -7,11 +7,17 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.List;
 
 import vault_database.DatabaseSettings.UninitializedSettingsException;
+import vault_database.DatabaseTable.ColumnInfo;
+import vault_recording.Attribute;
+import vault_recording.Attribute.AttributeDescription;
+import vault_recording.AttributeNameMapping;
 import vault_recording.DatabaseReadable;
 import vault_recording.DatabaseWritable;
+import vault_recording.IndexAttributeRequiredException;
 
 /**
  * DatabaseAccessProvider is used to access and modify data in a database. 
@@ -174,11 +180,9 @@ public class DatabaseAccessor
 			
 			return statement;
 		}
-		catch (SQLException e)
+		finally
 		{
-			// Closes the statement before throwing the exception
 			closeStatement(statement);
-			throw e;
 		}
 	}
 	
@@ -267,6 +271,144 @@ public class DatabaseAccessor
 	}
 	
 	/**
+	 * Makes a select from query and returns the selection data
+	 * @param selectedAttributes The attributes that will be selected
+	 * @param fromTable The table the selection is made from
+	 * @param limit How many rows are returned at maximum. If this is a negative number, 
+	 * the number of returned rows is not limited.
+	 * @return A list of attribute sets. One set for each row. Each set contains selected 
+	 * data for that row.
+	 * @throws DatabaseUnavailableException If the database can't be accessed at this time
+	 * @throws DatabaseException If the operation failed
+	 */
+	public static List<List<Attribute>> select(Collection<? extends AttributeDescription> 
+			selectedAttributes, 
+			DatabaseTable fromTable, int limit) throws 
+			DatabaseUnavailableException, DatabaseException
+	{
+		return select(selectedAttributes, fromTable, null, limit, null);
+	}
+	
+	/**
+	 * Makes a select from query and returns the selection data
+	 * @param selectedAttributes The attributes that will be selected
+	 * @param fromTable The table the selection is made from
+	 * @param whereAttributes The conditions for the selection. If this is an empty set or null, 
+	 * attributes from each row will be returned.
+	 * @param limit How many rows are returned at maximum. If this is a negative number, 
+	 * the number of returned rows is not limited.
+	 * @return A list of attribute sets. One set for each row. Each set contains selected 
+	 * data for that row.
+	 * @throws DatabaseUnavailableException If the database can't be accessed at this time
+	 * @throws DatabaseException If the operation failed
+	 */
+	public static List<List<Attribute>> select(
+			Collection<? extends AttributeDescription> selectedAttributes, 
+			DatabaseTable fromTable, Collection<? extends Attribute> whereAttributes, int limit) throws 
+			DatabaseUnavailableException, DatabaseException
+	{
+		return select(selectedAttributes, fromTable, whereAttributes, limit, null);
+	}
+	
+	/**
+	 * Makes a select from query and returns the selection data
+	 * @param selectedAttributes The attributes that will be selected
+	 * @param fromTable The table the selection is made from
+	 * @param whereAttributes The conditions for the selection. If this is an empty set or null, 
+	 * attributes from each row will be returned.
+	 * @param limit How many rows are returned at maximum. If this is a negative number, 
+	 * the number of returned rows is not limited.
+	 * @param extraSQL Extra sql code added to the end of the query. Can be, for example, 
+	 * sorting information. Null if not used.
+	 * @return A list of attribute sets. One set for each row. Each set contains selected 
+	 * data for that row.
+	 * @throws DatabaseUnavailableException If the database can't be accessed at this time
+	 * @throws DatabaseException If the operation failed
+	 */
+	public static List<List<Attribute>> select(
+			Collection<? extends AttributeDescription> selectedAttributes, 
+			DatabaseTable fromTable, Collection<? extends Attribute> whereAttributes, int limit, 
+			String extraSQL) throws 
+			DatabaseUnavailableException, DatabaseException
+	{
+		List<List<Attribute>> rows = new ArrayList<>();
+		
+		StringBuilder sql = new StringBuilder("SELECT ");
+		sql.append(getColumnNameString(selectedAttributes));
+		sql.append(" FROM ");
+		sql.append(fromTable.getTableName());
+		if (whereAttributes != null && !whereAttributes.isEmpty())
+		{
+			sql.append(" WHERE ");
+			sql.append(getEqualsString(whereAttributes, " AND "));
+		}
+		if (limit >= 0)
+			sql.append(" LIMIT " + limit);
+		if (extraSQL != null)
+			sql.append(extraSQL);
+		
+		// Executes the query
+		DatabaseAccessor accessor = new DatabaseAccessor(fromTable.getDatabaseName());
+		PreparedStatement statement = null;
+		ResultSet results = null;
+		try
+		{
+			// Prepares the statement
+			statement = accessor.getPreparedStatement(sql.toString());
+			if (whereAttributes != null && !whereAttributes.isEmpty())
+				prepareAttributeValues(statement, whereAttributes, 1);
+			
+			// Parses the results
+			results = statement.executeQuery();
+			while (results.next())
+			{
+				List<Attribute> attributes = new ArrayList<>();
+				for (AttributeDescription description : selectedAttributes)
+				{
+					attributes.add(new Attribute(description, 
+							results.getObject(description.getColumnName())));
+				}
+				rows.add(attributes);
+			}
+		}
+		catch (SQLException e)
+		{
+			throw new DatabaseException(e, sql.toString(), fromTable, whereAttributes);
+		}
+		finally
+		{
+			closeResults(results);
+			closeStatement(statement);
+			accessor.closeConnection();
+		}
+		
+		return rows;
+	}
+	
+	/**
+	 * Selects all data from certain rows from the table
+	 * @param fromTable The table the selection is made from
+	 * @param whereAttributes The conditions for the selection. If this is an empty set or null, 
+	 * attributes from each row will be returned.
+	 * @param limit How many rows are returned at maximum. If this is a negative number, 
+	 * the number of returned rows is not limited.
+	 * @param extraSQL Extra sql code added to the end of the query. Can be, for example, 
+	 * sorting information. Null if not used.
+	 * @param nameMapping the mapping that associates column names with attribute names
+	 * @return A list of attribute sets. One set for each row. Each set contains selected 
+	 * data for that row.
+	 * @throws DatabaseUnavailableException If the database can't be accessed at this time
+	 * @throws DatabaseException If the operation failed
+	 */
+	public static List<List<Attribute>> selectAll(DatabaseTable fromTable, 
+			Collection<? extends Attribute> whereAttributes, int limit, String extraSQL, 
+			AttributeNameMapping nameMapping) throws DatabaseUnavailableException, DatabaseException
+	{
+		return select(Attribute.getDescriptionsFrom(fromTable.getColumnInfo(), 
+				nameMapping), fromTable, whereAttributes, limit, extraSQL);
+	}
+	
+	/**
 	 * Performs a search through all the tables of a certain type in order to find the 
 	 * matching column data.
 	 * 
@@ -278,6 +420,7 @@ public class DatabaseAccessor
 	 * @return A list containing all the collected values
 	 * @throws SQLException If the given values were invalid
 	 * @throws DatabaseUnavailableException If the database couldn't be accessed
+	 * @deprecated One should use {@link #select(Collection, DatabaseTable, Collection, int)} instead
 	 */
 	public static List<String> findMatchingData(DatabaseTable table, String keyColumn, 
 			String keyValue, String valueColumn) throws DatabaseUnavailableException, 
@@ -300,6 +443,7 @@ public class DatabaseAccessor
 	 * @return A list containing all the collected values
 	 * @throws SQLException If the given values were invalid
 	 * @throws DatabaseUnavailableException If the database couldn't be accessed
+	 * @deprecated One should use {@link #select(Collection, DatabaseTable, Collection, int)} instead
 	 */
 	public static List<String> findMatchingData(DatabaseTable table, String keyColumn, 
 			String keyValue, String valueColumn, int limit) throws DatabaseUnavailableException, 
@@ -323,6 +467,7 @@ public class DatabaseAccessor
 	 * @return A list containing all the collected values
 	 * @throws SQLException If the given values were invalid
 	 * @throws DatabaseUnavailableException If the database couldn't be accessed
+	 * @deprecated One should use {@link #select(Collection, DatabaseTable, Collection, int)} instead
 	 */
 	public static List<String> findMatchingData(DatabaseTable table, String[] keyColumns, 
 			String[] keyValues, String valueColumn) throws DatabaseUnavailableException, 
@@ -345,6 +490,7 @@ public class DatabaseAccessor
 	 * @return A list containing all the collected values
 	 * @throws SQLException If the given values were invalid
 	 * @throws DatabaseUnavailableException If the database couldn't be accessed
+	 * @deprecated One should use {@link #select(Collection, DatabaseTable, Collection, int)} instead
 	 */
 	public static List<String> findMatchingData(DatabaseTable table, String[] keyColumns, 
 			String[] keyValues, String valueColumn, int limit) throws 
@@ -357,53 +503,42 @@ public class DatabaseAccessor
 		
 		try
 		{
-			int tables = DatabaseSettings.getTableHandler().getTableAmount(table);
-			int matchesFound = 0;
+			StringBuilder statementString = new StringBuilder("SELECT * FROM " + 
+					table.getTableName());
 			
-			// Goes through all the userData tables in order
-			for (int i = 1; i <= tables; i++)
-			{	
-				StringBuilder statementString = new StringBuilder("SELECT * FROM " + 
-						table.getTableName() + i);
-				
-				if (keyColumns.length > 0)
+			if (keyColumns.length > 0)
+			{
+				statementString.append(" WHERE ");
+				for (int keyIndex = 0; keyIndex < keyColumns.length; keyIndex ++)
 				{
-					statementString.append(" WHERE ");
-					for (int keyIndex = 0; keyIndex < keyColumns.length; keyIndex ++)
-					{
-						if (keyIndex != 0)
-							statementString.append(" AND ");
-						statementString.append(keyColumns[keyIndex] + " = '" + 
-								keyValues[keyIndex] + "'");
-					}
+					if (keyIndex != 0)
+						statementString.append(" AND ");
+					statementString.append(keyColumns[keyIndex] + " = '" + 
+							keyValues[keyIndex] + "'");
 				}
+			}
+			
+			// The amount of returned values may be limited already in the query
+			if (limit >= 0)
+				statementString.append(" LIMIT " + limit);
+			
+			PreparedStatement statement = null;
+			ResultSet results = null;
+			
+			try
+			{
+				statement = accessor.getPreparedStatement(statementString.toString());
+				results = statement.executeQuery();
 				
-				// The amount of returned values may be limited already in the query
-				if (limit >= 0)
-					statementString.append(" LIMIT " + (limit - matchesFound));
-				
-				PreparedStatement statement = null;
-				ResultSet results = null;
-				
-				try
+				while (results.next())
 				{
-					statement = accessor.getPreparedStatement(statementString.toString());
-					results = statement.executeQuery();
-					
-					while (results.next())
-					{
-						resultData.add(results.getString(valueColumn));
-						matchesFound ++;
-					}
+					resultData.add(results.getString(valueColumn));
 				}
-				finally
-				{
-					DatabaseAccessor.closeResults(results);
-					DatabaseAccessor.closeStatement(statement);
-					
-					if (limit >= 0 && matchesFound >= limit)
-						break;
-				}
+			}
+			finally
+			{
+				DatabaseAccessor.closeResults(results);
+				DatabaseAccessor.closeStatement(statement);
 			}
 		}
 		finally
@@ -422,6 +557,7 @@ public class DatabaseAccessor
 	 * @throws DatabaseUnavailableException If the database couldn't be reached
 	 * @throws SQLException If the search couldn't be performed
 	 * @throws InvalidTableTypeException If the table doesn't have a primary key column
+	 * @deprecated One should use {@link #select(Collection, DatabaseTable, Collection, int)} instead
 	 */
 	public static List<String> findMatchingIDs(DatabaseTable table, 
 			String keyColumn, String keyValue) throws DatabaseUnavailableException, 
@@ -429,7 +565,7 @@ public class DatabaseAccessor
 	{
 		checkPrimaryKeyColumn(table);
 		return DatabaseAccessor.findMatchingData(table, keyColumn, keyValue, 
-				table.getPrimaryColumnName());
+				table.getPrimaryColumn().getName());
 	}
 	
 	/**
@@ -441,13 +577,14 @@ public class DatabaseAccessor
 	 * @throws DatabaseUnavailableException If the database couldn't be reached
 	 * @throws SQLException If the search couldn't be performed
 	 * @throws InvalidTableTypeException If the table doesn't have a primary key column
+	 * @deprecated One should use {@link #select(Collection, DatabaseTable, Collection, int)} instead
 	 */
 	public static List<String> findMatchingIDs(DatabaseTable table, String[] keyColumns, 
 			String[] keyValues) throws DatabaseUnavailableException, SQLException, InvalidTableTypeException
 	{
 		checkPrimaryKeyColumn(table);
 		return DatabaseAccessor.findMatchingData(table, keyColumns, keyValues, 
-				table.getPrimaryColumnName());
+				table.getPrimaryColumn().getName());
 	}
 	
 	/**
@@ -460,6 +597,7 @@ public class DatabaseAccessor
 	 * @throws DatabaseUnavailableException If the database couldn't be reached
 	 * @throws SQLException If the search couldn't be performed
 	 * @throws InvalidTableTypeException If the table doesn't have a primary key column
+	 * @deprecated One should use {@link #select(Collection, DatabaseTable, Collection, int)} instead
 	 */
 	public static List<String> findMatchingIDs(DatabaseTable table, 
 			String keyColumn, String keyValue, int limit) throws DatabaseUnavailableException, 
@@ -467,7 +605,7 @@ public class DatabaseAccessor
 	{
 		checkPrimaryKeyColumn(table);
 		return DatabaseAccessor.findMatchingData(table, keyColumn, keyValue, 
-				table.getPrimaryColumnName(), limit);
+				table.getPrimaryColumn().getName(), limit);
 	}
 	
 	/**
@@ -480,6 +618,7 @@ public class DatabaseAccessor
 	 * @throws DatabaseUnavailableException If the database couldn't be reached
 	 * @throws SQLException If the search couldn't be performed
 	 * @throws InvalidTableTypeException If the table doesn't have a primary key column
+	 * @deprecated One should use {@link #select(Collection, DatabaseTable, Collection, int)} instead
 	 */
 	public static List<String> findMatchingIDs(DatabaseTable table, String[] keyColumns, 
 			String[] keyValues, int limit) throws DatabaseUnavailableException, SQLException, 
@@ -487,10 +626,8 @@ public class DatabaseAccessor
 	{
 		checkPrimaryKeyColumn(table);
 		return DatabaseAccessor.findMatchingData(table, keyColumns, keyValues, 
-				table.getPrimaryColumnName(), limit);
+				table.getPrimaryColumn().getName(), limit);
 	}
-	
-	// TODO: Add a method for finding all the ids
 	
 	/**
 	 * Inserts new data to the given table.
@@ -504,52 +641,16 @@ public class DatabaseAccessor
 	 * @throws DatabaseUnavailableException If the database couldn't be accessed
 	 * @throws InvalidTableTypeException If the table uses integer indexing but not 
 	 * auto-increment indexing
+	 * @deprecated One should use {@link #insert(DatabaseTable, Collection)} instead
 	 */
 	public static int insert(DatabaseTable targetTable, List<String> columnData) throws 
 			SQLException, DatabaseUnavailableException, InvalidTableTypeException
 	{
-		return insert(targetTable, getColumnDataString(columnData));
-	}
-	
-	/**
-	 * Inserts new data to the given table.
-	 * @param targetTable The table the data will be inserted into
-	 * @param columnData The data posted to the table (in the same order as in the tables). 
-	 * All data will be considered to be strings. No brackets are required around any piece of 
-	 * data. The index should be included.
-	 * @param newID The identifier of the new entity
-	 * @throws SQLException If the insert failed
-	 * @throws DatabaseUnavailableException If the database couldn't be accessed
-	 */
-	public static void insert(DatabaseTable targetTable, List<String> columnData, int newID) 
-			throws SQLException, DatabaseUnavailableException
-	{
-		insert(targetTable, getColumnDataString(columnData), newID);
-	}
-	
-	/**
-	 * Inserts new data to the given table.
-	 * @param targetTable The table the data will be inserted into
-	 * @param columnData The data posted to the table (in the same order as in the tables). 
-	 * Strings need to be surrounded with brackets ('). 
-	 * If the table uses auto-increment indexing, the columnData shouldn't contain the 
-	 * primary key and it should be placed first in the table.
-	 * @return The integer index if one was generated during auto-increment indexing. -1 otherwise.
-	 * @throws SQLException If the insert failed
-	 * @throws DatabaseUnavailableException If the database couldn't be accessed
-	 * @throws InvalidTableTypeException If the table uses indexing but not auto-increment indexing.
-	 */
-	public static int insert(DatabaseTable targetTable, String columnData) throws 
-			SQLException, DatabaseUnavailableException, InvalidTableTypeException
-	{
 		if (targetTable.usesAutoIncrementIndexing())
-			return insertWithAutoIncrement(targetTable, columnData);
+			return insertWithAutoIncrement(targetTable, getColumnDataString(columnData));
 		else
 		{
-			if (targetTable.usesIntegerIndexing())
-				throw new InvalidTableTypeException("No index provided on indexed table insert");
-			
-			insert(targetTable, columnData, -1);
+			insert(targetTable, getColumnDataString(columnData));
 			return -1;
 		}
 	}
@@ -560,20 +661,34 @@ public class DatabaseAccessor
 	 * @param columnData The data posted to the table (in the same order as in the tables). 
 	 * No brackets required. Strings need to be surrounded with brackets ('). 
 	 * The index should be included.
-	 * @param newID The identifier of the object that is being inserted
+	 * @return The integer index if one was generated during auto-increment indexing. -1 otherwise.
 	 * @throws SQLException If the insert failed
 	 * @throws DatabaseUnavailableException If the database couldn't be accessed
+	 * @deprecated One should use {@link #insert(DatabaseTable, Collection)} instead
 	 */
-	public static void insert(DatabaseTable targetTable, String columnData, int newID) throws 
+	public static int insert(DatabaseTable targetTable, String columnData) throws 
 			SQLException, DatabaseUnavailableException
 	{
+		if (targetTable.usesAutoIncrementIndexing())
+		{
+			try
+			{
+				return insertWithAutoIncrement(targetTable, columnData);
+			}
+			catch (InvalidTableTypeException e)
+			{
+				// This should never be reached since the check has been made
+				e.printStackTrace();
+			}
+		}
+		
 		// Opens connection
 		DatabaseAccessor accessor = new DatabaseAccessor(targetTable.getDatabaseName());
 		
 		// Inserts data
 		try
 		{
-			accessor.executeStatement(getInsertStatement(targetTable, columnData, newID));
+			accessor.executeStatement(getInsertStatement(targetTable, columnData));
 		}
 		finally
 		{
@@ -581,65 +696,81 @@ public class DatabaseAccessor
 			accessor.closeConnection();
 		}
 		
+		return -1;
 		// Updates the table amounts
+		/*
 		if (targetTable.usesIntegerIndexing())
 			DatabaseSettings.getTableHandler().updateTableAmount(targetTable, newID);
+		 */
 	}
 	
 	/**
-	 * Inserts the object's data into the database. If the object's data already exists in the 
-	 * database, updates it instead of inserting new data.
-	 * @param object The object that will be written into the database
-	 * @throws SQLException If the writing fails
-	 * @throws DatabaseUnavailableException If the database can't be accessed
+	 * Inserts new data into a table
+	 * @param intoTable The table the data will be inserted into
+	 * @param attributes The attribute data inserted into the table. The attributes should 
+	 * contain all "not null" columns
+	 * @return An auto-increment index if one was generated, -1 otherwise
+	 * @throws DatabaseUnavailableException If the database can't be accessed at this time
+	 * @throws DatabaseException If the operation failed
 	 */
-	public static void insert(DatabaseWritable object) throws SQLException, 
-			DatabaseUnavailableException
+	public static int insert(DatabaseTable intoTable, Collection<? extends Attribute> attributes) throws 
+			DatabaseUnavailableException, DatabaseException
 	{
+		// If there are no values to insert or no table, does nothing
+		if (intoTable == null || attributes == null)
+			return -1;
+		
+		// Only inserts non-null values that fit into the database and don't use auto-increment
+		Collection<Attribute> insertedAttributes = Attribute.getTableAttributesFrom(
+				getNonNullAttributes(attributes), intoTable);
+		removeAutoIncrementAttributes(insertedAttributes, intoTable.getColumnInfo());
+		if (insertedAttributes.isEmpty())
+			return -1;
+		
+		StringBuilder sql = new StringBuilder("INSERT INTO ");
+		sql.append(intoTable.getTableName());
+		sql.append(" " + getColumnNameString(Attribute.getDescriptionsFrom(insertedAttributes)));
+		sql.append(" VALUES ");
+		sql.append(getValueSetString(insertedAttributes.size()));
+		
+		DatabaseAccessor accessor = new DatabaseAccessor(intoTable.getDatabaseName());
+		PreparedStatement statement = null;
+		ResultSet results = null;
 		try
 		{
-			// If the object already exists, updates it instead
-			if (objectIsInDatabase(object))
-				update(object);
-			else
+			statement = accessor.getPreparedStatement(sql.toString(), 
+					intoTable.usesAutoIncrementIndexing());
+			
+			// Inserts the values executes statement
+			prepareAttributeValues(statement, insertedAttributes, 1);
+			boolean resultFound = statement.execute();
+			
+			if (resultFound)
 			{
-				// Finds the object's column data
-				List<String> columnNames = object.getTable().getColumnNames();
-				List<String> columnValues = new ArrayList<>();
-				for (String columnName : columnNames)
+				if (intoTable.usesAutoIncrementIndexing())
 				{
-					columnValues.add(object.getColumnValue(columnName));
-				}
-				
-				// If auto-increment indexing is used, the object will be informed accordingly
-				if (object.getTable().usesAutoIncrementIndexing())
-				{
-					// Modifies column data (doesn't include the first auto-increment slot)
-					columnValues.remove(0);
-					
-					object.newIndexGenerated(insert(object.getTable(), columnValues));
+					results = statement.getGeneratedKeys();
+					if (results.next())
+					{
+						return results.getInt(intoTable.getPrimaryColumn().getName());
+					}
 				}
 				else
-				{
-					// Otherwise the index will be provided by the object
-					if (object.getTable().usesIntegerIndexing())
-					{
-						int newIndex = Integer.parseInt(object.getColumnValue(
-								object.getTable().getPrimaryColumnName()));
-						insert(object.getTable(), columnValues, newIndex);
-					}
-					// Or not used at all
-					else
-						insert(object.getTable(), columnValues);
-				}
+					results = statement.getResultSet();
 			}
 		}
-		catch (InvalidTableTypeException e)
+		catch (SQLException e)
 		{
-			// This should never be reached
-			System.err.println(
-					"DatabaseAccessor.insert(DatabaseWritable) isn't working correctly");
+			throw new DatabaseException(e, sql.toString(), intoTable, attributes);
 		}
+		finally
+		{
+			closeResults(results);
+			closeStatement(statement);
+			accessor.closeConnection();
+		}
+		
+		return -1;
 	}
 	
 	/**
@@ -650,6 +781,7 @@ public class DatabaseAccessor
 	 * deleted. Brackets aren't necessary.
 	 * @throws SQLException If the deletion failed
 	 * @throws DatabaseUnavailableException If the database couldn't be accessed
+	 * @deprecated One should use {@link #delete(DatabaseTable, Collection)} instead
 	 */
 	public static void delete(DatabaseTable targetTable, String targetColumn, 
 			String targetValue) throws SQLException, DatabaseUnavailableException
@@ -658,22 +790,58 @@ public class DatabaseAccessor
 		
 		try
 		{
-			for (int i = 1; i <= DatabaseSettings.getTableHandler().getTableAmount(targetTable); i++)
-			{
-				StringBuilder statement = new StringBuilder("DELETE from ");
-				statement.append(targetTable.getTableName());
-				statement.append(i);
-				statement.append(" WHERE ");
-				statement.append(targetColumn);
-				statement.append(" = '");
-				statement.append(targetValue);
-				statement.append("';");
-				
-				accessor.executeStatement(statement.toString());
-			}
+			StringBuilder statement = new StringBuilder("DELETE from ");
+			statement.append(targetTable.getTableName());
+			statement.append(" WHERE ");
+			statement.append(targetColumn);
+			statement.append(" = '");
+			statement.append(targetValue);
+			statement.append("';");
+			
+			accessor.executeStatement(statement.toString());
 		}
 		finally
 		{
+			accessor.closeConnection();
+		}
+	}
+	
+	/**
+	 * Deletes rows where the provided conditions are met
+	 * @param fromTable The table the row(s) are deleted from
+	 * @param whereAttributes The conditions for the delete operation
+	 * @throws DatabaseUnavailableException If the database can't be accessed
+	 * @throws DatabaseException If the operation failed
+	 */
+	public static void delete(DatabaseTable fromTable, Collection<? extends Attribute> whereAttributes) 
+			throws DatabaseUnavailableException, DatabaseException
+	{
+		StringBuilder sql = new StringBuilder("DELETE FROM ");
+		sql.append(fromTable.getTableName());
+		if (whereAttributes != null && !whereAttributes.isEmpty())
+		{
+			sql.append(" WHERE ");
+			sql.append(getEqualsString(whereAttributes, " AND "));
+		}
+		
+		DatabaseAccessor accessor = new DatabaseAccessor(fromTable.getDatabaseName());
+		PreparedStatement statement = null;
+		try
+		{
+			// Prepares the statement
+			statement = accessor.getPreparedStatement(sql.toString());
+			if (whereAttributes != null && !whereAttributes.isEmpty())
+				prepareAttributeValues(statement, whereAttributes, 1);
+			// Executes
+			statement.executeUpdate();
+		}
+		catch (SQLException e)
+		{
+			throw new DatabaseException(e, sql.toString(), fromTable, whereAttributes);
+		}
+		finally
+		{
+			closeStatement(statement);
 			accessor.closeConnection();
 		}
 	}
@@ -688,6 +856,7 @@ public class DatabaseAccessor
 	 * @param newValue The new value given to the changeColumn. No brackets needed.
 	 * @throws SQLException If the update fails
 	 * @throws DatabaseUnavailableException If the database couldn't be accessed
+	 * @deprecated One should use {@link #update(DatabaseTable, Collection, Collection, boolean)} instead
 	 */
 	public static void update(DatabaseTable table, String targetColumn, 
 			String targetValue, String changeColumn, String newValue) throws SQLException, 
@@ -695,7 +864,7 @@ public class DatabaseAccessor
 	{
 		String[] changeColumns = {changeColumn};
 		String[] newValues = {newValue};
-		update(table, targetColumn, targetValue, changeColumns, newValues);
+		update(table, targetColumn, targetValue, changeColumns, newValues, false);
 	}
 	
 	/**
@@ -703,33 +872,49 @@ public class DatabaseAccessor
 	 * @param table The table in which the update is done
 	 * @param targetColumn The column which should contain the targetValue
 	 * @param targetValue The value the column should have in order to be updated. No brackets 
-	 * needed.
+	 * needed. Nulls are allowed.
 	 * @param changeColumns The columns which are being updated
 	 * @param newValues The new values given to the changeColumns. No brackets needed.
+	 * @param skipNulls If there are null values, should those be not updated into the database
 	 * @throws SQLException If the update fails
 	 * @throws DatabaseUnavailableException If the database couldn't be accessed
+	 * @deprecated One should use {@link #update(DatabaseTable, Collection, Collection, boolean)} instead
 	 */
 	public static void update(DatabaseTable table, String targetColumn, String targetValue, 
-			String[] changeColumns, String[] newValues) throws SQLException, DatabaseUnavailableException
+			String[] changeColumns, String[] newValues, boolean skipNulls) throws 
+			SQLException, DatabaseUnavailableException
 	{
 		DatabaseAccessor accessor = new DatabaseAccessor(table.getDatabaseName());
 		
 		try
 		{
-			for (int i = 1; i <= DatabaseSettings.getTableHandler().getTableAmount(table); i++)
+			StringBuilder statementBuilder = new StringBuilder("UPDATE ");
+			statementBuilder.append(table.getTableName());
+			statementBuilder.append(" SET ");
+			
+			int valuesWritten = 0;
+			for (int columnIndex = 0; columnIndex < changeColumns.length; columnIndex ++)
 			{
-				StringBuilder statementBuilder = new StringBuilder("UPDATE ");
-				statementBuilder.append(table.getTableName() + i);
-				statementBuilder.append(" SET ");
-				
-				for (int columnIndex = 0; columnIndex < changeColumns.length; columnIndex ++)
+				String newValue = newValues[columnIndex];
+				if (newValue == null)
 				{
-					if (columnIndex != 0)
-						statementBuilder.append(", ");
-					statementBuilder.append(changeColumns[columnIndex] + " = '" + 
-						newValues[columnIndex] + "'");
+					if (skipNulls)
+						continue;
+					else
+						newValue = "null";
 				}
+				else
+					newValue = "'" + newValue + "'";
 				
+				if (columnIndex != 0)
+					statementBuilder.append(", ");
+				statementBuilder.append(changeColumns[columnIndex] + " = " + newValue);
+				valuesWritten ++;
+			}
+			
+			// The statement is executed only if new data was written
+			if (valuesWritten != 0)
+			{
 				statementBuilder.append(" WHERE " + targetColumn + " = '" + targetValue + "'");
 				
 				accessor.executeStatement(statementBuilder.toString());
@@ -742,136 +927,362 @@ public class DatabaseAccessor
 	}
 	
 	/**
-	 * Updates an object's data into the database. If the object doesn't exist in the 
-	 * database, nothing is changed.
-	 * @param object The object whose data will be updated to the database.
-	 * @throws InvalidTableTypeException If the object's table doesn't have a primary column.
-	 * @throws SQLException If the operation failed.
-	 * @throws DatabaseUnavailableException If the database couldn't be reached.
+	 * Updates attributes into database where the conditions are met
+	 * @param intoTable The table the values will be updated into
+	 * @param setAttributes The attributes that will be updated into the table
+	 * @param whereAttributes The conditions for a row that must be met for the update to be 
+	 * made. If an empty set or null is provided, all records will be updated.
+	 * @param noNullUpdates Should null value updates be skipped entirely
+	 * @throws DatabaseUnavailableException If the database can't be accessed at this time
+	 * @throws DatabaseException If the operation failed
 	 */
-	public static void update(DatabaseWritable object) throws InvalidTableTypeException, 
-			SQLException, DatabaseUnavailableException
+	public static void update(DatabaseTable intoTable, Collection<? extends Attribute> setAttributes, 
+			Collection<? extends Attribute> whereAttributes, boolean noNullUpdates) 
+			throws DatabaseUnavailableException, DatabaseException
 	{
-		// This only works if the object table uses primary keys and the object has one
-		String primaryColumnName = object.getTable().getPrimaryColumnName();
-		if (primaryColumnName == null)
-			throw new InvalidTableTypeException("The table " + object.getTable() + 
-					" doesn't have a primary column");
-		
-		String id = object.getColumnValue(primaryColumnName);
-		if (id == null)
+		update(intoTable, setAttributes, whereAttributes, noNullUpdates, null);
+	}
+	
+	/**
+	 * Updates attributes into database where the conditions are met
+	 * @param intoTable The table the values will be updated into
+	 * @param setAttributes The attributes that will be updated into the table
+	 * @param whereAttributes The conditions for a row that must be met for the update to be 
+	 * made. If an empty set or null is provided, all records will be updated.
+	 * @param noNullUpdates Should null value updates be skipped entirely
+	 * @param extraSQL The sql string that will be added to the end of the update statement. 
+	 * Null if not used.
+	 * @throws DatabaseUnavailableException If the database can't be accessed at this time
+	 * @throws DatabaseException If the operation failed
+	 */
+	public static void update(DatabaseTable intoTable, Collection<? extends Attribute> setAttributes, 
+			Collection<? extends Attribute> whereAttributes, boolean noNullUpdates, 
+			String extraSQL) throws DatabaseUnavailableException, DatabaseException
+	{
+		if (intoTable == null || setAttributes == null)
 			return;
 		
-		// Collects the data required for the operation
-		List<String> updatedColumns = object.getTable().getColumnNames();
-		updatedColumns.remove(primaryColumnName);
-		String[] updatedValues = new String[updatedColumns.size()];
-		for (int i = 0; i < updatedValues.length; i++)
+		// Only attributes that belong to the table and don't use auto-increment are updated
+		List<Attribute> updatedAttributes = new ArrayList<>();
+		updatedAttributes.addAll(setAttributes);
+		// Null attributes may also be filtered
+		if (noNullUpdates)
+			updatedAttributes = getNonNullAttributes(setAttributes);
+		removeAutoIncrementAttributes(updatedAttributes, intoTable.getColumnInfo());
+		
+		if (updatedAttributes.isEmpty())
+			return;
+		
+		StringBuilder sql = new StringBuilder("UPDATE ");
+		sql.append(intoTable.getTableName());
+		sql.append(" SET ");
+		sql.append(getEqualsString(updatedAttributes, ", "));
+		if (whereAttributes != null && !whereAttributes.isEmpty())
 		{
-			updatedValues[i] = object.getColumnValue(updatedColumns.get(i));
+			sql.append(" WHERE ");
+			sql.append(getEqualsString(whereAttributes, " AND "));
 		}
+		if (extraSQL != null)
+			sql.append(extraSQL);
 		
-		// Performs the update
-		update(object.getTable(), primaryColumnName, id, 
-				updatedColumns.toArray(new String[0]), updatedValues);
-	}
-	
-	/**
-	 * Checks if an object already has its data stored in a database. If the object's table 
-	 * doesn't have a primary column, this can't be determined and false will be returned.
-	 * @param object The object that may or may not exist in the database
-	 * @return Does the database already contain the object's data
-	 * @throws DatabaseUnavailableException If the database couldn't be reached
-	 * @throws SQLException If the operation failed
-	 */
-	public static boolean objectIsInDatabase(DatabaseWritable object) throws 
-			DatabaseUnavailableException, SQLException
-	{
-		// If the table doesn't have primary columns, can't determine if the object exists 
-		// in the table
-		String primaryColumnName = object.getTable().getPrimaryColumnName();
-		if (primaryColumnName == null)
-			return false;
-		
-		String id = object.getColumnValue(object.getTable().getPrimaryColumnName());
-		
-		// If the object can't determine it's id, it is probably collecting it from 
-		// auto-increment data and hence not written yet
-		if (id == null)
-			return false;
-		
-		// Otherwise simply checks if the primary key is in use
-		return !findMatchingData(object.getTable(), primaryColumnName, id, primaryColumnName, 
-				1).isEmpty();
-	}
-	
-	/**
-	 * Reads the object's data from the database and informs the object
-	 * @param object The object that will be informed about the readings
-	 * @param objectIdentifier The identifier with which the object is stored in the database 
-	 * (primary key)
-	 * @return Could any data be found. If false, the object may be unusable.
-	 * @throws DatabaseUnavailableException If the database couldn't be reached.
-	 * @throws SQLException If the operation failed.
-	 */
-	public static boolean readObjectData(DatabaseReadable object, String objectIdentifier) 
-			throws DatabaseUnavailableException, SQLException
-	{
-		DatabaseAccessor accessor = null;
+		// Executes the update
+		DatabaseAccessor accessor = new DatabaseAccessor(intoTable.getDatabaseName());
 		PreparedStatement statement = null;
-		ResultSet results = null;
-		
 		try
 		{
-			accessor = new DatabaseAccessor(object.getTable().getDatabaseName());
+			statement = accessor.getPreparedStatement(sql.toString());
+			int whereAttributeIndex = prepareAttributeValues(statement, updatedAttributes, 1);
+			if (whereAttributes != null && !whereAttributes.isEmpty())
+				prepareAttributeValues(statement, whereAttributes, whereAttributeIndex);
 			
-			// Parses the identifier, if necessary
-			int id = 0;
-			if (object.getTable().usesIntegerIndexing())
-			{
-				try
-				{
-					id = Integer.parseInt(objectIdentifier);
-				}
-				catch (NumberFormatException e)
-				{
-					return false;
-				}
-			}
-			
-			statement = accessor.getPreparedStatement(new StringBuilder(
-					"SELECT * FROM ").append(
-					DatabaseSettings.getTableHandler().getTableNameForIndex(object.getTable(), 
-					id, false)).append(" WHERE ").append(
-					object.getTable().getPrimaryColumnName()).append(" = '").append(
-					objectIdentifier + "'").toString());
-			
-			results = statement.executeQuery();
-			
-			if (results.next())
-			{
-				// Goes through the columns and informs the object about their contents
-				for (String field : object.getTable().getColumnNames())
-				{
-					object.setValue(field, results.getString(field));
-				}
-				
-				return true;
-			}
-			else
-				return false;
+			statement.executeUpdate();
+		}
+		catch (SQLException e)
+		{
+			List<Attribute> usedAttributes = new ArrayList<>();
+			if (setAttributes != null)
+				usedAttributes.addAll(setAttributes);
+			if (whereAttributes != null)
+				usedAttributes.addAll(whereAttributes);
+			throw new DatabaseException(e, sql.toString(), intoTable, usedAttributes);
 		}
 		finally
 		{
-			if (accessor != null)
-				accessor.closeConnection();
+			closeStatement(statement);
+			accessor.closeConnection();
 		}
+	}
+	
+	/**
+	 * Updates the model's current attributes with the database's values. New attributes 
+	 * won't be created.
+	 * @param model The object that will be updated
+	 * @throws DatabaseUnavailableException If the database couldn't be accessed
+	 * @throws IndexAttributeRequiredException If the provided object doesn't use 
+	 * auto-increment indexing and doesn't have an index attribute
+	 * @throws DatabaseException If the operation failed
+	 */
+	public static <T extends DatabaseReadable & DatabaseWritable> void 
+			updateExistingObjectAttributesFromDatabase(T model) throws 
+			DatabaseUnavailableException, IndexAttributeRequiredException, DatabaseException
+	{
+		// If the object uses auto-increment indexing and doesn't have an index, it can't be 
+		// in the database
+		if (model.getTable().usesAutoIncrementIndexing() && 
+				DatabaseWritable.getIndexAttribute(model) == null)
+			return;
+		
+		List<List<Attribute>> results = select(Attribute.getDescriptionsFrom(
+				model.getAttributes()), model.getTable(), 
+				getIndexAttributeOrFail(model).wrapIntoList(), 1);
+		if (!results.isEmpty())
+			model.updateAttributes(results.get(0));
+	}
+	
+	/**
+	 * Reads the object's data from the database. Adds new attributes if needed.
+	 * @param model The object that is is updated from the database
+	 * @param whereAttributes The attributes that define which row is read
+	 * @param nameMapping the mapping that associates attribute names with column names
+	 * @throws DatabaseUnavailableException If the database couldn't be accessed
+	 * @throws DatabaseException If the operation failed
+	 */
+	public static void readObjectAttributesFromDatabase(DatabaseReadable model, 
+			Collection<? extends Attribute> whereAttributes, 
+			AttributeNameMapping nameMapping) throws 
+			DatabaseUnavailableException, DatabaseException
+	{
+		List<List<Attribute>> results = DatabaseAccessor.selectAll(model.getTable(), 
+				whereAttributes, 1, null, nameMapping);
+		if (!results.isEmpty())
+			model.updateAttributes(results.get(0));
+	}
+	
+	/**
+	 * Updates the object into database. If there is no previous data, makes an insert. 
+	 * Otherwise updates existing data
+	 * @param model The object that will be written into the database
+	 * @param noNullUpdates In case previous data will be updated, should null values be 
+	 * skipped (leaving possible previous data)
+	 * @throws DatabaseUnavailableException If the database is not available
+	 * @throws IndexAttributeRequiredException If the object doesn't use auto-increment 
+	 * indexing and doesn't have an index attribute
+	 * @throws DatabaseException If the operation failed
+	 */
+	public static void updateObjectToDatabase(DatabaseWritable model, boolean noNullUpdates) 
+			throws DatabaseUnavailableException, IndexAttributeRequiredException, DatabaseException
+	{
+		// Auto-increment indexing models with no previous index are inserted as new
+		if (!objectIsInDatabase(model))
+			insertObjectIntoDatabase(model);
+		else
+			updateObjectToDatabase(model, noNullUpdates);
+	}
+	
+	/**
+	 * Inserts an object into the database if there is no previous data for the object
+	 * @param model The object that may be inserted
+	 * @return Was the object inserted into the database
+	 * @throws DatabaseUnavailableException If the database can't be accessed
+	 * @throws IndexAttributeRequiredException If the object doesn't use auto-increment 
+	 * indexing and doesn't have an index attribute
+	 * @throws DatabaseException If the operation failed
+	 */
+	public static boolean insertObjectToDatabaseIfNotExists(DatabaseWritable model) throws 
+			DatabaseUnavailableException, IndexAttributeRequiredException, DatabaseException
+	{
+		// Auto-increment indexing models with no previous index are inserted as new
+		if (!objectIsInDatabase(model))
+		{
+			insertObjectIntoDatabase(model);
+			return true;
+		}
+		
+		return false;
+	}
+	
+	/**
+	 * Updates object's data in the database, but only if there is already previous data 
+	 * in the database
+	 * @param model The object that will be updated into database
+	 * @param noNullUpdates Should null attributes be skipped, leaving previous data intact
+	 * @return Was the object updated into the database
+	 * @throws DatabaseUnavailableException If the database can't be accessed
+	 * @throws IndexAttributeRequiredException If the object doesn't have an index attribute
+	 * @throws DatabaseException If the operation failed
+	 */
+	public static boolean updateObjectToDatabaseIfExists(DatabaseWritable model, 
+			boolean noNullUpdates) throws DatabaseUnavailableException,  
+			IndexAttributeRequiredException, DatabaseException
+	{
+		if (!objectIsInDatabase(model))
+			return false;
+		overwriteObjectIntoDatabase(model, noNullUpdates);
+		return true;
+	}
+	
+	/**
+	 * Deletes the object from the database (deletes a row with the same primary key index)
+	 * @param model The model that will be deleted
+	 * @throws DatabaseUnavailableException If the database can't be accessed
+	 * @throws IndexAttributeRequiredException If the object doesn't have an index
+	 * @throws DatabaseException If the operation failed
+	 */
+	public static void deleteObjectFromDatabase(DatabaseWritable model) throws 
+			DatabaseUnavailableException, IndexAttributeRequiredException, DatabaseException
+	{
+		delete(model.getTable(), getIndexAttributeOrFail(model).wrapIntoList());
+	}
+	
+	/**
+	 * Checks if there is already data where the object would be saved
+	 * @param model The object that may exist in the database
+	 * @return Is there already data where the object would be saved (on same primary key index)
+	 * @throws DatabaseUnavailableException If the database is unavailable
+	 * @throws IndexAttributeRequiredException If the object doesn't use auto-increment 
+	 * indexing and doesn't have an index attribute
+	 * @throws DatabaseException If the operation failed
+	 */
+	public static boolean objectIsInDatabase(DatabaseWritable model) throws 
+			DatabaseUnavailableException, IndexAttributeRequiredException, DatabaseException
+	{
+		if (model.getTable().usesAutoIncrementIndexing() && 
+				DatabaseWritable.getIndexAttribute(model) == null)
+			return false;
+		
+		// Finds the existing index, if there is one
+		List<List<Attribute>> result = select(
+				Attribute.getDescriptionsFrom(getIndexAttributeOrFail(model).wrapIntoList()), 
+				model.getTable(), DatabaseWritable.getIndexAttribute(model).wrapIntoList(), 1);
+		
+		return !result.isEmpty();
+	}
+	
+	private static void insertObjectIntoDatabase(DatabaseWritable model) throws 
+			DatabaseUnavailableException, DatabaseException
+	{
+		int newIndex = insert(model.getTable(), model.getAttributes());
+		// Informs the object if a new index was generated
+		if (newIndex >= 0)
+			model.newIndexGenerated(newIndex);
+	}
+	
+	private static void overwriteObjectIntoDatabase(DatabaseWritable model, 
+			boolean noNullUpdates) throws DatabaseUnavailableException, 
+			IndexAttributeRequiredException, DatabaseException
+	{
+		update(model.getTable(), model.getAttributes(), 
+				getIndexAttributeOrFail(model).wrapIntoList(), noNullUpdates);
+	}
+	
+	private static List<Attribute> getNonNullAttributes(Collection<? extends Attribute> attributes)
+	{
+		List<Attribute> nonNull = new ArrayList<>();
+		for (Attribute attribute : attributes)
+		{
+			if (!attribute.isNull())
+				nonNull.add(attribute);
+		}
+		
+		return nonNull;
+	}
+	
+	private static String getColumnNameString(Collection<? extends AttributeDescription> attributes)
+	{
+		StringBuilder sql = new StringBuilder("(");
+		
+		boolean firstAttribute = true;
+		for (AttributeDescription attribute : attributes)
+		{
+			if (!firstAttribute)
+				sql.append(", ");
+			sql.append(attribute.getColumnName());
+			firstAttribute = false;
+		}
+		sql.append(")");
+		
+		return sql.toString();
+	}
+	
+	private static String getEqualsString(Collection<? extends Attribute> attributes, String separator)
+	{
+		StringBuilder sql = new StringBuilder();
+		boolean firstAttribute = true;
+		for (Attribute attribute : attributes)
+		{
+			if (!firstAttribute)
+				sql.append(separator);
+			sql.append(attribute.getDescription().getColumnName());
+			// With null values, 'is' is used instead of '='
+			if (attribute.isNull())
+				sql.append(" is ?");
+			else
+				sql.append(" = ?");
+			firstAttribute = false;
+		}
+		
+		return sql.toString();
+	}
+	
+	private static String getValueSetString(int attributeAmount)
+	{
+		StringBuilder sql = new StringBuilder("(");
+		for (int i = 0; i < attributeAmount; i++)
+		{
+			if (i != 0)
+				sql.append(", ?");
+			else
+				sql.append("?");
+		}
+		sql.append(")");
+		
+		return sql.toString();
+	}
+	
+	private static int prepareAttributeValues(PreparedStatement statement, 
+			Collection<? extends Attribute> attributes, int startIndex) throws SQLException
+	{
+		int i = startIndex;
+		for (Attribute attribute : attributes)
+		{
+			if (attribute.isNull())
+				statement.setNull(i, attribute.getDescription().getType());
+			else
+				statement.setObject(i, attribute.getValue(), 
+						attribute.getDescription().getType());
+			i ++;
+		}
+		
+		return i;
+	}
+	
+	private static void removeAutoIncrementAttributes(
+			Collection<? extends Attribute> targetGroup, 
+			List<? extends ColumnInfo> columnInfo)
+	{
+		List<Attribute> autoIncrementAttributes = new ArrayList<>();
+		for (Attribute attribute : targetGroup)
+		{
+			ColumnInfo matchingColumn = 
+					attribute.findMatchingColumnFrom(columnInfo);
+			if (matchingColumn.usesAutoIncrementIndexing())
+				autoIncrementAttributes.add(attribute);
+		}
+		targetGroup.removeAll(autoIncrementAttributes);
+	}
+	
+	private static Attribute getIndexAttributeOrFail(DatabaseWritable object) 
+			throws IndexAttributeRequiredException
+	{
+		Attribute indexAttribute = DatabaseWritable.getIndexAttribute(object);
+		if (indexAttribute == null)
+			throw new IndexAttributeRequiredException(object);
+		return indexAttribute;
 	}
 	
 	/**
 	 * Inserts new data into the given table while also collecting and returning the 
-	 * auto-generated id. Also informs the multiTableHandler about the addition. This 
-	 * should be used for auto-indexing tables.
+	 * auto-generated id. This should be used for auto-indexing tables.
 	 * @param targetTable The table the data is inserted into
 	 * @param columnData The data posted to the table (in the same order as in the tables). 
 	 * Strings need to be surrounded with brackets (')
@@ -897,16 +1308,16 @@ public class DatabaseAccessor
 		try
 		{
 			statement = accessor.getPreparedStatement(getInsertStatement(targetTable, 
-					columnData, -1), true);
+					columnData), true);
 			statement.execute();
 			
 			autoKeys = statement.getGeneratedKeys();
 			
 			if (autoKeys.next())
 			{
-				int id = autoKeys.getInt(targetTable.getPrimaryColumnName());
-				DatabaseSettings.getTableHandler().updateTableAmount(targetTable, id);
-				return id;
+				return autoKeys.getInt(targetTable.getPrimaryColumn().getName());
+				//DatabaseSettings.getTableHandler().updateTableAmount(targetTable, id);
+				//return id;
 			}
 		}
 		finally
@@ -927,30 +1338,29 @@ public class DatabaseAccessor
 		{
 			if (i != 0)
 				columnDataString.append(", ");
-			columnDataString.append("'" + columnData.get(i) + "'");
+			String nextData = columnData.get(i);
+			if (nextData != null)
+				columnDataString.append("'" + columnData.get(i) + "'");
+			else
+				columnDataString.append("null");
 		}
 		
 		return columnDataString.toString();
 	}
 	
-	/*
-	private static String getInsertStatement(DatabaseTable table, List<String> columnData)
-	{
-		return getInsertStatement(table, getColumnDataString(columnData));
-	}
-	*/
-	
-	private static String getInsertStatement(DatabaseTable table, String columnDataString, 
-			int index)
+	private static String getInsertStatement(DatabaseTable table, String columnDataString)
 	{
 		StringBuilder statement = new StringBuilder();
 		statement.append("INSERT INTO ");
 		
+		/*
 		if (index < 0)
 			statement.append(DatabaseSettings.getTableHandler().getLatestTableName(table));
 		else
 			statement.append(DatabaseSettings.getTableHandler().getTableNameForIndex(
 					table, index, true));
+		*/
+		statement.append(table.getTableName());
 		
 		statement.append(" values (");
 		
@@ -966,7 +1376,7 @@ public class DatabaseAccessor
 	
 	private static void checkPrimaryKeyColumn(DatabaseTable table) throws InvalidTableTypeException
 	{
-		if (table.getPrimaryColumnName() == null)
+		if (table.getPrimaryColumn() == null)
 			throw new InvalidTableTypeException(
 					"table " + table + " doesn't have a primary key column");
 	}

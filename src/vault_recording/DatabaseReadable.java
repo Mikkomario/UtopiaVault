@@ -1,23 +1,17 @@
 package vault_recording;
 
-import vault_database.DatabaseTable;
+import java.util.Collection;
 
 /**
  * These objects can be read from the database
  * @author Mikko Hilpinen
  * @since 30.5.2015
  */
-public interface DatabaseReadable
+public interface DatabaseReadable extends DatabaseStorable
 {
 	/**
-	 * @return The table that contains the object's data
+	 * Updates the object's attributes based on database query
+	 * @param readAttributes The attributes read from the database
 	 */
-	public DatabaseTable getTable();
-	
-	/**
-	 * Changes the object based on the value read from the database
-	 * @param columnName The name of the column that contains the value
-	 * @param readValue The value read from the database
-	 */
-	public void setValue(String columnName, String readValue);
+	public void updateAttributes(Collection<Attribute> readAttributes);
 }

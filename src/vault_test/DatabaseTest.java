@@ -2,7 +2,9 @@ package vault_test;
 
 import java.sql.SQLException;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Random;
 
 import vault_database.DatabaseAccessor;
@@ -10,6 +12,7 @@ import vault_database.DatabaseSettings;
 import vault_database.DatabaseTable;
 import vault_database.DatabaseUnavailableException;
 import vault_database.InvalidTableTypeException;
+import vault_recording.DatabaseModel;
 import vault_recording.DatabaseReadable;
 import vault_recording.DatabaseWritable;
 
@@ -63,11 +66,18 @@ public class DatabaseTest
 		{
 			System.out.println("Initializes settings");
 			
-			DatabaseSettings.initialize(address, user, password, 20);
+			DatabaseSettings.initialize(address, user, password);
+			
+			System.out.println("Creates attribute mappings");
+			Map<String, String> mappings = new HashMap<>();
+			for (String columnName : TestTable.DEFAULT.getColumnNames())
+			{
+				mappings.put(columnName, columnName.substring(3));
+			}
 			
 			// Inserts data
 			System.out.println("Inserts data");
-			List<TestDatabaseEntity> data = insert(30, possibleNames, possibleAdditionals);
+			List<DatabaseModel> data = insert(30, possibleNames, possibleAdditionals);
 			// Reads data
 			System.out.println("Reads data");
 			read();
@@ -101,16 +111,18 @@ public class DatabaseTest
 	
 	// OTHER METHODS	-------------------------
 	
-	private static List<TestDatabaseEntity> insert(int amount, String[] possibleNames, 
-			Integer[] possibleAdditionals) throws SQLException, DatabaseUnavailableException
+	private static List<DatabaseModel> insert(int amount, String[] possibleNames, 
+			Integer[] possibleAdditionals, Map<String, String> attributeMapping) throws 
+			SQLException, DatabaseUnavailableException
 	{
 		Random random = new Random();
-		List<TestDatabaseEntity> data = new ArrayList<>();
+		List<DatabaseModel> data = new ArrayList<>();
 		
 		for (int i = 0; i < amount; i++)
 		{
-			data.add(new TestDatabaseEntity(possibleNames[random.nextInt(possibleNames.length)], 
-					possibleAdditionals[random.nextInt(possibleAdditionals.length)]));
+			// TODO: Continue
+			//data.add(new TestDatabaseEntity(possibleNames[random.nextInt(possibleNames.length)], 
+			//		possibleAdditionals[random.nextInt(possibleAdditionals.length)]));
 		}
 		
 		return data;
@@ -146,118 +158,22 @@ public class DatabaseTest
 	}
 	
 	
-	// SUBCLASSES	-----------------------------
-	
-	private static class TestDatabaseEntity implements DatabaseReadable, DatabaseWritable
-	{
-		// ATTRIBUTES	------------------------
-		
-		private String id, name;
-		private int additional;
-		
-		
-		// CONSTRUCTOR	------------------------
-		
-		public TestDatabaseEntity(String name, int additional) throws SQLException, DatabaseUnavailableException
-		{
-			this.id = null;
-			this.name = name;
-			this.additional = additional;
-			
-			DatabaseAccessor.insert(this);
-		}
-		
-		public TestDatabaseEntity(String id) throws DatabaseUnavailableException, SQLException
-		{
-			if (!DatabaseAccessor.readObjectData(this, id))
-			{
-				System.out.println(this);
-				System.err.println("Couldn't find object data for id: " + id);
-				this.name = "error";
-				this.additional = 0;
-			}
-			
-			this.id = id;
-		}
-		
-		
-		// IMPLEMENTED METHODS	--------------------
-		
-		@Override
-		public String toString()
-		{
-			return this.name + "(" + this.id + ") " + this.additional;
-		}
-		
-		@Override
-		public String getColumnValue(String columnName)
-		{
-			switch (columnName)
-			{
-				case "id": return this.id;
-				case "name": return this.name;
-				case "additional": return this.additional + "";
-			}
-			
-			System.err.println("Can't provide data for column " + columnName);
-			return null;
-		}
-
-		@Override
-		public void newIndexGenerated(int newIndex)
-		{
-			this.id = newIndex + "";
-		}
-
-		@Override
-		public DatabaseTable getTable()
-		{
-			return TestTable.DEFAULT;
-		}
-
-		@Override
-		public void setValue(String columnName, String readValue)
-		{
-			switch (columnName)
-			{
-				case "id": this.id = readValue; break;
-				case "name": this.name = readValue; break;
-				// TODO: "five" is given here for some random reason
-				case "additional": this.additional = Integer.parseInt(readValue); break;
-			}
-		}
-		
-		
-		// OTHER METHODS	---------------------
-		
-		public void delete() throws SQLException, DatabaseUnavailableException
-		{
-			DatabaseAccessor.delete(getTable(), getTable().getPrimaryColumnName(), this.id);
-		}
-		
-		public void changeAdditional(int newAdditional) throws InvalidTableTypeException, 
-				SQLException, DatabaseUnavailableException
-		{
-			this.additional = newAdditional;
-			DatabaseAccessor.update(this);
-		}
-	}
-	
-	
 	// ENUMERATIONS	-----------------------------
 	
 	private static enum TestTable implements DatabaseTable
 	{
 		/**
-		 * id (Auto-increment) | name | additional
+		 * db_id (Auto-increment) | db_name | db_additional
 		 */
 		DEFAULT;
-
-		@Override
-		public boolean usesIntegerIndexing()
-		{
-			return true;
-		}
+		
+		
+		// ATTRIBUTES	------------------
+		
+		private static List<ColumnInfo> columnInfo;
+		
+		
+		// IMPLEMENTED METHODS	----------
 
 		@Override
 		public boolean usesAutoIncrementIndexing()
@@ -280,23 +196,32 @@ public class DatabaseTest
 		@Override
 		public List<String> getColumnNames()
 		{
-			try
-			{
-				return DatabaseTable.getColumnNamesFromColumnInfo(
-						DatabaseTable.readColumnInfoFromDatabase(this));
-			}
-			catch (DatabaseUnavailableException | SQLException e)
-			{
-				System.err.println("Can't read column names");
-				e.printStackTrace();
-				return new ArrayList<>();
-			}
+			return DatabaseTable.getColumnNamesFromColumnInfo(getColumnInfo());
 		}
 
 		@Override
 		public String getPrimaryColumnName()
 		{
-			return "id";
+			return DatabaseTable.findPrimaryColumnInfo(getColumnInfo()).getName();
+		}
+
+		@Override
+		public List<ColumnInfo> getColumnInfo()
+		{
+			if (columnInfo == null)
+			{
+				try
+				{
+					columnInfo = DatabaseTable.readColumnInfoFromDatabase(this);
+				}
+				catch (DatabaseUnavailableException | SQLException e)
+				{
+					System.out.println("Couldn't read column info");
+					e.printStackTrace();
+				}
+			}
+			
+			return columnInfo;
 		}
 	}
 }
