@@ -239,6 +239,26 @@ public class DatabaseModel implements DatabaseReadable, DatabaseWritable
 	}
 	
 	/**
+	 * Goes through the columns in the database table and creates null value attributes for 
+	 * each column
+	 * @param keepExistingValues Should existing column attributes be kept as they are (true) 
+	 * or replaced with null (false)
+	 */
+	public void initializeTableAttributesToNull(boolean keepExistingValues)
+	{
+		for (ColumnInfo column : getTable().getColumnInfo())
+		{
+			// May keep the existing attributes
+			if (keepExistingValues && hasAttributeWithName(
+					getAttributeNameMapping().getAttributeName(column.getName())))
+				continue;
+			
+			Attribute attribute = new Attribute(column, getAttributeNameMapping(), null);
+			addAttribute(attribute, true);
+		}
+	}
+	
+	/**
 	 * These exceptions are thrown when an attribute can't be generated based on an attribute 
 	 * name
 	 * @author Mikko Hilpinen

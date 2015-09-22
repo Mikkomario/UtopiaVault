@@ -1045,8 +1045,7 @@ public class DatabaseAccessor
 	{
 		// If the object uses auto-increment indexing and doesn't have an index, it can't be 
 		// in the database
-		if (model.getTable().usesAutoIncrementIndexing() && 
-				DatabaseWritable.getIndexAttribute(model) == null)
+		if (modelUsesAutoIncrementButHasNoIndex(model))
 			return;
 		
 		List<List<Attribute>> results = select(Attribute.getDescriptionsFrom(
@@ -1161,8 +1160,7 @@ public class DatabaseAccessor
 	public static boolean objectIsInDatabase(DatabaseWritable model) throws 
 			DatabaseUnavailableException, IndexAttributeRequiredException, DatabaseException
 	{
-		if (model.getTable().usesAutoIncrementIndexing() && 
-				DatabaseWritable.getIndexAttribute(model) == null)
+		if (modelUsesAutoIncrementButHasNoIndex(model))
 			return false;
 		
 		// Finds the existing index, if there is one
@@ -1292,6 +1290,15 @@ public class DatabaseAccessor
 		if (indexAttribute == null)
 			throw new IndexAttributeRequiredException(object);
 		return indexAttribute;
+	}
+	
+	private static boolean modelUsesAutoIncrementButHasNoIndex(DatabaseWritable model)
+	{
+		if (!model.getTable().usesAutoIncrementIndexing())
+			return false;
+		
+		Attribute index = DatabaseWritable.getIndexAttribute(model);
+		return (index == null || index.isNull());
 	}
 	
 	/**
