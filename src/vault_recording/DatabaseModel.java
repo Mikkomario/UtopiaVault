@@ -68,6 +68,25 @@ public class DatabaseModel implements DatabaseReadable, DatabaseWritable
 			this.nameMapping = new AttributeNameMapping();
 	}
 	
+	/**
+	 * Creates a new model by copying another one. This method copies the attributes, table, 
+	 * and updateRewrite allowing from the other model. Both will use the same name mapping.
+	 * @param other The model that is being copied.
+	 */
+	public DatabaseModel(DatabaseModel other)
+	{
+		this.attributes = new HashMap<>();
+		this.table = other.getTable();
+		this.allowUpdateRewrite = other.allowsUpdateRewrite();
+		this.nameMapping = other.getAttributeNameMapping();
+		
+		// Copies the attributes
+		for (Attribute attribute : other.getAttributes())
+		{
+			addAttribute(new Attribute(attribute), true);
+		}
+	}
+	
 	
 	// IMPLEMENTED METHODS	------------
 

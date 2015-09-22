@@ -88,6 +88,16 @@ public class Attribute
 		this.value = value;
 	}
 	
+	/**
+	 * Creates a copy of another attribute
+	 * @param other The attribute that is copied
+	 */
+	public Attribute(Attribute other)
+	{
+		this.description = other.getDescription();
+		this.value = other.getValue();
+	}
+	
 	
 	// IMPLEMENTED METHODS	----------
 	
@@ -161,6 +171,8 @@ public class Attribute
 	 */
 	public void setValue(String string) throws InvalidDataTypeException
 	{
+		if (string == null)
+			setToNull();
 		if (getDescription().isOfStringType())
 			this.value = string;
 		else if (getDescription().isOfIntegerType())
@@ -199,6 +211,8 @@ public class Attribute
 	 */
 	public void setValue(LocalDate date) throws InvalidDataTypeException
 	{
+		if (date == null)
+			setToNull();
 		if (getDescription().isOfType(Types.DATE))
 			this.value = Date.valueOf(date);
 		else if (getDescription().isOfStringType())
@@ -214,6 +228,8 @@ public class Attribute
 	 */
 	public void setValue(LocalDateTime date) throws InvalidDataTypeException
 	{
+		if (date == null)
+			setToNull();
 		if (getDescription().isOfType(Types.TIMESTAMP))
 			this.value = Timestamp.valueOf(date);
 		else if (getDescription().isOfType(Types.DATE))
@@ -257,6 +273,8 @@ public class Attribute
 	 */
 	public String getStringValue() throws InvalidDataTypeException
 	{
+		if (isNull())
+			return null;
 		if (getDescription().isOfStringType())
 			return getValue().toString();
 		if (getDescription().isOfType(Types.DATE))
@@ -306,6 +324,8 @@ public class Attribute
 	 */
 	public LocalDate getDateValue() throws InvalidDataTypeException
 	{
+		if (isNull())
+			return null;
 		if (getDescription().isOfType(Types.DATE))
 			return ((Date) getValue()).toLocalDate();
 		if (getDescription().isOfStringType())
@@ -319,6 +339,8 @@ public class Attribute
 	 */
 	public LocalDateTime getDateTimeValue() throws InvalidDataTypeException
 	{
+		if (isNull())
+			return null;
 		if (getDescription().isOfType(Types.TIMESTAMP))
 			return ((Timestamp) getValue()).toLocalDateTime();
 		if (getDescription().isOfStringType())
