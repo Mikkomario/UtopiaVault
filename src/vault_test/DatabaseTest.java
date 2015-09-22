@@ -1,20 +1,22 @@
 package vault_test;
 
 import java.sql.SQLException;
+import java.sql.Types;
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 import java.util.Random;
 
 import vault_database.DatabaseAccessor;
+import vault_database.DatabaseException;
 import vault_database.DatabaseSettings;
 import vault_database.DatabaseTable;
+import vault_database.DatabaseTable.ColumnInfo;
 import vault_database.DatabaseUnavailableException;
-import vault_database.InvalidTableTypeException;
+import vault_recording.Attribute;
+import vault_recording.Attribute.AttributeDescription;
+import vault_recording.AttributeNameMapping;
 import vault_recording.DatabaseModel;
-import vault_recording.DatabaseReadable;
-import vault_recording.DatabaseWritable;
+import vault_recording.IndexAttributeRequiredException;
 
 /**
  * This class tests the basic database features
@@ -69,41 +71,69 @@ public class DatabaseTest
 			DatabaseSettings.initialize(address, user, password);
 			
 			System.out.println("Creates attribute mappings");
-			Map<String, String> mappings = new HashMap<>();
-			for (String columnName : TestTable.DEFAULT.getColumnNames())
+			AttributeNameMapping mappings = new AttributeNameMapping();
+			for (ColumnInfo column : TestTable.DEFAULT.getColumnInfo())
 			{
-				mappings.put(columnName, columnName.substring(3));
+				System.out.println("Mapping " + column.getName());
+				System.out.println("Type = " + column.getType());
+				mappings.addMapping(column.getName(), column.getName().substring(5));
 			}
+			System.out.println("Integer type: " + Types.INTEGER);
+			System.out.println("Varchar type: " + Types.VARCHAR);
+			System.out.println("Other type: " + Types.OTHER);
 			
 			// Inserts data
 			System.out.println("Inserts data");
-			List<DatabaseModel> data = insert(30, possibleNames, possibleAdditionals);
+			List<DatabaseModel> data = insert(10, possibleNames, possibleAdditionals, mappings);
+			print(data);
 			// Reads data
 			System.out.println("Reads data");
-			read();
+			List<DatabaseModel> readData = read(mappings);
+			print(readData);
 			// Updates data
 			System.out.println("Updates data");
 			update(data);
 			// Reads data
 			System.out.println("Reads data");
-			read();
+			readData.clear();
+			readData = read(mappings);
+			print(readData);
 			// Finds data
 			System.out.println("Finds data");
 			System.out.println("The number of 'ones': " + 
-					DatabaseAccessor.findMatchingData(TestTable.DEFAULT, "name", "one", 
-					"id").size());
+					numberOfModelsWithName("one", mappings));
 			// Removes data
-			System.out.println("Removes data");
-			removeTestData(data);
+			System.out.println("Removes (read) data");
+			removeTestData(readData);
 			// Reads data
 			System.out.println("Reads data");
-			read();
+			readData.clear();
+			readData = read(mappings);
+			print(readData);
 			
 			System.out.println("OK!");
 		}
-		catch (Exception e)
+		catch (DatabaseException e)
 		{
-			System.err.println("FAILURE!");
+			System.err.println("Failure due to databaseException");
+			System.err.println(e.getDebugMessage());
+			e.printStackTrace();
+		}
+		catch (DatabaseUnavailableException e)
+		{
+			System.err.println("Failure. Can't connect to DB");
+			e.printStackTrace();
+		}
+		catch (IndexAttributeRequiredException e)
+		{
+			System.err.println("Failure. No index.");
+			if (e.getSourceObject() != null)
+			{
+				for (Attribute attribute : e.getSourceObject().getAttributes())
+				{
+					System.err.println(attribute);
+				}
+			}
 			e.printStackTrace();
 		}
 	}
@@ -112,49 +142,104 @@ public class DatabaseTest
 	// OTHER METHODS	-------------------------
 	
 	private static List<DatabaseModel> insert(int amount, String[] possibleNames, 
-			Integer[] possibleAdditionals, Map<String, String> attributeMapping) throws 
-			SQLException, DatabaseUnavailableException
+			Integer[] possibleAdditionals, AttributeNameMapping attributeMapping) throws 
+			DatabaseUnavailableException, IndexAttributeRequiredException, DatabaseException
 	{
 		Random random = new Random();
 		List<DatabaseModel> data = new ArrayList<>();
+		List<ColumnInfo> columnInfo = TestTable.DEFAULT.getColumnInfo();
 		
 		for (int i = 0; i < amount; i++)
 		{
-			// TODO: Continue
-			//data.add(new TestDatabaseEntity(possibleNames[random.nextInt(possibleNames.length)], 
-			//		possibleAdditionals[random.nextInt(possibleAdditionals.length)]));
+			DatabaseModel model = new DatabaseModel(TestTable.DEFAULT, true, attributeMapping);
+			// Adds name & additional
+			for (ColumnInfo column : columnInfo)
+			{
+				String attributeName = attributeMapping.getAttributeName(column.getName());
+				Object value = null;
+				switch (attributeName)
+				{
+					case "name": value = 
+							possibleNames[random.nextInt(possibleNames.length)]; break;
+					case "additional": value = 
+							possibleAdditionals[random.nextInt(possibleAdditionals.length)]; break;
+					default: continue;
+				}
+				
+				model.addAttribute(new Attribute(column, attributeName, value), true);
+			}
+			
+			// Writes the model into database
+			DatabaseAccessor.updateObjectToDatabase(model, false);
+			
+			data.add(model);
 		}
 		
 		return data;
 	}
 	
-	private static void read() throws DatabaseUnavailableException, SQLException, InvalidTableTypeException
+	private static List<DatabaseModel> read(AttributeNameMapping mapping) throws 
+			DatabaseUnavailableException, DatabaseException
 	{
-		List<String> ids = DatabaseAccessor.findMatchingIDs(TestTable.DEFAULT, new String[0], 
-				new String[0]);
+		// Finds out all the id's
+		AttributeDescription indexDescription = new AttributeDescription(
+				TestTable.DEFAULT.getPrimaryColumn(), mapping);
+		List<List<Attribute>> ids = DatabaseAccessor.select(indexDescription.wrapIntoList(), 
+				TestTable.DEFAULT, -1);
 		
-		for (String id : ids)
+		System.out.println("Found " + ids.size() + " ids");
+		
+		// Loads the models
+		List<DatabaseModel> models = new ArrayList<>();
+		for (List<Attribute> id : ids)
 		{
-			System.out.println(new TestDatabaseEntity(id));
+			DatabaseModel model = new DatabaseModel(TestTable.DEFAULT, true, mapping);
+			DatabaseAccessor.readObjectAttributesFromDatabase(model, id);
+			models.add(model);
+		}
+		
+		return models;
+	}
+	
+	private static void removeTestData(List<DatabaseModel> data) throws  
+			DatabaseUnavailableException, IndexAttributeRequiredException, DatabaseException
+	{
+		for (DatabaseModel model : data)
+		{
+			DatabaseAccessor.deleteObjectFromDatabase(model);
 		}
 	}
 	
-	private static void removeTestData(List<TestDatabaseEntity> data) throws SQLException, 
-			DatabaseUnavailableException
+	private static void update(List<DatabaseModel> data) throws DatabaseUnavailableException, 
+			IndexAttributeRequiredException, DatabaseException
 	{
-		for (TestDatabaseEntity entity : data)
+		for (DatabaseModel model: data)
 		{
-			entity.delete();
+			model.getAttribute("additional").setValue(7);
+			DatabaseAccessor.updateObjectToDatabase(model, true);
 		}
 	}
 	
-	private static void update(List<TestDatabaseEntity> data) throws 
-			InvalidTableTypeException, SQLException, DatabaseUnavailableException
+	private static void print(List<DatabaseModel> data)
 	{
-		for (TestDatabaseEntity entity: data)
+		for (DatabaseModel model : data)
 		{
-			entity.changeAdditional(7);
+			System.out.println("Model: ");
+			for (Attribute attribute : model.getAttributes())
+			{
+				System.out.println(attribute);
+			}
 		}
+	}
+	
+	private static int numberOfModelsWithName(String name, 
+			AttributeNameMapping mapping) throws DatabaseUnavailableException, DatabaseException
+	{
+		List<Attribute> whereAttributes = new Attribute(mapping.findColumnForAttribute(
+				TestTable.DEFAULT.getColumnInfo(), "name"), mapping, name).wrapIntoList();
+		List<AttributeDescription> selection = new AttributeDescription(
+				TestTable.DEFAULT.getPrimaryColumn()).wrapIntoList();
+		return DatabaseAccessor.select(selection, TestTable.DEFAULT, whereAttributes, -1).size();
 	}
 	
 	
@@ -163,7 +248,7 @@ public class DatabaseTest
 	private static enum TestTable implements DatabaseTable
 	{
 		/**
-		 * db_id (Auto-increment) | db_name | db_additional
+		 * test_id (Auto-increment) | test_name | test_additional
 		 */
 		DEFAULT;
 		
@@ -200,9 +285,9 @@ public class DatabaseTest
 		}
 
 		@Override
-		public String getPrimaryColumnName()
+		public ColumnInfo getPrimaryColumn()
 		{
-			return DatabaseTable.findPrimaryColumnInfo(getColumnInfo()).getName();
+			return DatabaseTable.findPrimaryColumnInfo(getColumnInfo());
 		}
 
 		@Override

@@ -15,4 +15,9 @@ public interface DatabaseStorable
 	 * @return The table that contains the object's data
 	 */
 	public DatabaseTable getTable();
+	
+	/**
+	 * @return The column name to attribute name mapping used for this object
+	 */
+	public AttributeNameMapping getAttributeNameMapping();
 }

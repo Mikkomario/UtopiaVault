@@ -3,9 +3,9 @@ CREATE DATABASE IF NOT EXISTS test_db;
 
 USE test_db;
 
-CREATE TABLE test1
+CREATE TABLE test
 (
-	id 			bigint 			NOT NULL PRIMARY KEY AUTO_INCREMENT,
-	name 		varchar(32) 	NOT NULL,
-	additional 	int 			NOT NULL
-);
+	test_id 			bigint 			NOT NULL PRIMARY KEY AUTO_INCREMENT,
+	test_name 			varchar(32) 	NOT NULL,
+	test_additional 	int 			NOT NULL
+)Engine=InnoDB;

@@ -19,6 +19,7 @@ public class DatabaseModel implements DatabaseReadable, DatabaseWritable
 	private Map<String, Attribute> attributes;
 	private DatabaseTable table;
 	private boolean allowUpdateRewrite;
+	private AttributeNameMapping nameMapping;
 	
 	
 	// CONSTRUCTOR	--------------------
@@ -28,13 +29,19 @@ public class DatabaseModel implements DatabaseReadable, DatabaseWritable
 	 * @param table The table the model uses
 	 * @param allowUpdateRewrite Does the model allow attribute changes from the database if 
 	 * there is already an attribute with the same name
-	 * @see DatabaseAccessor#readObjectAttributesFromDatabase(DatabaseReadable, Collection, AttributeNameMapping)
+	 * @param attributeNameMapping The column name to attribute name mapping used for this object
+	 * @see DatabaseAccessor#readObjectAttributesFromDatabase(DatabaseReadable, Collection)
 	 */
-	public DatabaseModel(DatabaseTable table, boolean allowUpdateRewrite)
+	public DatabaseModel(DatabaseTable table, boolean allowUpdateRewrite, 
+			AttributeNameMapping attributeNameMapping)
 	{
 		this.attributes = new HashMap<>();
 		this.table = table;
 		this.allowUpdateRewrite = allowUpdateRewrite;
+		if (attributeNameMapping != null)
+			this.nameMapping = attributeNameMapping;
+		else
+			this.nameMapping = new AttributeNameMapping();
 	}
 	
 	/**
@@ -42,17 +49,22 @@ public class DatabaseModel implements DatabaseReadable, DatabaseWritable
 	 * @param table The table the model uses
 	 * @param allowUpdateRewrite Does the model allow attribute changes from the database if 
 	 * there is already an attribute with the same name
+	 * @param attributeNameMapping The column name to attribute name mapping used for this object
 	 * @param attributes The attributes the model will have. The model will use a different 
 	 * collection and just copies values from this one
 	 * @see DatabaseAccessor#updateObjectToDatabase(DatabaseWritable, boolean)
 	 */
 	public DatabaseModel(DatabaseTable table, boolean allowUpdateRewrite, 
-			Collection<? extends Attribute> attributes)
+			AttributeNameMapping attributeNameMapping, Collection<? extends Attribute> attributes)
 	{
 		this.attributes = new HashMap<>();
 		addAttributes(attributes, true);
 		this.table = table;
 		this.allowUpdateRewrite = allowUpdateRewrite;
+		if (attributeNameMapping != null)
+			this.nameMapping = attributeNameMapping;
+		else
+			this.nameMapping = new AttributeNameMapping();
 	}
 	
 	
@@ -62,12 +74,6 @@ public class DatabaseModel implements DatabaseReadable, DatabaseWritable
 	public DatabaseTable getTable()
 	{
 		return this.table;
-	}
-
-	@Override
-	public void newIndexGenerated(int newIndex)
-	{
-		getIndexAttribute().setValue(newIndex);
 	}
 	
 	@Override
@@ -82,6 +88,19 @@ public class DatabaseModel implements DatabaseReadable, DatabaseWritable
 		addAttributes(readAttributes, allowsUpdateRewrite());
 	}
 	
+	@Override
+	public AttributeNameMapping getAttributeNameMapping()
+	{
+		return this.nameMapping;
+	}
+	
+	@Override
+	public void newIndexGenerated(int newIndex)
+	{
+		addAttribute(new Attribute(getTable().getPrimaryColumn(), getAttributeNameMapping(), 
+				newIndex), true);
+	}
+	
 	
 	// ACCESSORS	---------------------------
 	
@@ -92,6 +111,15 @@ public class DatabaseModel implements DatabaseReadable, DatabaseWritable
 	public boolean allowsUpdateRewrite()
 	{
 		return this.allowUpdateRewrite;
+	}
+	
+	/**
+	 * Changes the attribute name mapping used for this object
+	 * @param mapping The new mapping used for this object
+	 */
+	public void setAttributeNameMapping(AttributeNameMapping mapping)
+	{
+		this.nameMapping = mapping;
 	}
 	
 	

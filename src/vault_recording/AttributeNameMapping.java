@@ -1,7 +1,10 @@
 package vault_recording;
 
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.Map;
+
+import vault_database.DatabaseTable.ColumnInfo;
 
 /**
  * This map connects column names to attribute names. All names are case-insensitive. 
@@ -46,17 +49,23 @@ public class AttributeNameMapping
 	/**
 	 * Finds a column name mapped to this attribute name
 	 * @param attributeName The attribute name
-	 * @return A column name mapped to this attribute. Null if no column name is mapped to 
-	 * the attribute name.
+	 * @param nullIfNotMapped Should null be returned in case where there is no mapping for 
+	 * the given attribute name
+	 * @return If there is a mapping, returns a column name mapped to this attribute. Null if 
+	 * nullIfNotMapped is true and 
+	 * no column name is mapped to the attribute name. The name of the attribute otherwise.
 	 */
-	public String getColumnName(String attributeName)
+	public String getColumnName(String attributeName, boolean nullIfNotMapped)
 	{
 		for (String columnName : this.names.keySet())
 		{
 			if (this.names.get(columnName).equalsIgnoreCase(attributeName))
 				return columnName;
 		}
-		return null;
+		if (nullIfNotMapped)
+			return null;
+		else
+			return attributeName;
 	}
 	
 	/**
@@ -87,5 +96,24 @@ public class AttributeNameMapping
 	public boolean containsMappingForAttribute(String attributeName)
 	{
 		return this.names.keySet().contains(attributeName.toLowerCase());
+	}
+	
+	/**
+	 * Searches through the collection for a column that is mapped to the given attribute name
+	 * @param columns The columns
+	 * @param attributeName The name of the attribute that represents a column
+	 * @return The column the mapped to the attribute name or null if no such column exists in 
+	 * the collection
+	 */
+	public ColumnInfo findColumnForAttribute(Collection<? extends ColumnInfo> columns, 
+			String attributeName)
+	{
+		for (ColumnInfo column : columns)
+		{
+			if (getAttributeName(column.getName()).equalsIgnoreCase(attributeName))
+				return column;
+		}
+		
+		return null;
 	}
 }

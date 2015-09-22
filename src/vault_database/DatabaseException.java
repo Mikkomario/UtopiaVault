@@ -38,6 +38,7 @@ public class DatabaseException extends Exception
 		this.providedValues = new ArrayList<>();
 		this.providedValues.addAll(providedValues);
 		this.usedTable = usedTable;
+		this.sqlStatement = sqlStatement;
 	}
 	
 	
@@ -76,7 +77,7 @@ public class DatabaseException extends Exception
 	 */
 	public String getDebugMessage()
 	{
-		StringBuilder message = new StringBuilder("Exception message:\n");
+		StringBuilder message = new StringBuilder("Exception message\n");
 		message.append("SQL: " + getSQLStatement());
 		message.append("\nTable used: ");
 		message.append(getUsedTable().getDatabaseName() + "/");

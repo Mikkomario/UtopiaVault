@@ -76,6 +76,18 @@ public class Attribute
 		this.value = value;
 	}
 	
+	/**
+	 * Creates a new attribute
+	 * @param columnInfo The column associated with this attribute
+	 * @param nameMapping The column name to attribute name -mapping
+	 * @param value The attribute's value
+	 */
+	public Attribute(ColumnInfo columnInfo, AttributeNameMapping nameMapping, Object value)
+	{
+		this.description = new AttributeDescription(columnInfo, nameMapping);
+		this.value = value;
+	}
+	
 	
 	// IMPLEMENTED METHODS	----------
 	
@@ -159,7 +171,8 @@ public class Attribute
 			this.value = valueAsDate(string);
 		else if (getDescription().isOfType(Types.TIMESTAMP))
 			this.value = valueAsDateTime(string);
-		throw getDataTypeException(Types.VARCHAR);
+		else
+			throw getDataTypeException(Types.VARCHAR);
 	}
 	
 	/**
@@ -175,7 +188,8 @@ public class Attribute
 			this.value = numeric;
 		else if (getDescription().isOfStringType())
 			this.value = numeric + "";
-		throw getDataTypeException(Types.INTEGER);
+		else
+			throw getDataTypeException(Types.INTEGER);
 	}
 	
 	/**
@@ -189,7 +203,8 @@ public class Attribute
 			this.value = Date.valueOf(date);
 		else if (getDescription().isOfStringType())
 			this.value = date.toString();
-		throw getDataTypeException(Types.DATE);
+		else
+			throw getDataTypeException(Types.DATE);
 	}
 	
 	/**
@@ -205,7 +220,8 @@ public class Attribute
 			setValue(date.toLocalDate());
 		else if (getDescription().isOfStringType())
 			setValue(date.toString());
-		throw getDataTypeException(Types.TIMESTAMP);
+		else
+			throw getDataTypeException(Types.TIMESTAMP);
 	}
 	
 	/**
@@ -221,7 +237,8 @@ public class Attribute
 			this.value = (bool ? 1 : 0);
 		else if (getDescription().isOfStringType())
 			this.value = (bool ? "true" : "false");
-		throw getDataTypeException(Types.BOOLEAN);
+		else
+			throw getDataTypeException(Types.BOOLEAN);
 	}
 	
 	/**
@@ -263,7 +280,7 @@ public class Attribute
 	public int getIntValue() throws InvalidDataTypeException
 	{
 		if (getDescription().isOfNumericType())
-			return (int) getValue();
+			return ((Number) getValue()).intValue();
 		if (getDescription().isOfStringType())
 			return valueAsInt(getStringValue());
 		throw getDataTypeException(Types.INTEGER);
@@ -354,15 +371,16 @@ public class Attribute
 	 * @param table The table the for which the attributes are used for
 	 * @return List that contains only attributes that can be updated into the provided table
 	 */
-	public static List<Attribute> getTableAttributesFrom(Collection<Attribute> attributes, 
-			DatabaseTable table)
+	public static List<Attribute> getTableAttributesFrom(Collection<? extends Attribute> 
+			attributes, DatabaseTable table)
 	{
 		List<Attribute> tableAttributes = new ArrayList<>();
 		for (Attribute attribute : attributes)
 		{
 			for (ColumnInfo columnInfo : table.getColumnInfo())
 			{
-				if (columnInfo.getName().equalsIgnoreCase(attribute.getName()))
+				if (columnInfo.getName().equalsIgnoreCase(
+						attribute.getDescription().getColumnName()))
 				{
 					tableAttributes.add(attribute);
 					break;
@@ -401,8 +419,7 @@ public class Attribute
 		List<AttributeDescription> descriptions = new ArrayList<>();
 		for (ColumnInfo column : columnInfo)
 		{
-			String attributeName = nameMapping.getAttributeName(column.getName());
-			descriptions.add(new AttributeDescription(column, attributeName));
+			descriptions.add(new AttributeDescription(column, nameMapping));
 		}
 		
 		return descriptions;
@@ -518,6 +535,18 @@ public class Attribute
 			this.name = this.columnName;
 		}
 		
+		/**
+		 * Creates a new description. The attribute name will be read from the name mapping
+		 * @param columnInfo The column this attribute is based on
+		 * @param nameMapping The column name to attribute name -mappings
+		 */
+		public AttributeDescription(ColumnInfo columnInfo, AttributeNameMapping nameMapping)
+		{
+			this.columnName = columnInfo.getName();
+			this.type = columnInfo.getType();
+			this.name = nameMapping.getAttributeName(this.columnName);
+		}
+		
 		
 		// ACCESSORS	--------------------------
 		
@@ -587,6 +616,16 @@ public class Attribute
 			return isOfType(Types.DOUBLE) || isOfType(Types.FLOAT) || isOfType(Types.DECIMAL) || 
 					isOfIntegerType();
 		}
+		
+		/**
+		 * @return The attribute wrapped into a list
+		 */
+		public List<AttributeDescription> wrapIntoList()
+		{
+			List<AttributeDescription> list = new ArrayList<>();
+			list.add(this);
+			return list;
+		}
 	}
 	
 	/**
@@ -607,7 +646,8 @@ public class Attribute
 		
 		private InvalidDataTypeException(int usedType, int correctType, Attribute source)
 		{
-			super("Invalid data type used on attribute " + source.getName());
+			super("Invalid data type used on attribute " + source.getName() + 
+					". Type used: " + usedType + ", correct type:" + correctType);
 			
 			this.usedType = usedType;
 			this.correctType = correctType;

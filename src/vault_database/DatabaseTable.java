@@ -108,7 +108,9 @@ public interface DatabaseTable
 		
 		try
 		{
-			statement =accessor.getPreparedStatement("DESCRIBE " + table.getTableName());
+			statement = accessor.getPreparedStatement("DESCRIBE " + table.getTableName());
+			System.out.println(statement.isClosed());
+			// TODO: Execute is called on closed statement
 			result = statement.executeQuery();
 			// Reads the field names
 			while (result.next())
@@ -170,6 +172,24 @@ public interface DatabaseTable
 			return Types.TIME;
 		
 		return Types.OTHER;
+	}
+	
+	/**
+	 * Searches for a column with the given name
+	 * @param columnInfo A list of columns
+	 * @param columnName The name of the searched column
+	 * @return The column with the given name (not case-sensitive) or null if there isn't one
+	 */
+	public static ColumnInfo findColumnWithName(Collection<? extends ColumnInfo> columnInfo, 
+			String columnName)
+	{
+		for (ColumnInfo column : columnInfo)
+		{
+			if (column.getName().equalsIgnoreCase(columnName))
+				return column;
+		}
+		
+		return null;
 	}
 	
 	
