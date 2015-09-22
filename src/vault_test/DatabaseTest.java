@@ -147,12 +147,13 @@ public class DatabaseTest
 	{
 		Random random = new Random();
 		List<DatabaseModel> data = new ArrayList<>();
-		List<ColumnInfo> columnInfo = TestTable.DEFAULT.getColumnInfo();
+		//List<ColumnInfo> columnInfo = TestTable.DEFAULT.getColumnInfo();
 		
 		for (int i = 0; i < amount; i++)
 		{
 			DatabaseModel model = new DatabaseModel(TestTable.DEFAULT, true, attributeMapping);
 			// Adds name & additional
+			/*
 			for (ColumnInfo column : columnInfo)
 			{
 				String attributeName = attributeMapping.getAttributeName(column.getName());
@@ -168,6 +169,11 @@ public class DatabaseTest
 				
 				model.addAttribute(new Attribute(column, attributeName, value), true);
 			}
+			*/
+			model.setAttributeValue("name", 
+					possibleNames[random.nextInt(possibleNames.length)], true);
+			model.setAttributeValue("additional", 
+					possibleAdditionals[random.nextInt(possibleAdditionals.length)], true);
 			
 			// Writes the model into database
 			DatabaseAccessor.updateObjectToDatabase(model, false);

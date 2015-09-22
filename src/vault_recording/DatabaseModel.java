@@ -6,6 +6,7 @@ import java.util.Map;
 
 import vault_database.DatabaseAccessor;
 import vault_database.DatabaseTable;
+import vault_database.DatabaseTable.ColumnInfo;
 
 /**
  * DatabaseModels represent a single row in an indexed table
@@ -136,6 +137,40 @@ public class DatabaseModel implements DatabaseReadable, DatabaseWritable
 	}
 	
 	/**
+	 * Changes an attribute's value. If there is no attribute for the given attribute name, 
+	 * one may be generated.
+	 * @param attributeName The name of the attribute
+	 * @param newValue The value the attribute will have
+	 * @param generateIfNotExists If the attribute doesn't exist, should one be generated
+	 * @throws NoAssociatedColumnExistsException if trying to generate an attribute that 
+	 * doesn't represent a column in the model's table
+	 */
+	public void setAttributeValue(String attributeName, Object newValue, 
+			boolean generateIfNotExists)
+	{
+		Attribute attribute = getAttribute(attributeName);
+		if (attribute == null)
+		{
+			if (generateIfNotExists)
+			{
+				ColumnInfo column = getColumnForAttributeName(attributeName);
+				if (column == null)
+					throw new NoAssociatedColumnExistsException(attributeName, 
+							getAttributeNameMapping().getColumnName(attributeName, false), 
+							getTable());
+				addAttribute(new Attribute(column, getAttributeNameMapping(), newValue), true);
+			}
+		}
+		else
+		{
+			if (newValue != null)
+				attribute.setValue(newValue);
+			else
+				attribute.setToNull();
+		}
+	}
+	
+	/**
 	 * Returns the object's attribute that is associated with the provided column name
 	 * @param columnName The name of the column represented by the attribute
 	 * @return Model's attribute representing the given column, null if no such attribute 
@@ -172,7 +207,8 @@ public class DatabaseModel implements DatabaseReadable, DatabaseWritable
 	 */
 	public void addAttribute(Attribute attribute, boolean replaceIfExists)
 	{
-		if (replaceIfExists || this.attributes.containsKey(attribute.getName()))
+		if (attribute != null && (replaceIfExists || 
+				this.attributes.containsKey(attribute.getName())))
 			this.attributes.put(attribute.getName(), attribute);
 	}
 	
@@ -187,6 +223,43 @@ public class DatabaseModel implements DatabaseReadable, DatabaseWritable
 		for (Attribute attribute : attributes)
 		{
 			addAttribute(attribute, replaceIfExists);
+		}
+	}
+	
+	/**
+	 * Finds the column that would be represented by the provided attribute name
+	 * @param attributeName The name of the attribute that would represent a column
+	 * @return A column represented by the provided attribute name or null if no such column 
+	 * exists in the model's table
+	 */
+	public ColumnInfo getColumnForAttributeName(String attributeName)
+	{
+		return getAttributeNameMapping().findColumnForAttribute(getTable().getColumnInfo(), 
+				attributeName);
+	}
+	
+	/**
+	 * These exceptions are thrown when an attribute can't be generated based on an attribute 
+	 * name
+	 * @author Mikko Hilpinen
+	 * @since 22.9.2015
+	 */
+	public static class NoAssociatedColumnExistsException extends RuntimeException
+	{
+		private static final long serialVersionUID = 39359614563601185L;
+
+		/**
+		 * Creates a new exception
+		 * @param attributeName The name of the attribute that was supposed to be inserted
+		 * @param columnName The name of the column the attribute would have had
+		 * @param targetTable The table the attribute couldn't be put to
+		 */
+		public NoAssociatedColumnExistsException(String attributeName, String columnName, 
+				DatabaseTable targetTable)
+		{
+			super("Attribute name '" + attributeName + 
+					"' doesn' represent a column in table " + targetTable.getTableName() + 
+					". No column '" + columnName + "' in the table.");
 		}
 	}
 }

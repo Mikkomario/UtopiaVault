@@ -172,7 +172,7 @@ public class Attribute
 		else if (getDescription().isOfType(Types.TIMESTAMP))
 			this.value = valueAsDateTime(string);
 		else
-			throw getDataTypeException(Types.VARCHAR);
+			throw getDataInsertException(Types.VARCHAR);
 	}
 	
 	/**
@@ -189,7 +189,7 @@ public class Attribute
 		else if (getDescription().isOfStringType())
 			this.value = numeric + "";
 		else
-			throw getDataTypeException(Types.INTEGER);
+			throw getDataInsertException(Types.INTEGER);
 	}
 	
 	/**
@@ -204,7 +204,7 @@ public class Attribute
 		else if (getDescription().isOfStringType())
 			this.value = date.toString();
 		else
-			throw getDataTypeException(Types.DATE);
+			throw getDataInsertException(Types.DATE);
 	}
 	
 	/**
@@ -221,7 +221,7 @@ public class Attribute
 		else if (getDescription().isOfStringType())
 			setValue(date.toString());
 		else
-			throw getDataTypeException(Types.TIMESTAMP);
+			throw getDataInsertException(Types.TIMESTAMP);
 	}
 	
 	/**
@@ -238,7 +238,7 @@ public class Attribute
 		else if (getDescription().isOfStringType())
 			this.value = (bool ? "true" : "false");
 		else
-			throw getDataTypeException(Types.BOOLEAN);
+			throw getDataInsertException(Types.BOOLEAN);
 	}
 	
 	/**
@@ -269,12 +269,26 @@ public class Attribute
 			return getDoubleValue() + "";
 		if (getDescription().isOfType(Types.BOOLEAN))
 			return (getBooleanValue() ? "true" : "false");
-		throw getDataTypeException(Types.VARCHAR);
+		throw getDataCastException(Types.VARCHAR);
+	}
+	
+	/**
+	 * @return The attribute value as a long
+	 * @throws InvalidDataTypeException if the attribute value isn't of numeric type or a 
+	 * string representing a long
+	 */
+	public long getLongValue()
+	{
+		if (getDescription().isOfNumericType())
+			return ((Number) getValue()).longValue();
+		if (getDescription().isOfStringType())
+			return valueAsLong(getStringValue());
+		throw getDataCastException(Types.BIGINT);
 	}
 	
 	/**
 	 * @return The attribute value as an integer
-	 * @throws InvalidDataTypeException If the attribute value isn't of integer type. The value 
+	 * @throws InvalidDataTypeException If the attribute value isn't of numeric type. The value 
 	 * may also be of string type but must represent an integer.
 	 */
 	public int getIntValue() throws InvalidDataTypeException
@@ -283,7 +297,7 @@ public class Attribute
 			return ((Number) getValue()).intValue();
 		if (getDescription().isOfStringType())
 			return valueAsInt(getStringValue());
-		throw getDataTypeException(Types.INTEGER);
+		throw getDataCastException(Types.INTEGER);
 	}
 	
 	/**
@@ -296,7 +310,7 @@ public class Attribute
 			return ((Date) getValue()).toLocalDate();
 		if (getDescription().isOfStringType())
 			return valueAsDate(getStringValue());
-		throw getDataTypeException(Types.DATE);
+		throw getDataCastException(Types.DATE);
 	}
 	
 	/**
@@ -309,7 +323,7 @@ public class Attribute
 			return ((Timestamp) getValue()).toLocalDateTime();
 		if (getDescription().isOfStringType())
 			return valueAsDateTime(getStringValue());
-		throw getDataTypeException(Types.TIMESTAMP);
+		throw getDataCastException(Types.TIMESTAMP);
 	}
 	
 	/**
@@ -322,20 +336,21 @@ public class Attribute
 			return (boolean) getValue();
 		if (getDescription().isOfType(Types.TINYINT))
 			return getIntValue() == 1;
-		throw getDataTypeException(Types.BOOLEAN);
+		throw getDataCastException(Types.BOOLEAN);
 	}
 	
 	/**
 	 * @return The attribute value as a double
-	 * @throws InvalidDataTypeException If the attribute isn't of integer or double type
+	 * @throws InvalidDataTypeException If the attribute isn't of numeric type or a string 
+	 * representing a numeric type
 	 */
 	public double getDoubleValue() throws InvalidDataTypeException
 	{
 		if (getDescription().isOfNumericType())
-			return (double) getValue();
+			return ((Number) getValue()).doubleValue();
 		if (getDescription().isOfStringType())
 			return valueAsDouble(getStringValue());
-		throw getDataTypeException(Types.DOUBLE);
+		throw getDataCastException(Types.DOUBLE);
 	}
 	
 	/**
@@ -425,9 +440,26 @@ public class Attribute
 		return descriptions;
 	}
 	
-	private InvalidDataTypeException getDataTypeException(int usedDataType)
+	private InvalidDataTypeException getDataInsertException(int usedDataType)
 	{
 		return new InvalidDataTypeException(usedDataType, getDescription().getType(), this);
+	}
+	
+	private InvalidDataTypeException getDataCastException(int correctDataType)
+	{
+		return new InvalidDataTypeException(getDescription().getType(), correctDataType, this);
+	}
+	
+	private long valueAsLong(String value)
+	{
+		try
+		{
+			return Long.parseLong(value);
+		}
+		catch (NumberFormatException e)
+		{
+			throw getDataCastException(Types.BIGINT);
+		}
 	}
 	
 	private int valueAsInt(String value) throws InvalidDataTypeException
@@ -438,7 +470,7 @@ public class Attribute
 		}
 		catch (NumberFormatException e)
 		{
-			throw getDataTypeException(Types.INTEGER);
+			throw getDataCastException(Types.INTEGER);
 		}
 	}
 	
@@ -450,7 +482,7 @@ public class Attribute
 		}
 		catch (NumberFormatException e)
 		{
-			throw getDataTypeException(Types.FLOAT);
+			throw getDataCastException(Types.DOUBLE);
 		}
 	}
 	
@@ -462,7 +494,7 @@ public class Attribute
 		}
 		catch (DateTimeParseException e)
 		{
-			throw getDataTypeException(Types.DATE);
+			throw getDataCastException(Types.DATE);
 		}
 	}
 	
@@ -474,7 +506,7 @@ public class Attribute
 		}
 		catch (DateTimeParseException e)
 		{
-			throw getDataTypeException(Types.TIMESTAMP);
+			throw getDataCastException(Types.TIMESTAMP);
 		}
 	}
 	
@@ -585,6 +617,14 @@ public class Attribute
 		public boolean isOfType(int type)
 		{
 			return getType() == type;
+		}
+		
+		/**
+		 * @return Is the attribute type one that represents a long (bigint)
+		 */
+		public boolean isOfLongType()
+		{
+			return isOfType(Types.BIGINT);
 		}
 		
 		/**
