@@ -1035,44 +1035,60 @@ public class DatabaseAccessor
 	 * Updates the model's current attributes with the database's values. New attributes 
 	 * won't be created.
 	 * @param model The object that will be updated
+	 * @return Was any data read from the database
 	 * @throws DatabaseUnavailableException If the database couldn't be accessed
 	 * @throws IndexAttributeRequiredException If the provided object doesn't use 
 	 * auto-increment indexing and doesn't have an index attribute
 	 * @throws DatabaseException If the operation failed
 	 */
-	public static <T extends DatabaseReadable & DatabaseWritable> void 
+	public static <T extends DatabaseReadable & DatabaseWritable> boolean 
 			updateExistingObjectAttributesFromDatabase(T model) throws 
 			DatabaseUnavailableException, IndexAttributeRequiredException, DatabaseException
 	{
 		// If the object uses auto-increment indexing and doesn't have an index, it can't be 
 		// in the database
 		if (modelUsesAutoIncrementButHasNoIndex(model))
-			return;
+			return false;
 		
-		List<List<Attribute>> results = select(Attribute.getDescriptionsFrom(
-				model.getAttributes()), model.getTable(), 
+		List<AttributeDescription> descriptions = Attribute.getDescriptionsFrom(
+				model.getAttributes());
+		if (descriptions.isEmpty())
+			return false;
+		
+		List<List<Attribute>> results = select(descriptions, model.getTable(), 
 				getIndexAttributeOrFail(model).wrapIntoList(), 1);
 		if (!results.isEmpty())
+		{
 			model.updateAttributes(results.get(0));
+			return true;
+		}
+		else
+			return false;
 	}
 	
 	/**
 	 * Reads the object's data from the database. Adds new attributes if needed.
 	 * @param model The object that is is updated from the database
 	 * @param whereAttributes The attributes that define which row is read. Attribute names don't matter.
+	 * @return Was any data read from the database
 	 * @throws DatabaseUnavailableException If the database couldn't be accessed
 	 * @throws DatabaseException If the operation failed
 	 * @throws NoAttributeForColumnException If a table's column name couldn't be mapped to an 
 	 * attribute name
 	 */
-	public static void readObjectAttributesFromDatabase(DatabaseReadable model, 
+	public static boolean readObjectAttributesFromDatabase(DatabaseReadable model, 
 			Collection<? extends Attribute> whereAttributes) throws 
 			DatabaseUnavailableException, DatabaseException, NoAttributeForColumnException
 	{
 		List<List<Attribute>> results = DatabaseAccessor.selectAll(model.getTable(), 
 				whereAttributes, 1, null);
 		if (!results.isEmpty())
+		{
 			model.updateAttributes(results.get(0));
+			return true;
+		}
+		else
+			return false;
 	}
 	
 	/**

@@ -244,7 +244,7 @@ public class DatabaseModel implements DatabaseReadable, DatabaseWritable
 	 * attributes and only overwrites existing values.
 	 * @param attributes The attributes that will be updated to the model.
 	 */
-	public void UpdateAttributesFrom(Collection<? extends Attribute> attributes)
+	public void updateExistingAttributes(Collection<? extends Attribute> attributes)
 	{
 		for (Attribute attribute : attributes)
 		{
