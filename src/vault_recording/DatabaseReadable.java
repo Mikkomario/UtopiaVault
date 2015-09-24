@@ -12,7 +12,7 @@ import vault_database.Attribute;
 public interface DatabaseReadable extends DatabaseStorable
 {
 	/**
-	 * Updates the object's attributes based on database query
+	 * Updates the object's attributes, possibly adding new ones
 	 * @param readAttributes The attributes read from the database
 	 */
 	public void updateAttributes(Collection<Attribute> readAttributes);

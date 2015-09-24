@@ -240,6 +240,20 @@ public class DatabaseModel implements DatabaseReadable, DatabaseWritable
 	}
 	
 	/**
+	 * Updates each model attribute in the collection with the new value. Doesn't add new 
+	 * attributes and only overwrites existing values.
+	 * @param attributes The attributes that will be updated to the model.
+	 */
+	public void UpdateAttributesFrom(Collection<? extends Attribute> attributes)
+	{
+		for (Attribute attribute : attributes)
+		{
+			if (hasAttributeWithName(attribute.getName()))
+				addAttribute(attribute, true);
+		}
+	}
+	
+	/**
 	 * Finds the column that would be represented by the provided attribute name
 	 * @param attributeName The name of the attribute that would represent a column
 	 * @return A column represented by the provided attribute name or null if no such column 
