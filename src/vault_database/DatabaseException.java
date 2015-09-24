@@ -4,8 +4,6 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 
-import vault_recording.Attribute;
-
 /**
  * These exceptions are thrown when using the DatabaseAccessor interface. The exception 
  * contains useful information about the event

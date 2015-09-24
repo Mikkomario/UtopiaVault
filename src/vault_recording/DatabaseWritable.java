@@ -2,6 +2,8 @@ package vault_recording;
 
 import java.util.Collection;
 
+import vault_database.Attribute;
+
 /**
  * These objects can be written into database.
  * @author Mikko Hilpinen

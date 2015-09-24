@@ -10,14 +10,12 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 
+import vault_database.Attribute.AttributeDescription;
+import vault_database.AttributeNameMapping.NoAttributeForColumnException;
 import vault_database.DatabaseSettings.UninitializedSettingsException;
 import vault_database.DatabaseTable.ColumnInfo;
-import vault_recording.Attribute;
-import vault_recording.Attribute.AttributeDescription;
-import vault_recording.AttributeNameMapping;
 import vault_recording.DatabaseReadable;
 import vault_recording.DatabaseWritable;
-import vault_recording.IndexAttributeRequiredException;
 
 /**
  * DatabaseAccessProvider is used to access and modify data in a database. 
@@ -313,7 +311,7 @@ public class DatabaseAccessor
 	 * @param selectedAttributes The attributes that will be selected
 	 * @param fromTable The table the selection is made from
 	 * @param whereAttributes The conditions for the selection. If this is an empty set or null, 
-	 * attributes from each row will be returned.
+	 * attributes from each row will be returned. Attribute names don't matter.
 	 * @param limit How many rows are returned at maximum. If this is a negative number, 
 	 * the number of returned rows is not limited.
 	 * @return A list of attribute sets. One set for each row. Each set contains selected 
@@ -334,7 +332,7 @@ public class DatabaseAccessor
 	 * @param selectedAttributes The attributes that will be selected
 	 * @param fromTable The table the selection is made from
 	 * @param whereAttributes The conditions for the selection. If this is an empty set or null, 
-	 * attributes from each row will be returned.
+	 * attributes from each row will be returned. Attribute names don't matter.
 	 * @param limit How many rows are returned at maximum. If this is a negative number, 
 	 * the number of returned rows is not limited.
 	 * @param extraSQL Extra sql code added to the end of the query. Can be, for example, 
@@ -408,23 +406,25 @@ public class DatabaseAccessor
 	 * Selects all data from certain rows from the table
 	 * @param fromTable The table the selection is made from
 	 * @param whereAttributes The conditions for the selection. If this is an empty set or null, 
-	 * attributes from each row will be returned.
+	 * attributes from each row will be returned. Attribute names don't matter.
 	 * @param limit How many rows are returned at maximum. If this is a negative number, 
 	 * the number of returned rows is not limited.
 	 * @param extraSQL Extra sql code added to the end of the query. Can be, for example, 
 	 * sorting information. Null if not used.
-	 * @param nameMapping the mapping that associates column names with attribute names
 	 * @return A list of attribute sets. One set for each row. Each set contains selected 
 	 * data for that row.
 	 * @throws DatabaseUnavailableException If the database can't be accessed at this time
 	 * @throws DatabaseException If the operation failed
+	 * @throws NoAttributeForColumnException If a table's column name couldn't be mapped to an 
+	 * attribute name
 	 */
 	public static List<List<Attribute>> selectAll(DatabaseTable fromTable, 
-			Collection<? extends Attribute> whereAttributes, int limit, String extraSQL, 
-			AttributeNameMapping nameMapping) throws DatabaseUnavailableException, DatabaseException
+			Collection<? extends Attribute> whereAttributes, int limit, String extraSQL) 
+			throws DatabaseUnavailableException, DatabaseException, NoAttributeForColumnException
 	{
 		return select(Attribute.getDescriptionsFrom(fromTable.getColumnInfo(), 
-				nameMapping), fromTable, whereAttributes, limit, extraSQL);
+				fromTable.getAttributeNameMapping()), fromTable, whereAttributes, limit, 
+				extraSQL);
 	}
 	
 	/**
@@ -826,7 +826,7 @@ public class DatabaseAccessor
 	/**
 	 * Deletes rows where the provided conditions are met
 	 * @param fromTable The table the row(s) are deleted from
-	 * @param whereAttributes The conditions for the delete operation
+	 * @param whereAttributes The conditions for the delete operation. Attribute names don't matter.
 	 * @throws DatabaseUnavailableException If the database can't be accessed
 	 * @throws DatabaseException If the operation failed
 	 */
@@ -948,7 +948,8 @@ public class DatabaseAccessor
 	 * @param intoTable The table the values will be updated into
 	 * @param setAttributes The attributes that will be updated into the table
 	 * @param whereAttributes The conditions for a row that must be met for the update to be 
-	 * made. If an empty set or null is provided, all records will be updated.
+	 * made. If an empty set or null is provided, all records will be updated. 
+	 * Attribute names don't matter.
 	 * @param noNullUpdates Should null value updates be skipped entirely
 	 * @throws DatabaseUnavailableException If the database can't be accessed at this time
 	 * @throws DatabaseException If the operation failed
@@ -965,7 +966,7 @@ public class DatabaseAccessor
 	 * @param intoTable The table the values will be updated into
 	 * @param setAttributes The attributes that will be updated into the table
 	 * @param whereAttributes The conditions for a row that must be met for the update to be 
-	 * made. If an empty set or null is provided, all records will be updated.
+	 * made. If an empty set or null is provided, all records will be updated. Attribute names don't matter.
 	 * @param noNullUpdates Should null value updates be skipped entirely
 	 * @param extraSQL The sql string that will be added to the end of the update statement. 
 	 * Null if not used.
@@ -1058,16 +1059,18 @@ public class DatabaseAccessor
 	/**
 	 * Reads the object's data from the database. Adds new attributes if needed.
 	 * @param model The object that is is updated from the database
-	 * @param whereAttributes The attributes that define which row is read
+	 * @param whereAttributes The attributes that define which row is read. Attribute names don't matter.
 	 * @throws DatabaseUnavailableException If the database couldn't be accessed
 	 * @throws DatabaseException If the operation failed
+	 * @throws NoAttributeForColumnException If a table's column name couldn't be mapped to an 
+	 * attribute name
 	 */
 	public static void readObjectAttributesFromDatabase(DatabaseReadable model, 
 			Collection<? extends Attribute> whereAttributes) throws 
-			DatabaseUnavailableException, DatabaseException
+			DatabaseUnavailableException, DatabaseException, NoAttributeForColumnException
 	{
 		List<List<Attribute>> results = DatabaseAccessor.selectAll(model.getTable(), 
-				whereAttributes, 1, null, model.getAttributeNameMapping());
+				whereAttributes, 1, null);
 		if (!results.isEmpty())
 			model.updateAttributes(results.get(0));
 	}

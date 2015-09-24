@@ -6,17 +6,20 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Random;
 
+import vault_database.AfterLastUnderLineRule;
+import vault_database.Attribute;
+import vault_database.AttributeNameMapping;
+import vault_database.AttributeNameMapping.MappingException;
+import vault_database.AttributeNameMapping.NoAttributeForColumnException;
+import vault_database.AttributeNameMapping.NoColumnForAttributeException;
 import vault_database.DatabaseAccessor;
 import vault_database.DatabaseException;
 import vault_database.DatabaseSettings;
 import vault_database.DatabaseTable;
-import vault_database.DatabaseTable.ColumnInfo;
+import vault_database.IndexAttributeRequiredException;
+import vault_database.Attribute.AttributeDescription;
 import vault_database.DatabaseUnavailableException;
-import vault_recording.Attribute;
-import vault_recording.Attribute.AttributeDescription;
-import vault_recording.AttributeNameMapping;
 import vault_recording.DatabaseModel;
-import vault_recording.IndexAttributeRequiredException;
 
 /**
  * This class tests the basic database features
@@ -70,25 +73,17 @@ public class DatabaseTest
 			
 			DatabaseSettings.initialize(address, user, password);
 			
-			System.out.println("Creates attribute mappings");
-			AttributeNameMapping mappings = new AttributeNameMapping();
-			for (ColumnInfo column : TestTable.DEFAULT.getColumnInfo())
-			{
-				System.out.println("Mapping " + column.getName());
-				System.out.println("Type = " + column.getType());
-				mappings.addMapping(column.getName(), column.getName().substring(5));
-			}
 			System.out.println("Integer type: " + Types.INTEGER);
 			System.out.println("Varchar type: " + Types.VARCHAR);
 			System.out.println("Other type: " + Types.OTHER);
 			
 			// Inserts data
 			System.out.println("Inserts data");
-			List<DatabaseModel> data = insert(10, possibleNames, possibleAdditionals, mappings);
+			List<DatabaseModel> data = insert(10, possibleNames, possibleAdditionals);
 			print(data);
 			// Reads data
 			System.out.println("Reads data");
-			List<DatabaseModel> readData = read(mappings);
+			List<DatabaseModel> readData = read();
 			print(readData);
 			// Updates data
 			System.out.println("Updates data");
@@ -96,19 +91,19 @@ public class DatabaseTest
 			// Reads data
 			System.out.println("Reads data");
 			readData.clear();
-			readData = read(mappings);
+			readData = read();
 			print(readData);
 			// Finds data
 			System.out.println("Finds data");
 			System.out.println("The number of 'ones': " + 
-					numberOfModelsWithName("one", mappings));
+					numberOfModelsWithName("one"));
 			// Removes data
 			System.out.println("Removes (read) data");
 			removeTestData(readData);
 			// Reads data
 			System.out.println("Reads data");
 			readData.clear();
-			readData = read(mappings);
+			readData = read();
 			print(readData);
 			
 			System.out.println("OK!");
@@ -136,13 +131,18 @@ public class DatabaseTest
 			}
 			e.printStackTrace();
 		}
+		catch (MappingException e)
+		{
+			System.err.println("Attribute name mapping failed");
+			e.printStackTrace();
+		}
 	}
 	
 	
 	// OTHER METHODS	-------------------------
 	
 	private static List<DatabaseModel> insert(int amount, String[] possibleNames, 
-			Integer[] possibleAdditionals, AttributeNameMapping attributeMapping) throws 
+			Integer[] possibleAdditionals) throws 
 			DatabaseUnavailableException, IndexAttributeRequiredException, DatabaseException
 	{
 		Random random = new Random();
@@ -151,7 +151,7 @@ public class DatabaseTest
 		
 		for (int i = 0; i < amount; i++)
 		{
-			DatabaseModel model = new DatabaseModel(TestTable.DEFAULT, true, attributeMapping);
+			DatabaseModel model = new DatabaseModel(TestTable.DEFAULT, true);
 			// Adds name & additional
 			/*
 			for (ColumnInfo column : columnInfo)
@@ -184,12 +184,13 @@ public class DatabaseTest
 		return data;
 	}
 	
-	private static List<DatabaseModel> read(AttributeNameMapping mapping) throws 
-			DatabaseUnavailableException, DatabaseException
+	private static List<DatabaseModel> read() throws 
+			DatabaseUnavailableException, DatabaseException, NoAttributeForColumnException
 	{
 		// Finds out all the id's
 		AttributeDescription indexDescription = new AttributeDescription(
-				TestTable.DEFAULT.getPrimaryColumn(), mapping);
+				TestTable.DEFAULT.getPrimaryColumn(), 
+				TestTable.DEFAULT.getAttributeNameMapping());
 		List<List<Attribute>> ids = DatabaseAccessor.select(indexDescription.wrapIntoList(), 
 				TestTable.DEFAULT, -1);
 		
@@ -199,7 +200,7 @@ public class DatabaseTest
 		List<DatabaseModel> models = new ArrayList<>();
 		for (List<Attribute> id : ids)
 		{
-			DatabaseModel model = new DatabaseModel(TestTable.DEFAULT, true, mapping);
+			DatabaseModel model = new DatabaseModel(TestTable.DEFAULT, true);
 			DatabaseAccessor.readObjectAttributesFromDatabase(model, id);
 			models.add(model);
 		}
@@ -238,13 +239,16 @@ public class DatabaseTest
 		}
 	}
 	
-	private static int numberOfModelsWithName(String name, 
-			AttributeNameMapping mapping) throws DatabaseUnavailableException, DatabaseException
+	private static int numberOfModelsWithName(String name) throws DatabaseUnavailableException, 
+			DatabaseException, NoAttributeForColumnException, NoColumnForAttributeException
 	{
-		List<Attribute> whereAttributes = new Attribute(mapping.findColumnForAttribute(
-				TestTable.DEFAULT.getColumnInfo(), "name"), mapping, name).wrapIntoList();
+		List<Attribute> whereAttributes = new Attribute(Attribute.getTableAttributeDescription(
+				TestTable.DEFAULT, "name"), name).wrapIntoList();
+				//new Attribute(mapping.findColumnForAttribute(
+				//TestTable.DEFAULT.getColumnInfo(), "name"), mapping, name).wrapIntoList();
 		List<AttributeDescription> selection = new AttributeDescription(
-				TestTable.DEFAULT.getPrimaryColumn()).wrapIntoList();
+				TestTable.DEFAULT.getPrimaryColumn(), 
+				TestTable.DEFAULT.getAttributeNameMapping()).wrapIntoList();
 		return DatabaseAccessor.select(selection, TestTable.DEFAULT, whereAttributes, -1).size();
 	}
 	
@@ -261,7 +265,8 @@ public class DatabaseTest
 		
 		// ATTRIBUTES	------------------
 		
-		private static List<ColumnInfo> columnInfo;
+		private static List<ColumnInfo> columnInfo = null;
+		private static AttributeNameMapping mapping = null;
 		
 		
 		// IMPLEMENTED METHODS	----------
@@ -313,6 +318,19 @@ public class DatabaseTest
 			}
 			
 			return columnInfo;
+		}
+
+		@Override
+		public AttributeNameMapping getAttributeNameMapping()
+		{
+			if (mapping == null)
+			{
+				mapping = new AttributeNameMapping();
+				mapping.addRule(AfterLastUnderLineRule.getInstance());
+				mapping.addMappingForEachColumnWherePossible(getColumnInfo());
+			}
+			
+			return mapping;
 		}
 	}
 }

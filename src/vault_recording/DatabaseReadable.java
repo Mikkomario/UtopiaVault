@@ -2,6 +2,8 @@ package vault_recording;
 
 import java.util.Collection;
 
+import vault_database.Attribute;
+
 /**
  * These objects can be read from the database
  * @author Mikko Hilpinen

@@ -8,6 +8,8 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 
+import vault_database.AttributeNameMapping.NoColumnForAttributeException;
+
 /**
  * This class is an interface for all classes who need to represent tables in a database. 
  * DatabaseTables are used in multiTableHandling, for example. The subclasses should be 
@@ -54,6 +56,13 @@ public interface DatabaseTable
 	 * @return All the information about the columns in the table
 	 */
 	public List<ColumnInfo> getColumnInfo();
+	
+	/**
+	 * @return The column name to attribute name -mapping used with this table. The mapping 
+	 * may be shared between instances or generated for each request, depending from the 
+	 * subclasses implementation.
+	 */
+	public AttributeNameMapping getAttributeNameMapping();
 	
 	
 	// OTHER METHODS	----------------------------
@@ -109,8 +118,6 @@ public interface DatabaseTable
 		try
 		{
 			statement = accessor.getPreparedStatement("DESCRIBE " + table.getTableName());
-			System.out.println(statement.isClosed());
-			// TODO: Execute is called on closed statement
 			result = statement.executeQuery();
 			// Reads the field names
 			while (result.next())
@@ -190,6 +197,21 @@ public interface DatabaseTable
 		}
 		
 		return null;
+	}
+	
+	/**
+	 * Finds a column that is associated with the provided attribute name in the provided table
+	 * @param table The table the column is in
+	 * @param attributeName The name of the attribute the column should be associated with
+	 * @return A column for the given attribute name or null if no such column exists
+	 * @throws NoColumnForAttributeException If the attribute name couldn't be retraced 
+	 * back to a column name
+	 */
+	public static ColumnInfo findColumnForAttributeName(DatabaseTable table, 
+			String attributeName) throws NoColumnForAttributeException
+	{
+		return findColumnWithName(table.getColumnInfo(), 
+				table.getAttributeNameMapping().getColumnName(attributeName));
 	}
 	
 	

@@ -1,9 +1,14 @@
 package vault_recording;
 
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
+import vault_database.Attribute;
+import vault_database.AttributeNameMapping;
+import vault_database.AttributeNameMapping.NoAttributeForColumnException;
 import vault_database.DatabaseAccessor;
 import vault_database.DatabaseTable;
 import vault_database.DatabaseTable.ColumnInfo;
@@ -20,7 +25,6 @@ public class DatabaseModel implements DatabaseReadable, DatabaseWritable
 	private Map<String, Attribute> attributes;
 	private DatabaseTable table;
 	private boolean allowUpdateRewrite;
-	private AttributeNameMapping nameMapping;
 	
 	
 	// CONSTRUCTOR	--------------------
@@ -30,19 +34,13 @@ public class DatabaseModel implements DatabaseReadable, DatabaseWritable
 	 * @param table The table the model uses
 	 * @param allowUpdateRewrite Does the model allow attribute changes from the database if 
 	 * there is already an attribute with the same name
-	 * @param attributeNameMapping The column name to attribute name mapping used for this object
 	 * @see DatabaseAccessor#readObjectAttributesFromDatabase(DatabaseReadable, Collection)
 	 */
-	public DatabaseModel(DatabaseTable table, boolean allowUpdateRewrite, 
-			AttributeNameMapping attributeNameMapping)
+	public DatabaseModel(DatabaseTable table, boolean allowUpdateRewrite)
 	{
 		this.attributes = new HashMap<>();
 		this.table = table;
 		this.allowUpdateRewrite = allowUpdateRewrite;
-		if (attributeNameMapping != null)
-			this.nameMapping = attributeNameMapping;
-		else
-			this.nameMapping = new AttributeNameMapping();
 	}
 	
 	/**
@@ -62,10 +60,6 @@ public class DatabaseModel implements DatabaseReadable, DatabaseWritable
 		addAttributes(attributes, true);
 		this.table = table;
 		this.allowUpdateRewrite = allowUpdateRewrite;
-		if (attributeNameMapping != null)
-			this.nameMapping = attributeNameMapping;
-		else
-			this.nameMapping = new AttributeNameMapping();
 	}
 	
 	/**
@@ -78,7 +72,6 @@ public class DatabaseModel implements DatabaseReadable, DatabaseWritable
 		this.attributes = new HashMap<>();
 		this.table = other.getTable();
 		this.allowUpdateRewrite = other.allowsUpdateRewrite();
-		this.nameMapping = other.getAttributeNameMapping();
 		
 		// Copies the attributes
 		for (Attribute attribute : other.getAttributes())
@@ -109,16 +102,20 @@ public class DatabaseModel implements DatabaseReadable, DatabaseWritable
 	}
 	
 	@Override
-	public AttributeNameMapping getAttributeNameMapping()
-	{
-		return this.nameMapping;
-	}
-	
-	@Override
 	public void newIndexGenerated(int newIndex)
 	{
-		addAttribute(new Attribute(getTable().getPrimaryColumn(), getAttributeNameMapping(), 
-				newIndex), true);
+		try
+		{
+			addAttribute(new Attribute(getTable().getPrimaryColumn(), 
+					getTable().getAttributeNameMapping(), newIndex), true);
+		}
+		catch (NoAttributeForColumnException e)
+		{
+			System.err.println("Couldn't generate a new index attribute since " + 
+					e.getColumnName() + "in table " + getTable().getTableName() + 
+					" can't be mapped to an attribute name");
+			e.printStackTrace();
+		}
 	}
 	
 	
@@ -131,15 +128,6 @@ public class DatabaseModel implements DatabaseReadable, DatabaseWritable
 	public boolean allowsUpdateRewrite()
 	{
 		return this.allowUpdateRewrite;
-	}
-	
-	/**
-	 * Changes the attribute name mapping used for this object
-	 * @param mapping The new mapping used for this object
-	 */
-	public void setAttributeNameMapping(AttributeNameMapping mapping)
-	{
-		this.nameMapping = mapping;
 	}
 	
 	
@@ -170,14 +158,20 @@ public class DatabaseModel implements DatabaseReadable, DatabaseWritable
 		Attribute attribute = getAttribute(attributeName);
 		if (attribute == null)
 		{
-			if (generateIfNotExists)
+			try
 			{
-				ColumnInfo column = getColumnForAttributeName(attributeName);
-				if (column == null)
-					throw new NoAssociatedColumnExistsException(attributeName, 
-							getAttributeNameMapping().getColumnName(attributeName, false), 
-							getTable());
-				addAttribute(new Attribute(column, getAttributeNameMapping(), newValue), true);
+				if (generateIfNotExists)
+				{
+					ColumnInfo column = getColumnForAttributeName(attributeName);
+					if (column == null)
+						throw new NoAssociatedColumnExistsException(getTable(), attributeName);
+					addAttribute(new Attribute(column, getTable().getAttributeNameMapping(), 
+							newValue), true);
+				}
+			}
+			catch (NoAttributeForColumnException e)
+			{
+				throw new NoAssociatedColumnExistsException(getTable(), e);
 			}
 		}
 		else
@@ -250,11 +244,13 @@ public class DatabaseModel implements DatabaseReadable, DatabaseWritable
 	 * @param attributeName The name of the attribute that would represent a column
 	 * @return A column represented by the provided attribute name or null if no such column 
 	 * exists in the model's table
+	 * @throws NoAttributeForColumnException If the operation failed because a column name 
+	 * couldn't be mapped
 	 */
-	public ColumnInfo getColumnForAttributeName(String attributeName)
+	public ColumnInfo getColumnForAttributeName(String attributeName) throws NoAttributeForColumnException
 	{
-		return getAttributeNameMapping().findColumnForAttribute(getTable().getColumnInfo(), 
-				attributeName);
+		return getTable().getAttributeNameMapping().findColumnForAttribute(
+				getTable().getColumnInfo(), attributeName);
 	}
 	
 	/**
@@ -262,20 +258,26 @@ public class DatabaseModel implements DatabaseReadable, DatabaseWritable
 	 * each column
 	 * @param keepExistingValues Should existing column attributes be kept as they are (true) 
 	 * or replaced with null (false)
+	 * @throws NoAttributeForColumnException If one of the column names in the table couldn't 
+	 * be mapped to an attribute name. No changes were made to the model in this case.
 	 */
-	public void initializeTableAttributesToNull(boolean keepExistingValues)
+	public void initializeTableAttributesToNull(boolean keepExistingValues) throws NoAttributeForColumnException
 	{
+		List<Attribute> newAttributes = new ArrayList<>();
+		
 		for (ColumnInfo column : getTable().getColumnInfo())
 		{
-			// May keep the existing attributes
-			if (keepExistingValues && hasAttributeWithName(
-					getAttributeNameMapping().getAttributeName(column.getName())))
-				continue;
-			
-			Attribute attribute = new Attribute(column, getAttributeNameMapping(), null);
-			addAttribute(attribute, true);
+			Attribute attribute = new Attribute(column, getTable().getAttributeNameMapping(), 
+					null);
+			newAttributes.add(attribute);
 		}
+		
+		// Only overwrites if allowed
+		addAttributes(newAttributes, !keepExistingValues);
 	}
+	
+	
+	// SUBCLASSES	----------------------------
 	
 	/**
 	 * These exceptions are thrown when an attribute can't be generated based on an attribute 
@@ -289,16 +291,21 @@ public class DatabaseModel implements DatabaseReadable, DatabaseWritable
 
 		/**
 		 * Creates a new exception
-		 * @param attributeName The name of the attribute that was supposed to be inserted
 		 * @param columnName The name of the column the attribute would have had
 		 * @param targetTable The table the attribute couldn't be put to
 		 */
-		public NoAssociatedColumnExistsException(String attributeName, String columnName, 
-				DatabaseTable targetTable)
+		public NoAssociatedColumnExistsException(DatabaseTable targetTable, String columnName)
 		{
-			super("Attribute name '" + attributeName + 
-					"' doesn' represent a column in table " + targetTable.getTableName() + 
-					". No column '" + columnName + "' in the table.");
+			super("No associated column '" + columnName + "' in table " + 
+					targetTable.getTableName());
+		}
+		
+		private NoAssociatedColumnExistsException(DatabaseTable targetTable, 
+				NoAttributeForColumnException source)
+		{
+			super("Can't use column '" + source.getColumnName() + "' in " + 
+					targetTable.getTableName() + " since it can't be mapped to an attribute", 
+					source);
 		}
 	}
 }

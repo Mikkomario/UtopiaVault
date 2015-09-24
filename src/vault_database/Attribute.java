@@ -1,4 +1,4 @@
-package vault_recording;
+package vault_database;
 
 import java.sql.Date;
 import java.sql.Timestamp;
@@ -10,7 +10,8 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 
-import vault_database.DatabaseTable;
+import vault_database.AttributeNameMapping.NoAttributeForColumnException;
+import vault_database.AttributeNameMapping.NoColumnForAttributeException;
 import vault_database.DatabaseTable.ColumnInfo;
 
 /**
@@ -39,7 +40,7 @@ public class Attribute
 	public Attribute(String name, String columnName, int type, Object value)
 	{
 		this.description = new AttributeDescription(columnName, name, type);
-		this.value = value;
+		setValue(value);
 	}
 	
 	/**
@@ -51,18 +52,7 @@ public class Attribute
 	public Attribute(ColumnInfo columnInfo, String name, Object value)
 	{
 		this.description = new AttributeDescription(columnInfo, name);
-		this.value = value;
-	}
-	
-	/**
-	 * Creates a new attribute with the same name as the column's name
-	 * @param columnInfo The column associated with this attribute
-	 * @param value The attribute's value
-	 */
-	public Attribute(ColumnInfo columnInfo, Object value)
-	{
-		this.description = new AttributeDescription(columnInfo);
-		this.value = value;
+		setValue(value);
 	}
 	
 	/**
@@ -73,7 +63,7 @@ public class Attribute
 	public Attribute(AttributeDescription description, Object value)
 	{
 		this.description = description;
-		this.value = value;
+		setValue(value);
 	}
 	
 	/**
@@ -81,11 +71,14 @@ public class Attribute
 	 * @param columnInfo The column associated with this attribute
 	 * @param nameMapping The column name to attribute name -mapping
 	 * @param value The attribute's value
+	 * @throws NoAttributeForColumnException If the column name couldn't be mapped to an 
+	 * attribute name
 	 */
-	public Attribute(ColumnInfo columnInfo, AttributeNameMapping nameMapping, Object value)
+	public Attribute(ColumnInfo columnInfo, AttributeNameMapping nameMapping, Object value) 
+			throws NoAttributeForColumnException
 	{
 		this.description = new AttributeDescription(columnInfo, nameMapping);
-		this.value = value;
+		setValue(value);
 	}
 	
 	/**
@@ -176,13 +169,13 @@ public class Attribute
 		if (getDescription().isOfStringType())
 			this.value = string;
 		else if (getDescription().isOfIntegerType())
-			this.value = valueAsInt(string);
+			setValue(valueAsInt(string));
 		else if (getDescription().isOfNumericType())
-			this.value = valueAsDouble(string);
+			setValue(valueAsDouble(string));
 		else if (getDescription().isOfType(Types.DATE))
-			this.value = valueAsDate(string);
+			setValue(valueAsDate(string));
 		else if (getDescription().isOfType(Types.TIMESTAMP))
-			this.value = valueAsDateTime(string);
+			setValue(valueAsDateTime(string));
 		else
 			throw getDataInsertException(Types.VARCHAR);
 	}
@@ -216,7 +209,7 @@ public class Attribute
 		if (getDescription().isOfType(Types.DATE))
 			this.value = Date.valueOf(date);
 		else if (getDescription().isOfStringType())
-			this.value = date.toString();
+			setValue(date.toString());
 		else
 			throw getDataInsertException(Types.DATE);
 	}
@@ -250,9 +243,9 @@ public class Attribute
 		if (getDescription().isOfType(Types.BOOLEAN))
 			this.value = bool;
 		else if (getDescription().isOfNumericType())
-			this.value = (bool ? 1 : 0);
+			setValue(bool ? 1 : 0);
 		else if (getDescription().isOfStringType())
-			this.value = (bool ? "true" : "false");
+			setValue(bool ? "true" : "false");
 		else
 			throw getDataInsertException(Types.BOOLEAN);
 	}
@@ -264,7 +257,12 @@ public class Attribute
 	 */
 	public void setValue(Object object)
 	{
-		this.value = object;
+		if (object instanceof LocalDateTime)
+			setValue((LocalDateTime) object);
+		else if (object instanceof LocalDate)
+			setValue((LocalDate) object);
+		else
+			this.value = object;
 	}
 	
 	/**
@@ -297,6 +295,8 @@ public class Attribute
 	 */
 	public long getLongValue()
 	{
+		if (isNull())
+			return 0;
 		if (getDescription().isOfNumericType())
 			return ((Number) getValue()).longValue();
 		if (getDescription().isOfStringType())
@@ -311,6 +311,8 @@ public class Attribute
 	 */
 	public int getIntValue() throws InvalidDataTypeException
 	{
+		if (isNull())
+			return 0;
 		if (getDescription().isOfNumericType())
 			return ((Number) getValue()).intValue();
 		if (getDescription().isOfStringType())
@@ -354,6 +356,8 @@ public class Attribute
 	 */
 	public boolean getBooleanValue() throws InvalidDataTypeException
 	{
+		if (isNull())
+			return false;
 		if (getDescription().isOfType(Types.BOOLEAN))
 			return (boolean) getValue();
 		if (getDescription().isOfType(Types.TINYINT))
@@ -368,6 +372,8 @@ public class Attribute
 	 */
 	public double getDoubleValue() throws InvalidDataTypeException
 	{
+		if (isNull())
+			return 0;
 		if (getDescription().isOfNumericType())
 			return ((Number) getValue()).doubleValue();
 		if (getDescription().isOfStringType())
@@ -449,9 +455,11 @@ public class Attribute
 	 * @param columnInfo The table's column information
 	 * @param nameMapping the mapping that associates column names with attribute names
 	 * @return An attribute description for each column
+	 * @throws NoAttributeForColumnException If a column name couldn't be mapped 
+	 * to an attribute name
 	 */
 	public static List<AttributeDescription> getDescriptionsFrom(List<ColumnInfo> columnInfo, 
-			AttributeNameMapping nameMapping)
+			AttributeNameMapping nameMapping) throws NoAttributeForColumnException
 	{
 		List<AttributeDescription> descriptions = new ArrayList<>();
 		for (ColumnInfo column : columnInfo)
@@ -460,6 +468,56 @@ public class Attribute
 		}
 		
 		return descriptions;
+	}
+	
+	/**
+	 * Parses attribute descriptions from a table's column information
+	 * @param table The table the column information is read from
+	 * @return The attribute descriptions for the table's columns
+	 * @throws NoAttributeForColumnException If a column name couldn't be mapped 
+	 * to an attribute name
+	 */
+	public static List<AttributeDescription> getDescriptionsFrom(DatabaseTable table) throws 
+			NoAttributeForColumnException
+	{
+		return getDescriptionsFrom(table.getColumnInfo(), table.getAttributeNameMapping());
+	}
+	
+	/**
+	 * Creates a new attribute description based on a database table column
+	 * @param table The database table
+	 * @param columnName A column name in the table
+	 * @return A new attribute description for the column or null if no such column exists 
+	 * in the table
+	 * @throws NoAttributeForColumnException If the column name couldn't be mapped to an 
+	 * attribute name
+	 */
+	public static AttributeDescription getColumnDescription(DatabaseTable table, 
+			String columnName) throws NoAttributeForColumnException
+	{
+		ColumnInfo column = DatabaseTable.findColumnWithName(
+				table.getColumnInfo(), columnName);
+		if (column == null)
+			return null;
+		return new AttributeDescription(column, table.getAttributeNameMapping());
+	}
+	
+	/**
+	 * Creates a new attribute description for a table's attribute
+	 * @param table The database table
+	 * @param attributeName An attribute that should be associated with a column in the table
+	 * @return An attribute description for the table's attribute column or null if no such 
+	 * column exists
+	 * @throws NoColumnForAttributeException If the attribute name couldn't be retraced back 
+	 * to a column name
+	 */
+	public static AttributeDescription getTableAttributeDescription(DatabaseTable table, 
+			String attributeName) throws NoColumnForAttributeException
+	{
+		ColumnInfo column = DatabaseTable.findColumnForAttributeName(table, attributeName);
+		if (column == null)
+			return null;
+		return new AttributeDescription(column, attributeName);
 	}
 	
 	private InvalidDataTypeException getDataInsertException(int usedDataType)
@@ -578,23 +636,14 @@ public class Attribute
 		}
 		
 		/**
-		 * Creates a new description. The name of the attribute will be the same as the 
-		 * column name
-		 * @param columnInfo The column that is associated with the attribute
-		 */
-		public AttributeDescription(ColumnInfo columnInfo)
-		{
-			this.columnName = columnInfo.getName();
-			this.type = columnInfo.getType();
-			this.name = this.columnName;
-		}
-		
-		/**
 		 * Creates a new description. The attribute name will be read from the name mapping
 		 * @param columnInfo The column this attribute is based on
 		 * @param nameMapping The column name to attribute name -mappings
+		 * @throws NoAttributeForColumnException If the mapping couldn't be used for finding 
+		 * the attribute name
 		 */
-		public AttributeDescription(ColumnInfo columnInfo, AttributeNameMapping nameMapping)
+		public AttributeDescription(ColumnInfo columnInfo, AttributeNameMapping nameMapping) 
+				throws NoAttributeForColumnException
 		{
 			this.columnName = columnInfo.getName();
 			this.type = columnInfo.getType();

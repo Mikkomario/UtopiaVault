@@ -1,4 +1,6 @@
-package vault_recording;
+package vault_database;
+
+import vault_recording.DatabaseWritable;
 
 /**
  * These exceptions are thrown when required index attribute is missing. For example, reading 
