@@ -409,6 +409,39 @@ public class Attribute
 	}
 	
 	/**
+	 * Checks if two attributes are the same (have same name, type, column and value), 
+	 * case-insensitive.
+	 * @param other The other attribute
+	 * @return Are the two attributes the same.
+	 */
+	public boolean equals(Attribute other)
+	{
+		if (other == null)
+			return false;
+		
+		if (!getDescription().equals(other.getDescription()))
+			return false;
+		
+		return hasSameValueAs(other);
+	}
+	
+	/**
+	 * Checks if the values in the two attributes are the same. Case-insensitive.
+	 * @param other The other attribute
+	 * @return Are the values in the attributes the same
+	 */
+	public boolean hasSameValueAs(Attribute other)
+	{
+		if (other == null)
+			return false;
+		
+		if (getDescription().isOfStringType() && other.getDescription().isOfStringType())
+			return getStringValue().equalsIgnoreCase(other.getStringValue());
+		
+		return getValue().equals(other.getValue());
+	}
+	
+	/**
 	 * Filters all the attributes that can be stored into the given table
 	 * @param attributes The attributes the tableAttributes are picked from
 	 * @param table The table the for which the attributes are used for
@@ -736,6 +769,17 @@ public class Attribute
 			List<AttributeDescription> list = new ArrayList<>();
 			list.add(this);
 			return list;
+		}
+		
+		/**
+		 * Checks if two descirptions are the same
+		 * @param other The other description
+		 * @return are the two descriptions the same
+		 */
+		public boolean equals(AttributeDescription other)
+		{
+			return getColumnName().equalsIgnoreCase(other.getColumnName()) && 
+					getName().equalsIgnoreCase(other.getName()) && getType() == other.getType();
 		}
 	}
 	

@@ -203,15 +203,18 @@ public interface DatabaseTable
 	 * Finds a column that is associated with the provided attribute name in the provided table
 	 * @param table The table the column is in
 	 * @param attributeName The name of the attribute the column should be associated with
-	 * @return A column for the given attribute name or null if no such column exists
+	 * @return A column for the given attribute name
 	 * @throws NoColumnForAttributeException If the attribute name couldn't be retraced 
 	 * back to a column name
 	 */
 	public static ColumnInfo findColumnForAttributeName(DatabaseTable table, 
 			String attributeName) throws NoColumnForAttributeException
 	{
-		return findColumnWithName(table.getColumnInfo(), 
+		ColumnInfo column = findColumnWithName(table.getColumnInfo(), 
 				table.getAttributeNameMapping().getColumnName(attributeName));
+		if (column == null)
+			throw new NoColumnForAttributeException(attributeName);
+		return column;
 	}
 	
 	
