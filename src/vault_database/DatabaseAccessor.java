@@ -357,7 +357,7 @@ public class DatabaseAccessor
 		if (whereAttributes != null && !whereAttributes.isEmpty())
 		{
 			sql.append(" WHERE ");
-			sql.append(getEqualsString(whereAttributes, " AND "));
+			sql.append(getEqualsString(whereAttributes, " AND ", true));
 		}
 		if (limit >= 0)
 			sql.append(" LIMIT " + limit);
@@ -838,7 +838,7 @@ public class DatabaseAccessor
 		if (whereAttributes != null && !whereAttributes.isEmpty())
 		{
 			sql.append(" WHERE ");
-			sql.append(getEqualsString(whereAttributes, " AND "));
+			sql.append(getEqualsString(whereAttributes, " AND ", true));
 		}
 		
 		DatabaseAccessor accessor = new DatabaseAccessor(fromTable.getDatabaseName());
@@ -994,11 +994,11 @@ public class DatabaseAccessor
 		StringBuilder sql = new StringBuilder("UPDATE ");
 		sql.append(intoTable.getTableName());
 		sql.append(" SET ");
-		sql.append(getEqualsString(updatedAttributes, ", "));
+		sql.append(getEqualsString(updatedAttributes, ", ", false));
 		if (whereAttributes != null && !whereAttributes.isEmpty())
 		{
 			sql.append(" WHERE ");
-			sql.append(getEqualsString(whereAttributes, " AND "));
+			sql.append(getEqualsString(whereAttributes, " AND ", true));
 		}
 		if (extraSQL != null)
 			sql.append(extraSQL);
@@ -1235,7 +1235,8 @@ public class DatabaseAccessor
 		return sql.toString();
 	}
 	
-	private static String getEqualsString(Collection<? extends Attribute> attributes, String separator)
+	private static String getEqualsString(Collection<? extends Attribute> attributes, 
+			String separator, boolean useIsWithNulls)
 	{
 		StringBuilder sql = new StringBuilder();
 		boolean firstAttribute = true;
@@ -1245,7 +1246,7 @@ public class DatabaseAccessor
 				sql.append(separator);
 			sql.append(attribute.getDescription().getColumnName());
 			// With null values, 'is' is used instead of '='
-			if (attribute.isNull())
+			if (attribute.isNull() && useIsWithNulls)
 				sql.append(" is ?");
 			else
 				sql.append(" = ?");

@@ -1,21 +1,17 @@
 package vault_test;
 
-import java.sql.SQLException;
 import java.sql.Types;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Random;
 
-import vault_database.AfterLastUnderLineRule;
 import vault_database.Attribute;
-import vault_database.AttributeNameMapping;
 import vault_database.AttributeNameMapping.MappingException;
 import vault_database.AttributeNameMapping.NoAttributeForColumnException;
 import vault_database.AttributeNameMapping.NoColumnForAttributeException;
 import vault_database.DatabaseAccessor;
 import vault_database.DatabaseException;
 import vault_database.DatabaseSettings;
-import vault_database.DatabaseTable;
 import vault_database.IndexAttributeRequiredException;
 import vault_database.Attribute.AttributeDescription;
 import vault_database.DatabaseUnavailableException;
@@ -65,7 +61,7 @@ public class DatabaseTest
 			address = args[2];
 		
 		String[] possibleNames = {"one", "two", "three", "four", "five"};
-		Integer[] possibleAdditionals = {1, 2, 3, 4, 5};
+		Integer[] possibleAdditionals = {null, 2, 3, 4, 5};
 		
 		try
 		{
@@ -170,6 +166,7 @@ public class DatabaseTest
 				model.addAttribute(new Attribute(column, attributeName, value), true);
 			}
 			*/
+			//model.setAttributeValue("id", null, true);
 			model.setAttributeValue("name", 
 					possibleNames[random.nextInt(possibleNames.length)], true);
 			model.setAttributeValue("additional", 
@@ -250,87 +247,5 @@ public class DatabaseTest
 				TestTable.DEFAULT.getPrimaryColumn(), 
 				TestTable.DEFAULT.getAttributeNameMapping()).wrapIntoList();
 		return DatabaseAccessor.select(selection, TestTable.DEFAULT, whereAttributes, -1).size();
-	}
-	
-	
-	// ENUMERATIONS	-----------------------------
-	
-	private static enum TestTable implements DatabaseTable
-	{
-		/**
-		 * test_id (Auto-increment) | test_name | test_additional
-		 */
-		DEFAULT;
-		
-		
-		// ATTRIBUTES	------------------
-		
-		private static List<ColumnInfo> columnInfo = null;
-		private static AttributeNameMapping mapping = null;
-		
-		
-		// IMPLEMENTED METHODS	----------
-
-		@Override
-		public boolean usesAutoIncrementIndexing()
-		{
-			return true;
-		}
-
-		@Override
-		public String getDatabaseName()
-		{
-			return "test_db";
-		}
-
-		@Override
-		public String getTableName()
-		{
-			return "test";
-		}
-
-		@Override
-		public List<String> getColumnNames()
-		{
-			return DatabaseTable.getColumnNamesFromColumnInfo(getColumnInfo());
-		}
-
-		@Override
-		public ColumnInfo getPrimaryColumn()
-		{
-			return DatabaseTable.findPrimaryColumnInfo(getColumnInfo());
-		}
-
-		@Override
-		public List<ColumnInfo> getColumnInfo()
-		{
-			if (columnInfo == null)
-			{
-				try
-				{
-					columnInfo = DatabaseTable.readColumnInfoFromDatabase(this);
-				}
-				catch (DatabaseUnavailableException | SQLException e)
-				{
-					System.out.println("Couldn't read column info");
-					e.printStackTrace();
-				}
-			}
-			
-			return columnInfo;
-		}
-
-		@Override
-		public AttributeNameMapping getAttributeNameMapping()
-		{
-			if (mapping == null)
-			{
-				mapping = new AttributeNameMapping();
-				mapping.addRule(AfterLastUnderLineRule.getInstance());
-				mapping.addMappingForEachColumnWherePossible(getColumnInfo());
-			}
-			
-			return mapping;
-		}
 	}
 }

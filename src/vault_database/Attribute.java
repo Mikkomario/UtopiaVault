@@ -37,11 +37,13 @@ public class Attribute
 	 * @param value The value stored in the attribute (must be of correct type)
 	 * @see Types
 	 */
+	/*
 	public Attribute(String name, String columnName, int type, Object value)
 	{
 		this.description = new AttributeDescription(columnName, name, type);
 		setValue(value);
 	}
+	*/
 	
 	/**
 	 * Creates a new attribute
@@ -149,12 +151,44 @@ public class Attribute
 	}
 	
 	/**
-	 * Changes the attribute value to null
+	 * Changes the attribute value to null. If the attribute has a default value and can't be 
+	 * set to null, that default value is set instead.
 	 */
 	public void setToNull()
 	{
+		// If there is a default value and null not allowed, sets to default
+		if (!getDescription().getColumn().nullAllowed())
+		{
+			Object defaultValue = getDescription().getColumn().getDefaultValue();
+			if (defaultValue != null)
+			{
+				// CURRENT_TIMESTAMP works a bit differently
+				if (defaultValue instanceof String && 
+						"CURRENT_TIMESTAMP".equalsIgnoreCase((String) defaultValue))
+					setValue(LocalDateTime.now());
+				else
+					setValue(defaultValue);
+				return;
+			}
+		}
+		
 		this.value = null;
 	}
+	
+	/*
+	 * Value hierarchy:
+	 * - Null
+	 * 
+	 * - DateTime
+	 * - Date
+	 * 
+	 * - Long
+	 * - Int
+	 * - Double
+	 * - Boolean
+	 * 
+	 * - String
+	 */
 	
 	/**
 	 * Changes the attribute's value
@@ -166,18 +200,22 @@ public class Attribute
 	{
 		if (string == null)
 			setToNull();
-		if (getDescription().isOfStringType())
-			this.value = string;
+		else if (getDescription().isOfType(Types.TIMESTAMP))
+			setValue(valueAsDateTime(string));
+		else if (getDescription().isOfType(Types.DATE))
+			setValue(valueAsDate(string));
+		else if (getDescription().isOfLongType())
+			setValue(valueAsLong(string));
 		else if (getDescription().isOfIntegerType())
 			setValue(valueAsInt(string));
 		else if (getDescription().isOfNumericType())
 			setValue(valueAsDouble(string));
-		else if (getDescription().isOfType(Types.DATE))
-			setValue(valueAsDate(string));
-		else if (getDescription().isOfType(Types.TIMESTAMP))
-			setValue(valueAsDateTime(string));
+		else if (getDescription().isOfBooleanType())
+			setValue(Boolean.parseBoolean(string));
+		else if (getDescription().isOfStringType())
+			this.value = string;
 		else
-			throw getDataInsertException(Types.VARCHAR);
+			throw getDataInsertException(Types.VARCHAR, string);
 	}
 	
 	/**
@@ -187,14 +225,18 @@ public class Attribute
 	 */
 	public void setValue(double numeric) throws InvalidDataTypeException
 	{
-		if (getDescription().isOfIntegerType())
+		if (getDescription().isOfLongType())
+			this.value = (long) numeric;
+		else if (getDescription().isOfIntegerType())
 			this.value = (int) numeric;
 		else if (getDescription().isOfNumericType())
 			this.value = numeric;
+		else if (getDescription().isOfBooleanType())
+			this.value = (numeric != 0);
 		else if (getDescription().isOfStringType())
 			this.value = numeric + "";
 		else
-			throw getDataInsertException(Types.INTEGER);
+			throw getDataInsertException(Types.INTEGER, numeric);
 	}
 	
 	/**
@@ -206,12 +248,48 @@ public class Attribute
 	{
 		if (date == null)
 			setToNull();
-		if (getDescription().isOfType(Types.DATE))
+		else if (getDescription().isOfType(Types.DATE))
 			this.value = Date.valueOf(date);
 		else if (getDescription().isOfStringType())
 			setValue(date.toString());
 		else
-			throw getDataInsertException(Types.DATE);
+			throw getDataInsertException(Types.DATE, date);
+	}
+	
+	/**
+	 * Changes the attribute's value
+	 * @param date The new value
+	 * @throws InvalidDataTypeException If the attribute isn't of date, timestamp or varchar type
+	 */
+	public void setValue(LocalDateTime date) throws InvalidDataTypeException
+	{
+		if (date == null)
+			setToNull();
+		else if (getDescription().isOfType(Types.TIMESTAMP))
+			this.value = Timestamp.valueOf(date);
+		else if (getDescription().isOfType(Types.DATE))
+			setValue(date.toLocalDate());
+		else if (getDescription().isOfStringType())
+			setValue(date.toString());
+		else
+			throw getDataInsertException(Types.TIMESTAMP, date);
+	}
+	
+	/**
+	 * Changes the attribute's value
+	 * @param date The new value
+	 * @throws InvalidDataTypeException If the attribute isn't of date, timestamp or varchar type
+	 */
+	public void setValue(Date date)
+	{
+		if (date == null)
+			setToNull();
+		else if (getDescription().isOfType(Types.DATE))
+			this.value = date;
+		else if (getDescription().isOfStringType())
+			setValue(date.toLocalDate().toString());
+		else
+			throw getDataInsertException(Types.DATE, date);
 	}
 	
 	/**
@@ -219,18 +297,18 @@ public class Attribute
 	 * @param date The new value
 	 * @throws InvalidDataTypeException If the attribute isn't of date or timestamp type
 	 */
-	public void setValue(LocalDateTime date) throws InvalidDataTypeException
+	public void setValue(Timestamp date) throws InvalidDataTypeException
 	{
 		if (date == null)
 			setToNull();
-		if (getDescription().isOfType(Types.TIMESTAMP))
-			this.value = Timestamp.valueOf(date);
+		else if (getDescription().isOfType(Types.TIMESTAMP))
+			this.value = date;
 		else if (getDescription().isOfType(Types.DATE))
-			setValue(date.toLocalDate());
+			setValue(date.toLocalDateTime());
 		else if (getDescription().isOfStringType())
-			setValue(date.toString());
+			setValue(date.toLocalDateTime().toString());
 		else
-			throw getDataInsertException(Types.TIMESTAMP);
+			throw getDataInsertException(Types.TIMESTAMP, date);
 	}
 	
 	/**
@@ -240,14 +318,14 @@ public class Attribute
 	 */
 	public void setValue(boolean bool) throws InvalidDataTypeException
 	{
-		if (getDescription().isOfType(Types.BOOLEAN))
-			this.value = bool;
-		else if (getDescription().isOfNumericType())
+		if (getDescription().isOfNumericType())
 			setValue(bool ? 1 : 0);
+		else if (getDescription().isOfType(Types.BOOLEAN))
+			this.value = bool;
 		else if (getDescription().isOfStringType())
 			setValue(bool ? "true" : "false");
 		else
-			throw getDataInsertException(Types.BOOLEAN);
+			throw getDataInsertException(Types.BOOLEAN, bool);
 	}
 	
 	/**
@@ -257,10 +335,24 @@ public class Attribute
 	 */
 	public void setValue(Object object)
 	{
-		if (object instanceof LocalDateTime)
+		if (object == null)
+			setToNull();
+		else if (object instanceof LocalDateTime)
 			setValue((LocalDateTime) object);
 		else if (object instanceof LocalDate)
 			setValue((LocalDate) object);
+		else if (object instanceof Number)
+			setValue(((Number) object).doubleValue());
+		else if (object instanceof Boolean)
+			setValue(((Boolean) object).booleanValue());
+		else if (object instanceof String)
+			setValue((String) object);
+		else if (object instanceof Date)
+			setValue((Date) object);
+		else if (object instanceof Timestamp)
+			setValue((Timestamp) object);
+		else if (getDescription().isOfStringType())
+			setValue(object.toString());
 		else
 			this.value = object;
 	}
@@ -279,6 +371,8 @@ public class Attribute
 			return getDateValue().toString();
 		if (getDescription().isOfType(Types.TIMESTAMP))
 			return getDateTimeValue().toString();
+		if (getDescription().isOfLongType())
+			return getLongValue() + "";
 		if (getDescription().isOfIntegerType())
 			return getIntValue() + "";
 		if (getDescription().isOfNumericType())
@@ -301,6 +395,8 @@ public class Attribute
 			return ((Number) getValue()).longValue();
 		if (getDescription().isOfStringType())
 			return valueAsLong(getStringValue());
+		if (getDescription().isOfBooleanType())
+			return getBooleanValue() ? 1 : 0;
 		throw getDataCastException(Types.BIGINT);
 	}
 	
@@ -317,6 +413,8 @@ public class Attribute
 			return ((Number) getValue()).intValue();
 		if (getDescription().isOfStringType())
 			return valueAsInt(getStringValue());
+		if (getDescription().isOfBooleanType())
+			return getBooleanValue() ? 1 : 0;
 		throw getDataCastException(Types.INTEGER);
 	}
 	
@@ -330,6 +428,8 @@ public class Attribute
 			return null;
 		if (getDescription().isOfType(Types.DATE))
 			return ((Date) getValue()).toLocalDate();
+		if (getDescription().isOfType(Types.TIMESTAMP))
+			return getDateTimeValue().toLocalDate();
 		if (getDescription().isOfStringType())
 			return valueAsDate(getStringValue());
 		throw getDataCastException(Types.DATE);
@@ -358,10 +458,14 @@ public class Attribute
 	{
 		if (isNull())
 			return false;
+		if (getDescription().isOfLongType())
+			return getLongValue() != 0;
+		if (getDescription().isOfNumericType())
+			return getIntValue() != 0;
 		if (getDescription().isOfType(Types.BOOLEAN))
 			return (boolean) getValue();
-		if (getDescription().isOfType(Types.TINYINT))
-			return getIntValue() == 1;
+		if (getDescription().isOfStringType())
+			return Boolean.parseBoolean(getStringValue());
 		throw getDataCastException(Types.BOOLEAN);
 	}
 	
@@ -376,6 +480,8 @@ public class Attribute
 			return 0;
 		if (getDescription().isOfNumericType())
 			return ((Number) getValue()).doubleValue();
+		if (getDescription().isOfBooleanType())
+			return getBooleanValue() ? 1 : 0;
 		if (getDescription().isOfStringType())
 			return valueAsDouble(getStringValue());
 		throw getDataCastException(Types.DOUBLE);
@@ -435,6 +541,13 @@ public class Attribute
 		if (other == null)
 			return false;
 		
+		// Checks for nulls
+		if (isNull())
+			return other.isNull();
+		else if (other.isNull())
+			return false;
+		
+		// Checks for case-insensitive string values
 		if (getDescription().isOfStringType() && other.getDescription().isOfStringType())
 			return getStringValue().equalsIgnoreCase(other.getStringValue());
 		
@@ -553,14 +666,23 @@ public class Attribute
 		return new AttributeDescription(column, attributeName);
 	}
 	
-	private InvalidDataTypeException getDataInsertException(int usedDataType)
+	private InvalidDataTypeException getDataInsertException(int usedDataType, 
+			Object insertedValue)
 	{
-		return new InvalidDataTypeException(usedDataType, getDescription().getType(), this);
+		return new InvalidDataTypeException(usedDataType, getDescription().getType(), 
+				insertedValue, this);
+	}
+	
+	private InvalidDataTypeException getDataCastException(int fromCast, int toCast, 
+			Object casted)
+	{
+		return new InvalidDataTypeException(fromCast, toCast, casted, this);
 	}
 	
 	private InvalidDataTypeException getDataCastException(int correctDataType)
 	{
-		return new InvalidDataTypeException(getDescription().getType(), correctDataType, this);
+		return new InvalidDataTypeException(getDescription().getType(), correctDataType, 
+				getValue(), this);
 	}
 	
 	private long valueAsLong(String value)
@@ -571,7 +693,7 @@ public class Attribute
 		}
 		catch (NumberFormatException e)
 		{
-			throw getDataCastException(Types.BIGINT);
+			throw getDataCastException(Types.VARCHAR, Types.BIGINT, value);
 		}
 	}
 	
@@ -583,7 +705,7 @@ public class Attribute
 		}
 		catch (NumberFormatException e)
 		{
-			throw getDataCastException(Types.INTEGER);
+			throw getDataCastException(Types.VARCHAR, Types.INTEGER, value);
 		}
 	}
 	
@@ -595,7 +717,7 @@ public class Attribute
 		}
 		catch (NumberFormatException e)
 		{
-			throw getDataCastException(Types.DOUBLE);
+			throw getDataCastException(Types.VARCHAR, Types.DOUBLE, value);
 		}
 	}
 	
@@ -607,7 +729,14 @@ public class Attribute
 		}
 		catch (DateTimeParseException e)
 		{
-			throw getDataCastException(Types.DATE);
+			try
+			{
+				return Date.valueOf(value).toLocalDate();
+			}
+			catch (IllegalArgumentException e1)
+			{
+				throw getDataCastException(Types.VARCHAR, Types.DATE, value);
+			}
 		}
 	}
 	
@@ -619,7 +748,14 @@ public class Attribute
 		}
 		catch (DateTimeParseException e)
 		{
-			throw getDataCastException(Types.TIMESTAMP);
+			try
+			{
+				return Timestamp.valueOf(value).toLocalDateTime();
+			}
+			catch (IllegalArgumentException e1)
+			{
+				throw getDataCastException(Types.VARCHAR, Types.TIMESTAMP, value);
+			}
 		}
 	}
 	
@@ -636,8 +772,8 @@ public class Attribute
 	{
 		// ATTRIBUTES	---------------
 		
-		private String columnName, name;
-		private int type;
+		private String name;
+		private ColumnInfo column;
 		
 		
 		// CONSTRUCTOR	---------------
@@ -649,22 +785,23 @@ public class Attribute
 		 * @param dataType The data type of the attribute
 		 * @see Types
 		 */
+		/*
 		public AttributeDescription(String columnName, String attributeName, int dataType)
 		{
 			this.columnName = columnName;
 			this.name = attributeName;
 			this.type = dataType;
 		}
+		*/
 		
 		/**
 		 * Creates a new description
-		 * @param columnInfo The column that describes the attribute
+		 * @param columnInfo The column this attribute is associated with
 		 * @param attributeName The name of the attribute
 		 */
 		public AttributeDescription(ColumnInfo columnInfo, String attributeName)
 		{
-			this.columnName = columnInfo.getName();
-			this.type = columnInfo.getType();
+			this.column = columnInfo;
 			this.name = attributeName;
 		}
 		
@@ -678,9 +815,8 @@ public class Attribute
 		public AttributeDescription(ColumnInfo columnInfo, AttributeNameMapping nameMapping) 
 				throws NoAttributeForColumnException
 		{
-			this.columnName = columnInfo.getName();
-			this.type = columnInfo.getType();
-			this.name = nameMapping.getAttributeName(this.columnName);
+			this.column = columnInfo;
+			this.name = nameMapping.getAttributeName(columnInfo.getName());
 		}
 		
 		
@@ -699,7 +835,7 @@ public class Attribute
 		 */
 		public int getType()
 		{
-			return this.type;
+			return getColumn().getType();
 		}
 		
 		/**
@@ -707,7 +843,15 @@ public class Attribute
 		 */
 		public String getColumnName()
 		{
-			return this.columnName;
+			return getColumn().getName();
+		}
+		
+		/**
+		 * @return The column associated with this attribute
+		 */
+		public ColumnInfo getColumn()
+		{
+			return this.column;
 		}
 		
 		
@@ -762,6 +906,14 @@ public class Attribute
 		}
 		
 		/**
+		 * @return Is the attribute one that represents a boolean value (boolean, tinyint)
+		 */
+		public boolean isOfBooleanType()
+		{
+			return isOfType(Types.BOOLEAN) || isOfType(Types.TINYINT);
+		}
+		
+		/**
 		 * @return The attribute wrapped into a list
 		 */
 		public List<AttributeDescription> wrapIntoList()
@@ -795,18 +947,23 @@ public class Attribute
 		private static final long serialVersionUID = -2413041704623953008L;
 		private int usedType, correctType;
 		private Attribute source;
+		private Object value;
 		
 		
 		// CONSTRUCTOR	---------------
 		
-		private InvalidDataTypeException(int usedType, int correctType, Attribute source)
+		private InvalidDataTypeException(int usedType, int correctType, Object value, 
+				Attribute source)
 		{
-			super("Invalid data type used on attribute " + source.getName() + 
-					". Type used: " + usedType + ", correct type:" + correctType);
+			super("Invalid data type used when setting " + 
+					(value != null ? value.toString() : "null") + " to attribute " + 
+					source.getName() + ". Type used: " + usedType + ", correct type: " + 
+					correctType);
 			
 			this.usedType = usedType;
 			this.correctType = correctType;
 			this.source = source;
+			this.value = value;
 		}
 		
 		
@@ -836,6 +993,14 @@ public class Attribute
 		public Attribute getSourceAttribute()
 		{
 			return this.source;
+		}
+		
+		/**
+		 * @return the value that caused the exception
+		 */
+		public Object getValue()
+		{
+			return this.value;
 		}
 	}
 }

@@ -126,7 +126,11 @@ public interface DatabaseTable
 				boolean primary = "PRI".equalsIgnoreCase(result.getString("Key"));
 				boolean autoInc = "auto_increment".equalsIgnoreCase(result.getString("Extra"));
 				int type = parseType(result.getString("Type"));
-				columnInfo.add(new ColumnInfo(name, primary, autoInc, type));
+				boolean nullAllowed = "YES".equalsIgnoreCase(result.getString("Null"));
+				Object defaultValue = null;
+				if (!"NULL".equalsIgnoreCase(result.getString("Default")))
+					defaultValue = result.getObject("Default");
+				columnInfo.add(new ColumnInfo(name, type, nullAllowed, primary, autoInc, defaultValue));
 			}
 		}
 		finally
@@ -171,10 +175,10 @@ public interface DatabaseTable
 			return Types.DOUBLE;
 		if (lower.startsWith("char"))
 			return Types.CHAR;
+		if (lower.startsWith("timestamp") || lower.startsWith("datetime"))
+			return Types.TIMESTAMP;
 		if (lower.startsWith("date"))
 			return Types.DATE;
-		if (lower.startsWith("timestamp"))
-			return Types.TIMESTAMP;
 		if (lower.startsWith("time"))
 			return Types.TIME;
 		
@@ -230,8 +234,9 @@ public interface DatabaseTable
 		// ATTRIBUTES	----------------------
 		
 		private String name;
-		private boolean autoIncrement, primary;
+		private boolean autoIncrement, primary, nullAllowed;
 		private int type;
+		private Object defaultValue;
 		
 		
 		// CONSTRUCTOR	----------------------
@@ -242,13 +247,18 @@ public interface DatabaseTable
 		 * @param primary Does the column hold a primary key
 		 * @param autoIncrement Does the column use auto-increment indexing
 		 * @param type The data type of the column's value
+		 * @param nullAllowed Is null allowed in this column
+		 * @param defaultValue The default value used for this column
 		 */
-		public ColumnInfo(String name, boolean primary, boolean autoIncrement, int type)
+		public ColumnInfo(String name, int type, boolean nullAllowed, boolean primary, 
+				boolean autoIncrement, Object defaultValue)
 		{
 			this.name = name;
 			this.primary = primary;
 			this.autoIncrement = autoIncrement;
 			this.type = type;
+			this.nullAllowed = nullAllowed;
+			this.defaultValue = defaultValue;
 		}
 		
 		
@@ -257,13 +267,18 @@ public interface DatabaseTable
 		@Override
 		public String toString()
 		{
-			String s = this.name;
-			if (this.primary)
-				s += " PRI";
-			if (this.autoIncrement)
-				s += " auto-increment";
+			StringBuilder s = new StringBuilder(getName());
+			s.append(" (" + getType() + ")");
+			if (isPrimary())
+				s.append(" PRI");
+			if (!nullAllowed())
+				s.append(" not null");
+			if (usesAutoIncrementIndexing())
+				s.append(" auto-increment");
+			if (getDefaultValue() != null)
+				s.append("default = " + getDefaultValue());
 			
-			return s;
+			return s.toString();
 		}
 		
 		
@@ -278,7 +293,7 @@ public interface DatabaseTable
 		}
 		
 		/**
-		 * @return Does the column hold a primary key
+		 * @return Does the column hold a primary key (default = false)
 		 */
 		public boolean isPrimary()
 		{
@@ -286,7 +301,7 @@ public interface DatabaseTable
 		}
 		
 		/**
-		 * @return Does the column use auto-increment indexing
+		 * @return Does the column use auto-increment indexing (default = false)
 		 */
 		public boolean usesAutoIncrementIndexing()
 		{
@@ -300,6 +315,22 @@ public interface DatabaseTable
 		public int getType()
 		{
 			return this.type;
+		}
+		
+		/**
+		 * @return Is null value allowed in this column (default = true)
+		 */
+		public boolean nullAllowed()
+		{
+			return this.nullAllowed;
+		}
+		
+		/**
+		 * @return The default value used for this column (default = null)
+		 */
+		public Object getDefaultValue()
+		{
+			return this.defaultValue;
 		}
 	}
 }

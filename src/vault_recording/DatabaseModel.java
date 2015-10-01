@@ -7,7 +7,6 @@ import java.util.List;
 import java.util.Map;
 
 import vault_database.Attribute;
-import vault_database.AttributeNameMapping;
 import vault_database.AttributeNameMapping.NoAttributeForColumnException;
 import vault_database.DatabaseAccessor;
 import vault_database.DatabaseTable;
@@ -48,13 +47,12 @@ public class DatabaseModel implements DatabaseReadable, DatabaseWritable
 	 * @param table The table the model uses
 	 * @param allowUpdateRewrite Does the model allow attribute changes from the database if 
 	 * there is already an attribute with the same name
-	 * @param attributeNameMapping The column name to attribute name mapping used for this object
 	 * @param attributes The attributes the model will have. The model will use a different 
 	 * collection and just copies values from this one
 	 * @see DatabaseAccessor#updateObjectToDatabase(DatabaseWritable, boolean)
 	 */
 	public DatabaseModel(DatabaseTable table, boolean allowUpdateRewrite, 
-			AttributeNameMapping attributeNameMapping, Collection<? extends Attribute> attributes)
+			Collection<? extends Attribute> attributes)
 	{
 		this.attributes = new HashMap<>();
 		addAttributes(attributes, true);
@@ -221,7 +219,7 @@ public class DatabaseModel implements DatabaseReadable, DatabaseWritable
 	public void addAttribute(Attribute attribute, boolean replaceIfExists)
 	{
 		if (attribute != null && (replaceIfExists || 
-				this.attributes.containsKey(attribute.getName())))
+				!this.attributes.containsKey(attribute.getName())))
 			this.attributes.put(attribute.getName(), attribute);
 	}
 	

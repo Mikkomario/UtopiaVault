@@ -7,5 +7,5 @@ CREATE TABLE test
 (
 	test_id 			bigint 			NOT NULL PRIMARY KEY AUTO_INCREMENT,
 	test_name 			varchar(32) 	NOT NULL,
-	test_additional 	int 			NOT NULL
+	test_additional 	int 			NOT NULL default 1
 )Engine=InnoDB;
