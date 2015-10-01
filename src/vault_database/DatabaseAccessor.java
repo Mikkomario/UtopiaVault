@@ -10,8 +10,10 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 
+import jdk.nashorn.internal.objects.annotations.Where;
 import vault_database.Attribute.AttributeDescription;
 import vault_database.AttributeNameMapping.NoAttributeForColumnException;
+import vault_database.AttributeNameMapping.NoColumnForAttributeException;
 import vault_database.DatabaseSettings.UninitializedSettingsException;
 import vault_database.DatabaseTable.ColumnInfo;
 import vault_recording.DatabaseReadable;
@@ -310,8 +312,7 @@ public class DatabaseAccessor
 	 * Makes a select from query and returns the selection data
 	 * @param selectedAttributes The attributes that will be selected
 	 * @param fromTable The table the selection is made from
-	 * @param whereAttributes The conditions for the selection. If this is an empty set or null, 
-	 * attributes from each row will be returned. Attribute names don't matter.
+	 * @param where The where clause used in the select (null if all rows are selected)
 	 * @param limit How many rows are returned at maximum. If this is a negative number, 
 	 * the number of returned rows is not limited.
 	 * @return A list of attribute sets. One set for each row. Each set contains selected 
@@ -321,18 +322,17 @@ public class DatabaseAccessor
 	 */
 	public static List<List<Attribute>> select(
 			Collection<? extends AttributeDescription> selectedAttributes, 
-			DatabaseTable fromTable, Collection<? extends Attribute> whereAttributes, int limit) throws 
+			DatabaseTable fromTable, WhereClause where, int limit) throws 
 			DatabaseUnavailableException, DatabaseException
 	{
-		return select(selectedAttributes, fromTable, whereAttributes, limit, null);
+		return select(selectedAttributes, fromTable, where, limit, null);
 	}
 	
 	/**
 	 * Makes a select from query and returns the selection data
 	 * @param selectedAttributes The attributes that will be selected
 	 * @param fromTable The table the selection is made from
-	 * @param whereAttributes The conditions for the selection. If this is an empty set or null, 
-	 * attributes from each row will be returned. Attribute names don't matter.
+	 * @param where The where clause used in the select (null if all rows are selected)
 	 * @param limit How many rows are returned at maximum. If this is a negative number, 
 	 * the number of returned rows is not limited.
 	 * @param extraSQL Extra sql code added to the end of the query. Can be, for example, 
@@ -344,9 +344,36 @@ public class DatabaseAccessor
 	 */
 	public static List<List<Attribute>> select(
 			Collection<? extends AttributeDescription> selectedAttributes, 
-			DatabaseTable fromTable, Collection<? extends Attribute> whereAttributes, int limit, 
+			DatabaseTable fromTable, WhereClause where, int limit, 
 			String extraSQL) throws 
 			DatabaseUnavailableException, DatabaseException
+	{
+		return select(selectedAttributes, fromTable, null, null, where, limit, 
+				extraSQL);
+	}
+	
+	/**
+	 * Makes a select from query and returns the selection data
+	 * @param selectedAttributes The attributes that will be selected
+	 * @param fromTable The table the selection is made from
+	 * @param joinTable The table that is joined into the selection (null if no join is made)
+	 * @param joinConditions The conditions on which the rows are joined (null or empty if no 
+	 * join is made)
+	 * @param where The where clause used in the select (null if all rows are selected)
+	 * @param limit How many rows are returned at maximum. If this is a negative number, 
+	 * the number of returned rows is not limited.
+	 * @param extraSQL Extra sql code added to the end of the query. Can be, for example, 
+	 * sorting information. Null if not used.
+	 * @return A list of attribute sets. One set for each row. Each set contains selected 
+	 * data for that row.
+	 * @throws DatabaseUnavailableException If the database can't be accessed at this time
+	 * @throws DatabaseException If the operation failed
+	 */
+	public static List<List<Attribute>> select(Collection<? extends AttributeDescription> 
+			selectedAttributes, 
+			DatabaseTable fromTable, DatabaseTable joinTable, Collection<? extends 
+			JoinCondition> joinConditions, WhereClause where, 
+			int limit, String extraSQL) throws DatabaseException, DatabaseUnavailableException
 	{
 		List<List<Attribute>> rows = new ArrayList<>();
 		
@@ -354,11 +381,9 @@ public class DatabaseAccessor
 		sql.append(getColumnNameString(selectedAttributes));
 		sql.append(" FROM ");
 		sql.append(fromTable.getTableName());
-		if (whereAttributes != null && !whereAttributes.isEmpty())
-		{
-			sql.append(" WHERE ");
-			sql.append(getEqualsString(whereAttributes, " AND ", true));
-		}
+		sql.append(getJoinSql(fromTable, joinTable, joinConditions));
+		if (where != null)
+			sql.append(where.toSql(fromTable));
 		if (limit >= 0)
 			sql.append(" LIMIT " + limit);
 		if (extraSQL != null)
@@ -372,8 +397,8 @@ public class DatabaseAccessor
 		{
 			// Prepares the statement
 			statement = accessor.getPreparedStatement(sql.toString());
-			if (whereAttributes != null && !whereAttributes.isEmpty())
-				prepareAttributeValues(statement, whereAttributes, 1);
+			if (where != null)
+				where.setObjectValues(statement, 1);
 			
 			// Parses the results
 			results = statement.executeQuery();
@@ -390,7 +415,7 @@ public class DatabaseAccessor
 		}
 		catch (SQLException e)
 		{
-			throw new DatabaseException(e, sql.toString(), fromTable, whereAttributes);
+			throw new DatabaseException(e, sql.toString(), fromTable, where, null);
 		}
 		finally
 		{
@@ -405,8 +430,7 @@ public class DatabaseAccessor
 	/**
 	 * Selects all data from certain rows from the table
 	 * @param fromTable The table the selection is made from
-	 * @param whereAttributes The conditions for the selection. If this is an empty set or null, 
-	 * attributes from each row will be returned. Attribute names don't matter.
+	 * @param where The where clause used in the select (null if all rows are selected)
 	 * @param limit How many rows are returned at maximum. If this is a negative number, 
 	 * the number of returned rows is not limited.
 	 * @param extraSQL Extra sql code added to the end of the query. Can be, for example, 
@@ -419,308 +443,40 @@ public class DatabaseAccessor
 	 * attribute name
 	 */
 	public static List<List<Attribute>> selectAll(DatabaseTable fromTable, 
-			Collection<? extends Attribute> whereAttributes, int limit, String extraSQL) 
+			WhereClause where, int limit, String extraSQL) 
 			throws DatabaseUnavailableException, DatabaseException, NoAttributeForColumnException
 	{
-		return select(Attribute.getDescriptionsFrom(fromTable.getColumnInfo(), 
-				fromTable.getAttributeNameMapping()), fromTable, whereAttributes, limit, 
-				extraSQL);
+		return select(Attribute.getDescriptionsFrom(fromTable), fromTable, where, limit, extraSQL);
 	}
 	
 	/**
-	 * Performs a search through all the tables of a certain type in order to find the 
-	 * matching column data.
-	 * 
-	 * @param table The table type that should contain the information
-	 * @param keyColumn The name of the column where the key is
-	 * @param keyValue The value which the column must have in order for the row to make it 
-	 * to the result. No brackets required.
-	 * @param valueColumn From which column the returned value is extracted from
-	 * @return A list containing all the collected values
-	 * @throws SQLException If the given values were invalid
-	 * @throws DatabaseUnavailableException If the database couldn't be accessed
-	 * @deprecated One should use {@link #select(Collection, DatabaseTable, Collection, int)} instead
+	 * Selects all data from certain rows from the two joined tables
+	 * @param fromTable The table the selection is made from
+	 * @param joinTable The table that is joined into the selection
+	 * @param joinConditions The conditions on which the rows are joined
+	 * @param where The where clause used in the select (null if all rows are selected)
+	 * @param limit How many rows are returned at maximum. If this is a negative number, 
+	 * the number of returned rows is not limited.
+	 * @param extraSQL Extra sql code added to the end of the query. Can be, for example, 
+	 * sorting information. Null if not used.
+	 * @return A list of attribute sets. One set for each row. Each set contains selected 
+	 * data for that row.
+	 * @throws DatabaseUnavailableException If the database can't be accessed at this time
+	 * @throws DatabaseException If the operation failed
+	 * @throws NoAttributeForColumnException If a table's column name couldn't be mapped to an 
+	 * attribute name
 	 */
-	public static List<String> findMatchingData(DatabaseTable table, String keyColumn, 
-			String keyValue, String valueColumn) throws DatabaseUnavailableException, 
-			SQLException
+	public static List<List<Attribute>> selectAll(DatabaseTable fromTable, 
+			DatabaseTable joinTable, Collection<? extends JoinCondition> joinConditions, 
+			WhereClause where, int limit, String extraSQL) 
+			throws DatabaseUnavailableException, DatabaseException, NoAttributeForColumnException
 	{
-		return findMatchingData(table, keyColumn, keyValue, valueColumn, -1);
-	}
-	
-	/**
-	 * Performs a search through all the tables of a certain type in order to find the 
-	 * matching column data.
-	 * 
-	 * @param table The table type that should contain the information
-	 * @param keyColumn The name of the column where the key is
-	 * @param keyValue The value which the column must have in order for the row to make it 
-	 * to the result. No brackets required.
-	 * @param valueColumn From which column the returned value is extracted from
-	 * @param limit The amount of results that should be returned at maximum. Use a negative 
-	 * value if you don't want to pose a limit.
-	 * @return A list containing all the collected values
-	 * @throws SQLException If the given values were invalid
-	 * @throws DatabaseUnavailableException If the database couldn't be accessed
-	 * @deprecated One should use {@link #select(Collection, DatabaseTable, Collection, int)} instead
-	 */
-	public static List<String> findMatchingData(DatabaseTable table, String keyColumn, 
-			String keyValue, String valueColumn, int limit) throws DatabaseUnavailableException, 
-			SQLException
-	{
-		String[] keyColumns = {keyColumn};
-		String[] keyValues = {keyValue};
-		
-		return findMatchingData(table, keyColumns, keyValues, valueColumn, limit);
-	}
-	
-	/**
-	 * Performs a search through all the tables of a certain type in order to find the 
-	 * matching column data.
-	 * 
-	 * @param table The table type that should contain the information
-	 * @param keyColumns The names of the columns where the keys are
-	 * @param keyValues The values which the columns must have in order for the row to make 
-	 * it to the result. No brackets required.
-	 * @param valueColumn From which column the returned value is extracted from
-	 * @return A list containing all the collected values
-	 * @throws SQLException If the given values were invalid
-	 * @throws DatabaseUnavailableException If the database couldn't be accessed
-	 * @deprecated One should use {@link #select(Collection, DatabaseTable, Collection, int)} instead
-	 */
-	public static List<String> findMatchingData(DatabaseTable table, String[] keyColumns, 
-			String[] keyValues, String valueColumn) throws DatabaseUnavailableException, 
-			SQLException
-	{
-		return findMatchingData(table, keyColumns, keyValues, valueColumn, -1);
-	}
-	
-	/**
-	 * Performs a search through all the tables of a certain type in order to find the 
-	 * matching column data.
-	 * 
-	 * @param table The table type that should contain the information
-	 * @param keyColumns The names of the columns where the keys are
-	 * @param keyValues The values which the columns must have in order for the row to make 
-	 * it to the result. No brackets required.
-	 * @param valueColumn From which column the returned value is extracted from
-	 * @param limit The amount of results that should be returned at maximum. Use a negative 
-	 * value if you don't want to pose a limit.
-	 * @return A list containing all the collected values
-	 * @throws SQLException If the given values were invalid
-	 * @throws DatabaseUnavailableException If the database couldn't be accessed
-	 * @deprecated One should use {@link #select(Collection, DatabaseTable, Collection, int)} instead
-	 */
-	public static List<String> findMatchingData(DatabaseTable table, String[] keyColumns, 
-			String[] keyValues, String valueColumn, int limit) throws 
-			DatabaseUnavailableException, SQLException
-	{
-		List<String> resultData = new ArrayList<>();
-		
-		// Performs a database query
-		DatabaseAccessor accessor = new DatabaseAccessor(table.getDatabaseName());
-		
-		try
-		{
-			StringBuilder statementString = new StringBuilder("SELECT * FROM " + 
-					table.getTableName());
-			
-			if (keyColumns.length > 0)
-			{
-				statementString.append(" WHERE ");
-				for (int keyIndex = 0; keyIndex < keyColumns.length; keyIndex ++)
-				{
-					if (keyIndex != 0)
-						statementString.append(" AND ");
-					statementString.append(keyColumns[keyIndex] + " = '" + 
-							keyValues[keyIndex] + "'");
-				}
-			}
-			
-			// The amount of returned values may be limited already in the query
-			if (limit >= 0)
-				statementString.append(" LIMIT " + limit);
-			
-			PreparedStatement statement = null;
-			ResultSet results = null;
-			
-			try
-			{
-				statement = accessor.getPreparedStatement(statementString.toString());
-				results = statement.executeQuery();
-				
-				while (results.next())
-				{
-					resultData.add(results.getString(valueColumn));
-				}
-			}
-			finally
-			{
-				DatabaseAccessor.closeResults(results);
-				DatabaseAccessor.closeStatement(statement);
-			}
-		}
-		finally
-		{
-			accessor.closeConnection();
-		}
-		return resultData;
-	}
-	
-	/**
-	 * Finds the primary keys from the rows with matching data
-	 * @param table The table that is searched through
-	 * @param keyColumn The name of the column that holds the key data
-	 * @param keyValue The key data that is searched for
-	 * @return A list of all the primary keys with matching data
-	 * @throws DatabaseUnavailableException If the database couldn't be reached
-	 * @throws SQLException If the search couldn't be performed
-	 * @throws InvalidTableTypeException If the table doesn't have a primary key column
-	 * @deprecated One should use {@link #select(Collection, DatabaseTable, Collection, int)} instead
-	 */
-	public static List<String> findMatchingIDs(DatabaseTable table, 
-			String keyColumn, String keyValue) throws DatabaseUnavailableException, 
-			SQLException, InvalidTableTypeException
-	{
-		checkPrimaryKeyColumn(table);
-		return DatabaseAccessor.findMatchingData(table, keyColumn, keyValue, 
-				table.getPrimaryColumn().getName());
-	}
-	
-	/**
-	 * Finds the primary keys from the rows with matching data
-	 * @param table The table that is searched through
-	 * @param keyColumns The names of the columns that hold the key data
-	 * @param keyValues The key data that is searched for
-	 * @return A list of all the primary keys with matching data
-	 * @throws DatabaseUnavailableException If the database couldn't be reached
-	 * @throws SQLException If the search couldn't be performed
-	 * @throws InvalidTableTypeException If the table doesn't have a primary key column
-	 * @deprecated One should use {@link #select(Collection, DatabaseTable, Collection, int)} instead
-	 */
-	public static List<String> findMatchingIDs(DatabaseTable table, String[] keyColumns, 
-			String[] keyValues) throws DatabaseUnavailableException, SQLException, InvalidTableTypeException
-	{
-		checkPrimaryKeyColumn(table);
-		return DatabaseAccessor.findMatchingData(table, keyColumns, keyValues, 
-				table.getPrimaryColumn().getName());
-	}
-	
-	/**
-	 * Finds the primary keys from the rows with matching data
-	 * @param table The table that is searched through
-	 * @param keyColumn The name of the column that holds the key data
-	 * @param keyValue The key data that is searched for
-	 * @param limit How many keys will be returned at maximum
-	 * @return A list of all the primary keys with matching data
-	 * @throws DatabaseUnavailableException If the database couldn't be reached
-	 * @throws SQLException If the search couldn't be performed
-	 * @throws InvalidTableTypeException If the table doesn't have a primary key column
-	 * @deprecated One should use {@link #select(Collection, DatabaseTable, Collection, int)} instead
-	 */
-	public static List<String> findMatchingIDs(DatabaseTable table, 
-			String keyColumn, String keyValue, int limit) throws DatabaseUnavailableException, 
-			SQLException, InvalidTableTypeException
-	{
-		checkPrimaryKeyColumn(table);
-		return DatabaseAccessor.findMatchingData(table, keyColumn, keyValue, 
-				table.getPrimaryColumn().getName(), limit);
-	}
-	
-	/**
-	 * Finds the primary keys from the rows with matching data
-	 * @param table The table that is searched through
-	 * @param keyColumns The names of the columns that hold the key data
-	 * @param keyValues The key data that is searched for
-	 * @param limit How many keys will be returned at maximum
-	 * @return A list of all the primary keys with matching data
-	 * @throws DatabaseUnavailableException If the database couldn't be reached
-	 * @throws SQLException If the search couldn't be performed
-	 * @throws InvalidTableTypeException If the table doesn't have a primary key column
-	 * @deprecated One should use {@link #select(Collection, DatabaseTable, Collection, int)} instead
-	 */
-	public static List<String> findMatchingIDs(DatabaseTable table, String[] keyColumns, 
-			String[] keyValues, int limit) throws DatabaseUnavailableException, SQLException, 
-			InvalidTableTypeException
-	{
-		checkPrimaryKeyColumn(table);
-		return DatabaseAccessor.findMatchingData(table, keyColumns, keyValues, 
-				table.getPrimaryColumn().getName(), limit);
-	}
-	
-	/**
-	 * Inserts new data to the given table.
-	 * @param targetTable The table the data will be inserted into
-	 * @param columnData The data posted to the table (in the same order as in the tables). 
-	 * All data will be considered to be strings. No brackets are required around any piece of 
-	 * data. If the table uses auto-increment indexing, the columnData shouldn't contain the 
-	 * primary key and it should be placed first in the table.
-	 * @return The integer index if one was generated during auto-increment indexing. -1 otherwise.
-	 * @throws SQLException If the insert failed
-	 * @throws DatabaseUnavailableException If the database couldn't be accessed
-	 * @throws InvalidTableTypeException If the table uses integer indexing but not 
-	 * auto-increment indexing
-	 * @deprecated One should use {@link #insert(DatabaseTable, Collection)} instead
-	 */
-	public static int insert(DatabaseTable targetTable, List<String> columnData) throws 
-			SQLException, DatabaseUnavailableException, InvalidTableTypeException
-	{
-		if (targetTable.usesAutoIncrementIndexing())
-			return insertWithAutoIncrement(targetTable, getColumnDataString(columnData));
-		else
-		{
-			insert(targetTable, getColumnDataString(columnData));
-			return -1;
-		}
-	}
-	
-	/**
-	 * Inserts new data to the given table
-	 * @param targetTable The table the data will be inserted into
-	 * @param columnData The data posted to the table (in the same order as in the tables). 
-	 * No brackets required. Strings need to be surrounded with brackets ('). 
-	 * The index should be included.
-	 * @return The integer index if one was generated during auto-increment indexing. -1 otherwise.
-	 * @throws SQLException If the insert failed
-	 * @throws DatabaseUnavailableException If the database couldn't be accessed
-	 * @deprecated One should use {@link #insert(DatabaseTable, Collection)} instead
-	 */
-	public static int insert(DatabaseTable targetTable, String columnData) throws 
-			SQLException, DatabaseUnavailableException
-	{
-		if (targetTable.usesAutoIncrementIndexing())
-		{
-			try
-			{
-				return insertWithAutoIncrement(targetTable, columnData);
-			}
-			catch (InvalidTableTypeException e)
-			{
-				// This should never be reached since the check has been made
-				e.printStackTrace();
-			}
-		}
-		
-		// Opens connection
-		DatabaseAccessor accessor = new DatabaseAccessor(targetTable.getDatabaseName());
-		
-		// Inserts data
-		try
-		{
-			accessor.executeStatement(getInsertStatement(targetTable, columnData));
-		}
-		finally
-		{
-			// Closes connection
-			accessor.closeConnection();
-		}
-		
-		return -1;
-		// Updates the table amounts
-		/*
-		if (targetTable.usesIntegerIndexing())
-			DatabaseSettings.getTableHandler().updateTableAmount(targetTable, newID);
-		 */
+		List<AttributeDescription> selection = new ArrayList<>();
+		selection.addAll(Attribute.getDescriptionsFrom(fromTable));
+		if (joinTable != null)
+			selection.addAll(Attribute.getDescriptionsFrom(joinTable));
+		return select(selection, fromTable, joinTable, joinConditions, 
+				where, limit, extraSQL);
 	}
 	
 	/**
@@ -778,7 +534,7 @@ public class DatabaseAccessor
 		}
 		catch (SQLException e)
 		{
-			throw new DatabaseException(e, sql.toString(), intoTable, attributes);
+			throw new DatabaseException(e, sql.toString(), intoTable, null, attributes);
 		}
 		finally
 		{
@@ -791,63 +547,46 @@ public class DatabaseAccessor
 	}
 	
 	/**
-	 * Deletes certain data from all the tables of the given type
-	 * @param targetTable The table type from which data is removed
-	 * @param targetColumn The column which is used for checking whether data should be deleted.
-	 * @param targetValue The value which the column must have in order for the data to be 
-	 * deleted. Brackets aren't necessary.
-	 * @throws SQLException If the deletion failed
-	 * @throws DatabaseUnavailableException If the database couldn't be accessed
-	 * @deprecated One should use {@link #delete(DatabaseTable, Collection)} instead
+	 * Deletes rows where the provided conditions are met
+	 * @param fromTable The table the row(s) are deleted from
+	 * @param where The where clause used in the delete. Null if all rows are to be deleted
+	 * @throws DatabaseUnavailableException If the database can't be accessed
+	 * @throws DatabaseException If the operation failed
 	 */
-	public static void delete(DatabaseTable targetTable, String targetColumn, 
-			String targetValue) throws SQLException, DatabaseUnavailableException
+	public static void delete(DatabaseTable fromTable, WhereClause where) 
+			throws DatabaseUnavailableException, DatabaseException
 	{
-		DatabaseAccessor accessor = new DatabaseAccessor(targetTable.getDatabaseName());
-		
-		try
-		{
-			StringBuilder statement = new StringBuilder("DELETE from ");
-			statement.append(targetTable.getTableName());
-			statement.append(" WHERE ");
-			statement.append(targetColumn);
-			statement.append(" = '");
-			statement.append(targetValue);
-			statement.append("';");
-			
-			accessor.executeStatement(statement.toString());
-		}
-		finally
-		{
-			accessor.closeConnection();
-		}
+		delete(fromTable, null, null, where);
 	}
 	
 	/**
 	 * Deletes rows where the provided conditions are met
 	 * @param fromTable The table the row(s) are deleted from
-	 * @param whereAttributes The conditions for the delete operation. Attribute names don't matter.
+	 * @param joinTable The table that is joined into the deletion (null if no join is made)
+	 * @param joinConditions The conditions on which the rows are joined (null if no join 
+	 * is made)
+	 * @param where The where clause used in the delete. Null if all rows are to be deleted
 	 * @throws DatabaseUnavailableException If the database can't be accessed
 	 * @throws DatabaseException If the operation failed
 	 */
-	public static void delete(DatabaseTable fromTable, Collection<? extends Attribute> whereAttributes) 
-			throws DatabaseUnavailableException, DatabaseException
+	public static void delete(DatabaseTable fromTable, DatabaseTable joinTable, 
+			Collection<? extends JoinCondition> joinConditions, 
+			WhereClause where) throws DatabaseUnavailableException, DatabaseException
 	{
 		StringBuilder sql = new StringBuilder("DELETE FROM ");
 		sql.append(fromTable.getTableName());
-		if (whereAttributes != null && !whereAttributes.isEmpty())
-		{
-			sql.append(" WHERE ");
-			sql.append(getEqualsString(whereAttributes, " AND ", true));
-		}
+		sql.append(getJoinSql(fromTable, joinTable, joinConditions));
+		if (where != null)
+			sql.append(where.toSql(fromTable));
 		
 		DatabaseAccessor accessor = new DatabaseAccessor(fromTable.getDatabaseName());
 		PreparedStatement statement = null;
 		try
 		{
+			// TODO: Continue
 			// Prepares the statement
 			statement = accessor.getPreparedStatement(sql.toString());
-			if (whereAttributes != null && !whereAttributes.isEmpty())
+			if (where != null)
 				prepareAttributeValues(statement, whereAttributes, 1);
 			// Executes
 			statement.executeUpdate();
@@ -1271,6 +1010,31 @@ public class DatabaseAccessor
 		return sql.toString();
 	}
 	
+	private static String getJoinSql(DatabaseTable firstTable, DatabaseTable joinTable, 
+			Collection<? extends JoinCondition> joinConditions)
+	{
+		StringBuilder sql = new StringBuilder();
+		if (joinTable != null)
+		{
+			sql.append(" JOIN ");
+			sql.append(joinTable.getTableName());
+			
+			if (joinConditions != null && !joinConditions.isEmpty())
+			{
+				sql.append(" ON ");
+				boolean isFirst = true;
+				for (JoinCondition condition : joinConditions)
+				{
+					if (!isFirst)
+						sql.append(" AND ");
+					sql.append(condition.toSql(firstTable, joinTable));
+					isFirst = false;
+				}
+			}
+		}
+		return sql.toString();
+	}
+	
 	private static int prepareAttributeValues(PreparedStatement statement, 
 			Collection<? extends Attribute> attributes, int startIndex) throws SQLException
 	{
@@ -1421,5 +1185,176 @@ public class DatabaseAccessor
 		if (table.getPrimaryColumn() == null)
 			throw new InvalidTableTypeException(
 					"table " + table + " doesn't have a primary key column");
+	}
+	
+	
+	// SUBCLASSES	----------------------
+	
+	/**
+	 * JoinConditions are used for parsing sql join conditions
+	 * @author Mikko Hilpinen
+	 * @since 1.10.2015
+	 */
+	public static abstract class JoinCondition
+	{
+		// ABSTRACT METHODS	--------------
+		
+		/**
+		 * This method returns the column name that is part of the condition
+		 * @param table The table the column should be from
+		 * @param index The index of the condition (0 | 1). 0 Is requested first, then 1.
+		 * @return A column name for the given index / table.
+		 */
+		protected abstract String getColumnNameForTable(DatabaseTable table, int index);
+		
+		
+		// OTHER METHODS	--------------
+		
+		/**
+		 * Creates an sql equals statement from the condition. The sql statement will be 
+		 * something like firstTable.columnName = secondTable.columnName
+		 * @param firstTable The first table that is used
+		 * @param joinedTable The table that is joined into the query
+		 * @return The sql statement for the equality
+		 */
+		public String toSql(DatabaseTable firstTable, DatabaseTable joinedTable)
+		{
+			StringBuilder sql = new StringBuilder();
+			sql.append(firstTable.getTableName() + ".");
+			sql.append(getColumnNameForTable(firstTable, 0));
+			sql.append(" = ");
+			sql.append(joinedTable.getTableName() + ".");
+			sql.append(getColumnNameForTable(joinedTable, 1));
+			
+			return sql.toString();
+		}
+		
+		/**
+		 * @return The joinCondition wrapped into a list of joinConditions. The list will be 
+		 * of size 1.
+		 */
+		public List<JoinCondition> wrapIntoList()
+		{
+			List<JoinCondition> list = new ArrayList<>();
+			list.add(this);
+			return list;
+		}
+	}
+	
+	/**
+	 * This joinCondition uses attribute descriptions
+	 * @author Mikko Hilpinen
+	 * @since 1.10.2015
+	 */
+	public static class DescriptionJoinCondition extends JoinCondition
+	{
+		// ATTRIBUTES	------------------
+		
+		private AttributeDescription[] descriptions;
+		
+		
+		// CONSTRUCTOR	------------------
+		
+		/**
+		 * Creates a new join condition. The values of the two attributes in the database must 
+		 * be the same. The descriptions should describe columns in the joined tables.
+		 * @param first The description of the attribute in the first table
+		 * @param second The description of the attribute in the joined table
+		 */
+		public DescriptionJoinCondition(AttributeDescription first, 
+				AttributeDescription second)
+		{
+			this.descriptions = new AttributeDescription[2];
+			this.descriptions[0] = first;
+			this.descriptions[1] = second;
+		}
+		
+		
+		// IMPLEMENTED METHODS	---------
+		
+		@Override
+		public String getColumnNameForTable(DatabaseTable table, int index)
+		{
+			return this.descriptions[index].getColumnName();
+		}
+	}
+	
+	/**
+	 * This joinCondition uses attribute names
+	 * @author Mikko Hilpinen
+	 * @since 1.10.2015
+	 */
+	public static class AttributeNameJoinCondition extends JoinCondition
+	{
+		// ATTRIBUTES	------------------
+		
+		private String[] names;
+		
+		
+		// CONSTRUCTOR	------------------
+		
+		/**
+		 * Creates a new join condition. The attribute names should be represented in the 
+		 * tables.
+		 * @param firstAttributeName The name of the attribute in the first table
+		 * @param secondAttributeName The name of the attribute in the joined table
+		 */
+		public AttributeNameJoinCondition(String firstAttributeName, 
+				String secondAttributeName)
+		{
+			this.names = new String[2];
+			this.names[0] = firstAttributeName;
+			this.names[1] = secondAttributeName;
+		}
+		
+		
+		// IMPLEMENTED METHODS	----------
+		
+		@Override
+		public String getColumnNameForTable(DatabaseTable table, int index)
+		{
+			try
+			{
+				return table.getAttributeNameMapping().getColumnName(this.names[index]);
+			}
+			catch (NoColumnForAttributeException e)
+			{
+				System.err.println("Failed to find a column name in join condition");
+				e.printStackTrace();
+				return null;
+			}
+		}
+	}
+	
+	/**
+	 * This joinCondition uses column names
+	 * @author Mikko Hilpinen
+	 * @since 1.10.2015
+	 */
+	public static class SimpleJoinCondition extends JoinCondition
+	{
+		// ATTRIBUTES	---------------
+		
+		private String[] columnNames;
+		
+		/**
+		 * Creates a new join condition. The column names should be present in the joined tables.
+		 * @param firstColumnName The name of the column in the first table
+		 * @param secondColumnName The name of the column in the joined table
+		 */
+		public SimpleJoinCondition(String firstColumnName, String secondColumnName)
+		{
+			this.columnNames = new String[2];
+			this.columnNames[0] = firstColumnName;
+			this.columnNames[1] = secondColumnName;
+		}
+		
+		// IMPLEMENTED METHODS	--------
+		
+		@Override
+		public String getColumnNameForTable(DatabaseTable table, int index)
+		{
+			return this.columnNames[index];
+		}
 	}
 }

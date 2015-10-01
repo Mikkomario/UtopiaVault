@@ -18,6 +18,7 @@ public class DatabaseException extends Exception
 	private String sqlStatement;
 	private List<Attribute> providedValues;
 	private DatabaseTable usedTable;
+	private WhereClause where;
 	
 	
 	// CONSTRUCTOR	--------------------
@@ -27,14 +28,16 @@ public class DatabaseException extends Exception
 	 * @param cause The (sql) exception that caused this one
 	 * @param sqlStatement The sql statement that was prepared before the exception occurred
 	 * @param usedTable The table that was used when the exception occurred
+	 * @param whereClause The where clause used when the error occurred (optional)
 	 * @param providedValues The values that were used when the exception occurred
 	 */
 	public DatabaseException(Throwable cause, String sqlStatement, DatabaseTable usedTable, 
-			Collection<? extends Attribute> providedValues)
+			WhereClause whereClause, Collection<? extends Attribute> providedValues)
 	{
 		super("Error in sql statement: '" + sqlStatement + "'", cause);
 		this.providedValues = new ArrayList<>();
 		this.providedValues.addAll(providedValues);
+		this.where = whereClause;
 		this.usedTable = usedTable;
 		this.sqlStatement = sqlStatement;
 	}
@@ -66,6 +69,14 @@ public class DatabaseException extends Exception
 		return this.usedTable;
 	}
 	
+	/**
+	 * @return The where clause that was used
+	 */
+	public WhereClause getUsedWhereClause()
+	{
+		return this.where;
+	}
+	
 	
 	// OTHER METHODS	------------------
 	
@@ -77,14 +88,20 @@ public class DatabaseException extends Exception
 	{
 		StringBuilder message = new StringBuilder("Exception message\n");
 		message.append("SQL: " + getSQLStatement());
+		if (getUsedWhereClause() != null)
+			message.append("\nWhere debug message: " + 
+					getUsedWhereClause().getDebubSql(getUsedTable()));
 		message.append("\nTable used: ");
 		message.append(getUsedTable().getDatabaseName() + "/");
 		message.append(getUsedTable().getTableName());
-		message.append("\nValues used:\n");
-		for (Attribute attribute : getProvidedValues())
+		if (getProvidedValues() != null && !getProvidedValues().isEmpty())
 		{
-			message.append(attribute);
-			message.append("\n");
+			message.append("\nAttributes provided:\n");
+			for (Attribute attribute : getProvidedValues())
+			{
+				message.append(attribute);
+				message.append("\n");
+			}
 		}
 		
 		return message.toString();
