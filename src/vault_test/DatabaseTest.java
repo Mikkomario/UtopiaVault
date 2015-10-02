@@ -6,15 +6,18 @@ import java.util.List;
 import java.util.Random;
 
 import vault_database.Attribute;
+import vault_database.AttributeNameEqualsWhereCondition;
 import vault_database.AttributeNameMapping.MappingException;
 import vault_database.AttributeNameMapping.NoAttributeForColumnException;
-import vault_database.AttributeNameMapping.NoColumnForAttributeException;
 import vault_database.DatabaseAccessor;
 import vault_database.DatabaseException;
 import vault_database.DatabaseSettings;
+import vault_database.EqualsWhereCondition;
 import vault_database.IndexAttributeRequiredException;
 import vault_database.Attribute.AttributeDescription;
 import vault_database.DatabaseUnavailableException;
+import vault_database.WhereCondition;
+import vault_database.WhereCondition.WhereConditionParseException;
 import vault_recording.DatabaseModel;
 
 /**
@@ -129,7 +132,12 @@ public class DatabaseTest
 		}
 		catch (MappingException e)
 		{
-			System.err.println("Attribute name mapping failed");
+			System.err.println("Failure. Attribute name mapping failed");
+			e.printStackTrace();
+		}
+		catch (WhereConditionParseException e)
+		{
+			System.err.println("Failure. Where condition couldn't be parsed");
 			e.printStackTrace();
 		}
 	}
@@ -182,7 +190,8 @@ public class DatabaseTest
 	}
 	
 	private static List<DatabaseModel> read() throws 
-			DatabaseUnavailableException, DatabaseException, NoAttributeForColumnException
+			DatabaseUnavailableException, DatabaseException, NoAttributeForColumnException, 
+			WhereConditionParseException
 	{
 		// Finds out all the id's
 		AttributeDescription indexDescription = new AttributeDescription(
@@ -195,10 +204,11 @@ public class DatabaseTest
 		
 		// Loads the models
 		List<DatabaseModel> models = new ArrayList<>();
-		for (List<Attribute> id : ids)
+		for (List<Attribute> idResult : ids)
 		{
 			DatabaseModel model = new DatabaseModel(TestTable.DEFAULT, true);
-			DatabaseAccessor.readObjectAttributesFromDatabase(model, id);
+			DatabaseAccessor.readObjectAttributesFromDatabase(model, new EqualsWhereCondition(
+					false, idResult.get(0)));
 			models.add(model);
 		}
 		
@@ -237,15 +247,16 @@ public class DatabaseTest
 	}
 	
 	private static int numberOfModelsWithName(String name) throws DatabaseUnavailableException, 
-			DatabaseException, NoAttributeForColumnException, NoColumnForAttributeException
+			DatabaseException, NoAttributeForColumnException, WhereConditionParseException
 	{
-		List<Attribute> whereAttributes = new Attribute(Attribute.getTableAttributeDescription(
-				TestTable.DEFAULT, "name"), name).wrapIntoList();
+		//List<Attribute> whereAttributes = new Attribute(Attribute.getTableAttributeDescription(
+		//		TestTable.DEFAULT, "name"), name).wrapIntoList();
+		WhereCondition where = new AttributeNameEqualsWhereCondition(false, "name", (Object) name);
 				//new Attribute(mapping.findColumnForAttribute(
 				//TestTable.DEFAULT.getColumnInfo(), "name"), mapping, name).wrapIntoList();
 		List<AttributeDescription> selection = new AttributeDescription(
 				TestTable.DEFAULT.getPrimaryColumn(), 
 				TestTable.DEFAULT.getAttributeNameMapping()).wrapIntoList();
-		return DatabaseAccessor.select(selection, TestTable.DEFAULT, whereAttributes, -1).size();
+		return DatabaseAccessor.select(selection, TestTable.DEFAULT, where, -1).size();
 	}
 }

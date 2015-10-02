@@ -10,12 +10,12 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 
-import jdk.nashorn.internal.objects.annotations.Where;
 import vault_database.Attribute.AttributeDescription;
 import vault_database.AttributeNameMapping.NoAttributeForColumnException;
 import vault_database.AttributeNameMapping.NoColumnForAttributeException;
 import vault_database.DatabaseSettings.UninitializedSettingsException;
-import vault_database.DatabaseTable.ColumnInfo;
+import vault_database.DatabaseTable.Column;
+import vault_database.WhereCondition.WhereConditionParseException;
 import vault_recording.DatabaseReadable;
 import vault_recording.DatabaseWritable;
 
@@ -305,7 +305,15 @@ public class DatabaseAccessor
 			DatabaseTable fromTable, int limit) throws 
 			DatabaseUnavailableException, DatabaseException
 	{
-		return select(selectedAttributes, fromTable, null, limit, null);
+		try
+		{
+			return select(selectedAttributes, fromTable, null, limit, null);
+		}
+		catch (WhereConditionParseException e)
+		{
+			// Where condition is not used -> can always be parsed
+			return null;
+		}
 	}
 	
 	/**
@@ -319,11 +327,12 @@ public class DatabaseAccessor
 	 * data for that row.
 	 * @throws DatabaseUnavailableException If the database can't be accessed at this time
 	 * @throws DatabaseException If the operation failed
+	 * @throws WhereConditionParseException If the where condition couldn't be parsed
 	 */
 	public static List<List<Attribute>> select(
 			Collection<? extends AttributeDescription> selectedAttributes, 
-			DatabaseTable fromTable, WhereClause where, int limit) throws 
-			DatabaseUnavailableException, DatabaseException
+			DatabaseTable fromTable, WhereCondition where, int limit) throws 
+			DatabaseUnavailableException, DatabaseException, WhereConditionParseException
 	{
 		return select(selectedAttributes, fromTable, where, limit, null);
 	}
@@ -341,12 +350,13 @@ public class DatabaseAccessor
 	 * data for that row.
 	 * @throws DatabaseUnavailableException If the database can't be accessed at this time
 	 * @throws DatabaseException If the operation failed
+	 * @throws WhereConditionParseException If the where condition couldn't be parsed
 	 */
 	public static List<List<Attribute>> select(
 			Collection<? extends AttributeDescription> selectedAttributes, 
-			DatabaseTable fromTable, WhereClause where, int limit, 
+			DatabaseTable fromTable, WhereCondition where, int limit, 
 			String extraSQL) throws 
-			DatabaseUnavailableException, DatabaseException
+			DatabaseUnavailableException, DatabaseException, WhereConditionParseException
 	{
 		return select(selectedAttributes, fromTable, null, null, where, limit, 
 				extraSQL);
@@ -368,12 +378,14 @@ public class DatabaseAccessor
 	 * data for that row.
 	 * @throws DatabaseUnavailableException If the database can't be accessed at this time
 	 * @throws DatabaseException If the operation failed
+	 * @throws WhereConditionParseException If the where condition couldn't be parsed
 	 */
 	public static List<List<Attribute>> select(Collection<? extends AttributeDescription> 
 			selectedAttributes, 
 			DatabaseTable fromTable, DatabaseTable joinTable, Collection<? extends 
-			JoinCondition> joinConditions, WhereClause where, 
-			int limit, String extraSQL) throws DatabaseException, DatabaseUnavailableException
+			JoinCondition> joinConditions, WhereCondition where, 
+			int limit, String extraSQL) throws DatabaseException, DatabaseUnavailableException, 
+			WhereConditionParseException
 	{
 		List<List<Attribute>> rows = new ArrayList<>();
 		
@@ -383,7 +395,7 @@ public class DatabaseAccessor
 		sql.append(fromTable.getTableName());
 		sql.append(getJoinSql(fromTable, joinTable, joinConditions));
 		if (where != null)
-			sql.append(where.toSql(fromTable));
+			sql.append(where.toWhereClause(fromTable));
 		if (limit >= 0)
 			sql.append(" LIMIT " + limit);
 		if (extraSQL != null)
@@ -428,6 +440,23 @@ public class DatabaseAccessor
 	}
 	
 	/**
+	 * Selects all data from all rows from the table
+	 * @param fromTable The table the selection is made from
+	 * @return A list of attribute sets. One set for each row. Each set contains selected 
+	 * data for that row.
+	 * @throws DatabaseUnavailableException If the database can't be accessed at this time
+	 * @throws DatabaseException If the operation failed
+	 * @throws NoAttributeForColumnException If a table's column name couldn't be mapped to an 
+	 * attribute name
+	 */
+	public static List<List<Attribute>> selectAll(DatabaseTable fromTable) 
+			throws DatabaseUnavailableException, DatabaseException, 
+			NoAttributeForColumnException
+	{
+		return select(Attribute.getDescriptionsFrom(fromTable), fromTable, -1);
+	}
+	
+	/**
 	 * Selects all data from certain rows from the table
 	 * @param fromTable The table the selection is made from
 	 * @param where The where clause used in the select (null if all rows are selected)
@@ -441,10 +470,11 @@ public class DatabaseAccessor
 	 * @throws DatabaseException If the operation failed
 	 * @throws NoAttributeForColumnException If a table's column name couldn't be mapped to an 
 	 * attribute name
+	 * @throws WhereConditionParseException If the where condition couldn't be parsed
 	 */
 	public static List<List<Attribute>> selectAll(DatabaseTable fromTable, 
-			WhereClause where, int limit, String extraSQL) 
-			throws DatabaseUnavailableException, DatabaseException, NoAttributeForColumnException
+			WhereCondition where, int limit, String extraSQL) 
+			throws DatabaseUnavailableException, DatabaseException, NoAttributeForColumnException, WhereConditionParseException
 	{
 		return select(Attribute.getDescriptionsFrom(fromTable), fromTable, where, limit, extraSQL);
 	}
@@ -465,11 +495,12 @@ public class DatabaseAccessor
 	 * @throws DatabaseException If the operation failed
 	 * @throws NoAttributeForColumnException If a table's column name couldn't be mapped to an 
 	 * attribute name
+	 * @throws WhereConditionParseException If the where condition couldn't be parsed
 	 */
 	public static List<List<Attribute>> selectAll(DatabaseTable fromTable, 
 			DatabaseTable joinTable, Collection<? extends JoinCondition> joinConditions, 
-			WhereClause where, int limit, String extraSQL) 
-			throws DatabaseUnavailableException, DatabaseException, NoAttributeForColumnException
+			WhereCondition where, int limit, String extraSQL) 
+			throws DatabaseUnavailableException, DatabaseException, NoAttributeForColumnException, WhereConditionParseException
 	{
 		List<AttributeDescription> selection = new ArrayList<>();
 		selection.addAll(Attribute.getDescriptionsFrom(fromTable));
@@ -552,9 +583,10 @@ public class DatabaseAccessor
 	 * @param where The where clause used in the delete. Null if all rows are to be deleted
 	 * @throws DatabaseUnavailableException If the database can't be accessed
 	 * @throws DatabaseException If the operation failed
+	 * @throws WhereConditionParseException If the where condition couldn't be parsed
 	 */
-	public static void delete(DatabaseTable fromTable, WhereClause where) 
-			throws DatabaseUnavailableException, DatabaseException
+	public static void delete(DatabaseTable fromTable, WhereCondition where) 
+			throws DatabaseUnavailableException, DatabaseException, WhereConditionParseException
 	{
 		delete(fromTable, null, null, where);
 	}
@@ -568,32 +600,33 @@ public class DatabaseAccessor
 	 * @param where The where clause used in the delete. Null if all rows are to be deleted
 	 * @throws DatabaseUnavailableException If the database can't be accessed
 	 * @throws DatabaseException If the operation failed
+	 * @throws WhereConditionParseException If the where condition couldn't be parsed
 	 */
 	public static void delete(DatabaseTable fromTable, DatabaseTable joinTable, 
 			Collection<? extends JoinCondition> joinConditions, 
-			WhereClause where) throws DatabaseUnavailableException, DatabaseException
+			WhereCondition where) throws DatabaseUnavailableException, DatabaseException, 
+			WhereConditionParseException
 	{
 		StringBuilder sql = new StringBuilder("DELETE FROM ");
 		sql.append(fromTable.getTableName());
 		sql.append(getJoinSql(fromTable, joinTable, joinConditions));
 		if (where != null)
-			sql.append(where.toSql(fromTable));
+			sql.append(where.toWhereClause(fromTable));
 		
 		DatabaseAccessor accessor = new DatabaseAccessor(fromTable.getDatabaseName());
 		PreparedStatement statement = null;
 		try
 		{
-			// TODO: Continue
 			// Prepares the statement
 			statement = accessor.getPreparedStatement(sql.toString());
 			if (where != null)
-				prepareAttributeValues(statement, whereAttributes, 1);
+				where.setObjectValues(statement, 1);
 			// Executes
 			statement.executeUpdate();
 		}
 		catch (SQLException e)
 		{
-			throw new DatabaseException(e, sql.toString(), fromTable, whereAttributes);
+			throw new DatabaseException(e, sql.toString(), fromTable, where, null);
 		}
 		finally
 		{
@@ -603,118 +636,39 @@ public class DatabaseAccessor
 	}
 	
 	/**
-	 * Updates a value in a column for certain rows
-	 * @param table The table in which the update is done
-	 * @param targetColumn The column which should contain the targetValue
-	 * @param targetValue The value the column should have in order to be updated. No brackets 
-	 * needed.
-	 * @param changeColumn The column which is being updated
-	 * @param newValue The new value given to the changeColumn. No brackets needed.
-	 * @throws SQLException If the update fails
-	 * @throws DatabaseUnavailableException If the database couldn't be accessed
-	 * @deprecated One should use {@link #update(DatabaseTable, Collection, Collection, boolean)} instead
-	 */
-	public static void update(DatabaseTable table, String targetColumn, 
-			String targetValue, String changeColumn, String newValue) throws SQLException, 
-			DatabaseUnavailableException
-	{
-		String[] changeColumns = {changeColumn};
-		String[] newValues = {newValue};
-		update(table, targetColumn, targetValue, changeColumns, newValues, false);
-	}
-	
-	/**
-	 * Updates a set of columns for certain rows
-	 * @param table The table in which the update is done
-	 * @param targetColumn The column which should contain the targetValue
-	 * @param targetValue The value the column should have in order to be updated. No brackets 
-	 * needed. Nulls are allowed.
-	 * @param changeColumns The columns which are being updated
-	 * @param newValues The new values given to the changeColumns. No brackets needed.
-	 * @param skipNulls If there are null values, should those be not updated into the database
-	 * @throws SQLException If the update fails
-	 * @throws DatabaseUnavailableException If the database couldn't be accessed
-	 * @deprecated One should use {@link #update(DatabaseTable, Collection, Collection, boolean)} instead
-	 */
-	public static void update(DatabaseTable table, String targetColumn, String targetValue, 
-			String[] changeColumns, String[] newValues, boolean skipNulls) throws 
-			SQLException, DatabaseUnavailableException
-	{
-		DatabaseAccessor accessor = new DatabaseAccessor(table.getDatabaseName());
-		
-		try
-		{
-			StringBuilder statementBuilder = new StringBuilder("UPDATE ");
-			statementBuilder.append(table.getTableName());
-			statementBuilder.append(" SET ");
-			
-			int valuesWritten = 0;
-			for (int columnIndex = 0; columnIndex < changeColumns.length; columnIndex ++)
-			{
-				String newValue = newValues[columnIndex];
-				if (newValue == null)
-				{
-					if (skipNulls)
-						continue;
-					else
-						newValue = "null";
-				}
-				else
-					newValue = "'" + newValue + "'";
-				
-				if (columnIndex != 0)
-					statementBuilder.append(", ");
-				statementBuilder.append(changeColumns[columnIndex] + " = " + newValue);
-				valuesWritten ++;
-			}
-			
-			// The statement is executed only if new data was written
-			if (valuesWritten != 0)
-			{
-				statementBuilder.append(" WHERE " + targetColumn + " = '" + targetValue + "'");
-				
-				accessor.executeStatement(statementBuilder.toString());
-			}
-		}
-		finally
-		{
-			accessor.closeConnection();
-		}
-	}
-	
-	/**
 	 * Updates attributes into database where the conditions are met
 	 * @param intoTable The table the values will be updated into
 	 * @param setAttributes The attributes that will be updated into the table
-	 * @param whereAttributes The conditions for a row that must be met for the update to be 
-	 * made. If an empty set or null is provided, all records will be updated. 
-	 * Attribute names don't matter.
+	 * @param where The where clause that defines which rows are updated. Null if all rows 
+	 * are to be updated.
 	 * @param noNullUpdates Should null value updates be skipped entirely
 	 * @throws DatabaseUnavailableException If the database can't be accessed at this time
 	 * @throws DatabaseException If the operation failed
+	 * @throws WhereConditionParseException If the where condition couldn't be parsed
 	 */
 	public static void update(DatabaseTable intoTable, Collection<? extends Attribute> setAttributes, 
-			Collection<? extends Attribute> whereAttributes, boolean noNullUpdates) 
-			throws DatabaseUnavailableException, DatabaseException
+			WhereCondition where, boolean noNullUpdates) 
+			throws DatabaseUnavailableException, DatabaseException, WhereConditionParseException
 	{
-		update(intoTable, setAttributes, whereAttributes, noNullUpdates, null);
+		update(intoTable, setAttributes, where, noNullUpdates, null);
 	}
 	
 	/**
 	 * Updates attributes into database where the conditions are met
 	 * @param intoTable The table the values will be updated into
 	 * @param setAttributes The attributes that will be updated into the table
-	 * @param whereAttributes The conditions for a row that must be met for the update to be 
-	 * made. If an empty set or null is provided, all records will be updated. Attribute names don't matter.
+	 * @param where The where clause that defines which rows are updated. Null if all rows 
+	 * are to be updated.
 	 * @param noNullUpdates Should null value updates be skipped entirely
 	 * @param extraSQL The sql string that will be added to the end of the update statement. 
 	 * Null if not used.
 	 * @throws DatabaseUnavailableException If the database can't be accessed at this time
 	 * @throws DatabaseException If the operation failed
+	 * @throws WhereConditionParseException If the where condition couldn't be parsed
 	 */
 	public static void update(DatabaseTable intoTable, Collection<? extends Attribute> setAttributes, 
-			Collection<? extends Attribute> whereAttributes, boolean noNullUpdates, 
-			String extraSQL) throws DatabaseUnavailableException, DatabaseException
+			WhereCondition where, boolean noNullUpdates, String extraSQL) throws 
+			DatabaseUnavailableException, DatabaseException, WhereConditionParseException
 	{
 		if (intoTable == null || setAttributes == null)
 			return;
@@ -733,12 +687,9 @@ public class DatabaseAccessor
 		StringBuilder sql = new StringBuilder("UPDATE ");
 		sql.append(intoTable.getTableName());
 		sql.append(" SET ");
-		sql.append(getEqualsString(updatedAttributes, ", ", false));
-		if (whereAttributes != null && !whereAttributes.isEmpty())
-		{
-			sql.append(" WHERE ");
-			sql.append(getEqualsString(whereAttributes, " AND ", true));
-		}
+		sql.append(parseSetSql(updatedAttributes));
+		if (where != null)
+			sql.append(where.toWhereClause(intoTable));
 		if (extraSQL != null)
 			sql.append(extraSQL);
 		
@@ -749,19 +700,14 @@ public class DatabaseAccessor
 		{
 			statement = accessor.getPreparedStatement(sql.toString());
 			int whereAttributeIndex = prepareAttributeValues(statement, updatedAttributes, 1);
-			if (whereAttributes != null && !whereAttributes.isEmpty())
-				prepareAttributeValues(statement, whereAttributes, whereAttributeIndex);
+			if (where != null)
+				where.setObjectValues(statement, whereAttributeIndex);
 			
 			statement.executeUpdate();
 		}
 		catch (SQLException e)
 		{
-			List<Attribute> usedAttributes = new ArrayList<>();
-			if (setAttributes != null)
-				usedAttributes.addAll(setAttributes);
-			if (whereAttributes != null)
-				usedAttributes.addAll(whereAttributes);
-			throw new DatabaseException(e, sql.toString(), intoTable, usedAttributes);
+			throw new DatabaseException(e, sql.toString(), intoTable, where, setAttributes);
 		}
 		finally
 		{
@@ -794,8 +740,45 @@ public class DatabaseAccessor
 		if (descriptions.isEmpty())
 			return false;
 		
-		List<List<Attribute>> results = select(descriptions, model.getTable(), 
-				getIndexAttributeOrFail(model).wrapIntoList(), 1);
+		try
+		{
+			List<List<Attribute>> results = select(descriptions, model.getTable(), 
+					EqualsWhereCondition.createWhereIndexCondition(model), 1);
+			if (!results.isEmpty())
+			{
+				model.updateAttributes(results.get(0));
+				return true;
+			}
+			else
+				return false;
+		}
+		catch (WhereConditionParseException e)
+		{
+			// If there is an exception of this type it means there is a fatal programming error
+			throw new RuntimeException(e);
+		}
+	}
+	
+	/**
+	 * Reads the object's data from the database. Adds new attributes if needed.
+	 * @param model The object that is is updated from the database
+	 * @param where The where clause that defines which row is read. If the where clause 
+	 * leaves multiple rows, only the first one is used
+	 * @return Was any data read
+	 * @throws DatabaseUnavailableException If the database couldn't be accessed
+	 * @throws DatabaseException If the operation failed
+	 * @throws NoAttributeForColumnException If a table's column name couldn't be mapped to an 
+	 * attribute name
+	 * @throws WhereConditionParseException If the provided where condition couldn't be 
+	 * parsed
+	 */
+	public static boolean readObjectAttributesFromDatabase(DatabaseReadable model, 
+			WhereCondition where) throws 
+			DatabaseUnavailableException, DatabaseException, NoAttributeForColumnException, 
+			WhereConditionParseException
+	{
+		List<List<Attribute>> results = DatabaseAccessor.selectAll(model.getTable(), 
+				where, 1, null);
 		if (!results.isEmpty())
 		{
 			model.updateAttributes(results.get(0));
@@ -806,28 +789,25 @@ public class DatabaseAccessor
 	}
 	
 	/**
-	 * Reads the object's data from the database. Adds new attributes if needed.
+	 * Reads the object's data from the database. Adds new attributes if needed. The object's 
+	 * data is searhed with the provided index value.
 	 * @param model The object that is is updated from the database
-	 * @param whereAttributes The attributes that define which row is read. Attribute names don't matter.
-	 * @return Was any data read from the database
+	 * @param index The primary index of the row that contains the object's data
+	 * @return Was any data read
 	 * @throws DatabaseUnavailableException If the database couldn't be accessed
 	 * @throws DatabaseException If the operation failed
 	 * @throws NoAttributeForColumnException If a table's column name couldn't be mapped to an 
 	 * attribute name
+	 * @throws WhereConditionParseException If the provided where condition couldn't be 
+	 * parsed (the table doesn't have a primary column)
 	 */
 	public static boolean readObjectAttributesFromDatabase(DatabaseReadable model, 
-			Collection<? extends Attribute> whereAttributes) throws 
-			DatabaseUnavailableException, DatabaseException, NoAttributeForColumnException
+			Object index) throws 
+			DatabaseUnavailableException, DatabaseException, NoAttributeForColumnException, 
+			WhereConditionParseException
 	{
-		List<List<Attribute>> results = DatabaseAccessor.selectAll(model.getTable(), 
-				whereAttributes, 1, null);
-		if (!results.isEmpty())
-		{
-			model.updateAttributes(results.get(0));
-			return true;
-		}
-		else
-			return false;
+		return readObjectAttributesFromDatabase(model, new IndexEqualsWhereCondition(
+				false, index));
 	}
 	
 	/**
@@ -903,7 +883,15 @@ public class DatabaseAccessor
 	public static void deleteObjectFromDatabase(DatabaseWritable model) throws 
 			DatabaseUnavailableException, IndexAttributeRequiredException, DatabaseException
 	{
-		delete(model.getTable(), getIndexAttributeOrFail(model).wrapIntoList());
+		try
+		{
+			delete(model.getTable(), EqualsWhereCondition.createWhereIndexCondition(model));
+		}
+		catch (WhereConditionParseException e)
+		{
+			// This can be reached only in case of a serious programming error
+			throw new RuntimeException(e);
+		}
 	}
 	
 	/**
@@ -922,11 +910,19 @@ public class DatabaseAccessor
 			return false;
 		
 		// Finds the existing index, if there is one
-		List<List<Attribute>> result = select(
-				Attribute.getDescriptionsFrom(getIndexAttributeOrFail(model).wrapIntoList()), 
-				model.getTable(), DatabaseWritable.getIndexAttribute(model).wrapIntoList(), 1);
-		
-		return !result.isEmpty();
+		try
+		{
+			List<List<Attribute>> result = select(
+					Attribute.getDescriptionsFrom(getIndexAttributeOrFail(model).wrapIntoList()), 
+					model.getTable(), EqualsWhereCondition.createWhereIndexCondition(model), 1);
+			
+			return !result.isEmpty();
+		}
+		catch (WhereConditionParseException e)
+		{
+			// Only reached with serious errors
+			throw new RuntimeException(e);
+		}
 	}
 	
 	private static void insertObjectIntoDatabase(DatabaseWritable model) throws 
@@ -942,8 +938,16 @@ public class DatabaseAccessor
 			boolean noNullUpdates) throws DatabaseUnavailableException, 
 			IndexAttributeRequiredException, DatabaseException
 	{
-		update(model.getTable(), model.getAttributes(), 
-				getIndexAttributeOrFail(model).wrapIntoList(), noNullUpdates);
+		try
+		{
+			update(model.getTable(), model.getAttributes(), 
+					EqualsWhereCondition.createWhereIndexCondition(model), noNullUpdates);
+		}
+		catch (WhereConditionParseException e)
+		{
+			// Only reached with serious programming errors
+			throw new RuntimeException(e); 
+		}
 	}
 	
 	private static List<Attribute> getNonNullAttributes(Collection<? extends Attribute> attributes)
@@ -974,21 +978,16 @@ public class DatabaseAccessor
 		return sql.toString();
 	}
 	
-	private static String getEqualsString(Collection<? extends Attribute> attributes, 
-			String separator, boolean useIsWithNulls)
+	private static String parseSetSql(Collection<? extends Attribute> attributes)
 	{
 		StringBuilder sql = new StringBuilder();
 		boolean firstAttribute = true;
 		for (Attribute attribute : attributes)
 		{
 			if (!firstAttribute)
-				sql.append(separator);
+				sql.append(", ");
 			sql.append(attribute.getDescription().getColumnName());
-			// With null values, 'is' is used instead of '='
-			if (attribute.isNull() && useIsWithNulls)
-				sql.append(" is ?");
-			else
-				sql.append(" = ?");
+			sql.append(" = ?");
 			firstAttribute = false;
 		}
 		
@@ -1053,13 +1052,12 @@ public class DatabaseAccessor
 	}
 	
 	private static void removeAutoIncrementAttributes(
-			Collection<? extends Attribute> targetGroup, 
-			List<? extends ColumnInfo> columnInfo)
+			Collection<? extends Attribute> targetGroup, Collection<? extends Column> columnInfo)
 	{
 		List<Attribute> autoIncrementAttributes = new ArrayList<>();
 		for (Attribute attribute : targetGroup)
 		{
-			ColumnInfo matchingColumn = 
+			Column matchingColumn = 
 					attribute.findMatchingColumnFrom(columnInfo);
 			if (matchingColumn.usesAutoIncrementIndexing())
 				autoIncrementAttributes.add(attribute);
@@ -1083,108 +1081,6 @@ public class DatabaseAccessor
 		
 		Attribute index = DatabaseWritable.getIndexAttribute(model);
 		return (index == null || index.isNull());
-	}
-	
-	/**
-	 * Inserts new data into the given table while also collecting and returning the 
-	 * auto-generated id. This should be used for auto-indexing tables.
-	 * @param targetTable The table the data is inserted into
-	 * @param columnData The data posted to the table (in the same order as in the tables). 
-	 * Strings need to be surrounded with brackets (')
-	 * @param idColumnName The name of the auto-increment id column
-	 * @return The id generated during the insert
-	 * @throws DatabaseUnavailableException If the database couldn't be accessed
-	 * @throws SQLException If the insert failed or if the table doesn't use auto-increment 
-	 * indexing
-	 * @throws InvalidTableTypeException If the table doesn't use auto-increment indexing
-	 * @deprecated Not updated anymore
-	 */
-	private static int insertWithAutoIncrement(DatabaseTable targetTable, String columnData) 
-			throws SQLException, DatabaseUnavailableException, InvalidTableTypeException
-	{
-		// Doesn't work if the table doesn't use auto-increment
-		if (!targetTable.usesAutoIncrementIndexing())
-			throw new InvalidTableTypeException(
-					"No id can be retrieved since the table doesn't use auto-increment indexing");
-		
-		DatabaseAccessor accessor = new DatabaseAccessor(targetTable.getDatabaseName());
-		PreparedStatement statement = null;
-		ResultSet autoKeys = null;
-		
-		try
-		{
-			statement = accessor.getPreparedStatement(getInsertStatement(targetTable, 
-					columnData), true);
-			statement.execute();
-			
-			autoKeys = statement.getGeneratedKeys();
-			
-			if (autoKeys.next())
-			{
-				return autoKeys.getInt(targetTable.getPrimaryColumn().getName());
-				//DatabaseSettings.getTableHandler().updateTableAmount(targetTable, id);
-				//return id;
-			}
-		}
-		finally
-		{
-			DatabaseAccessor.closeResults(autoKeys);
-			DatabaseAccessor.closeStatement(statement);
-			accessor.closeConnection();
-		}
-		
-		return 0;
-	}
-	
-	private static String getColumnDataString(List<String> columnData)
-	{
-		StringBuilder columnDataString = new StringBuilder();
-		
-		for (int i = 0; i < columnData.size(); i++)
-		{
-			if (i != 0)
-				columnDataString.append(", ");
-			String nextData = columnData.get(i);
-			if (nextData != null)
-				columnDataString.append("'" + columnData.get(i) + "'");
-			else
-				columnDataString.append("null");
-		}
-		
-		return columnDataString.toString();
-	}
-	
-	private static String getInsertStatement(DatabaseTable table, String columnDataString)
-	{
-		StringBuilder statement = new StringBuilder();
-		statement.append("INSERT INTO ");
-		
-		/*
-		if (index < 0)
-			statement.append(DatabaseSettings.getTableHandler().getLatestTableName(table));
-		else
-			statement.append(DatabaseSettings.getTableHandler().getTableNameForIndex(
-					table, index, true));
-		*/
-		statement.append(table.getTableName());
-		
-		statement.append(" values (");
-		
-		if (table.usesAutoIncrementIndexing())
-			statement.append("null, ");
-			
-		statement.append(columnDataString);
-		
-		statement.append(");");
-		
-		return statement.toString();
-	}
-	
-	private static void checkPrimaryKeyColumn(DatabaseTable table) throws InvalidTableTypeException
-	{
-		if (table.getPrimaryColumn() == null)
-			throw new InvalidTableTypeException(
-					"table " + table + " doesn't have a primary key column");
 	}
 	
 	

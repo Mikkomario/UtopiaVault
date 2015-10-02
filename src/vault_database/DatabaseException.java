@@ -18,7 +18,7 @@ public class DatabaseException extends Exception
 	private String sqlStatement;
 	private List<Attribute> providedValues;
 	private DatabaseTable usedTable;
-	private WhereClause where;
+	private WhereCondition where;
 	
 	
 	// CONSTRUCTOR	--------------------
@@ -32,11 +32,12 @@ public class DatabaseException extends Exception
 	 * @param providedValues The values that were used when the exception occurred
 	 */
 	public DatabaseException(Throwable cause, String sqlStatement, DatabaseTable usedTable, 
-			WhereClause whereClause, Collection<? extends Attribute> providedValues)
+			WhereCondition whereClause, Collection<? extends Attribute> providedValues)
 	{
 		super("Error in sql statement: '" + sqlStatement + "'", cause);
 		this.providedValues = new ArrayList<>();
-		this.providedValues.addAll(providedValues);
+		if (providedValues != null)
+			this.providedValues.addAll(providedValues);
 		this.where = whereClause;
 		this.usedTable = usedTable;
 		this.sqlStatement = sqlStatement;
@@ -72,7 +73,7 @@ public class DatabaseException extends Exception
 	/**
 	 * @return The where clause that was used
 	 */
-	public WhereClause getUsedWhereClause()
+	public WhereCondition getUsedWhereCondition()
 	{
 		return this.where;
 	}
@@ -88,9 +89,9 @@ public class DatabaseException extends Exception
 	{
 		StringBuilder message = new StringBuilder("Exception message\n");
 		message.append("SQL: " + getSQLStatement());
-		if (getUsedWhereClause() != null)
+		if (getUsedWhereCondition() != null)
 			message.append("\nWhere debug message: " + 
-					getUsedWhereClause().getDebubSql(getUsedTable()));
+					getUsedWhereCondition().getDebugSql(getUsedTable()));
 		message.append("\nTable used: ");
 		message.append(getUsedTable().getDatabaseName() + "/");
 		message.append(getUsedTable().getTableName());

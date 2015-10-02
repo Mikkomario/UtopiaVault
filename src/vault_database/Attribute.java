@@ -12,7 +12,7 @@ import java.util.List;
 
 import vault_database.AttributeNameMapping.NoAttributeForColumnException;
 import vault_database.AttributeNameMapping.NoColumnForAttributeException;
-import vault_database.DatabaseTable.ColumnInfo;
+import vault_database.DatabaseTable.Column;
 
 /**
  * Attributes represent key value pairs that can also be recorded into database
@@ -51,7 +51,7 @@ public class Attribute
 	 * @param name The name of the attribute
 	 * @param value The attribute's value
 	 */
-	public Attribute(ColumnInfo columnInfo, String name, Object value)
+	public Attribute(Column columnInfo, String name, Object value)
 	{
 		this.description = new AttributeDescription(columnInfo, name);
 		setValue(value);
@@ -76,7 +76,7 @@ public class Attribute
 	 * @throws NoAttributeForColumnException If the column name couldn't be mapped to an 
 	 * attribute name
 	 */
-	public Attribute(ColumnInfo columnInfo, AttributeNameMapping nameMapping, Object value) 
+	public Attribute(Column columnInfo, AttributeNameMapping nameMapping, Object value) 
 			throws NoAttributeForColumnException
 	{
 		this.description = new AttributeDescription(columnInfo, nameMapping);
@@ -503,9 +503,9 @@ public class Attribute
 	 * @return A column from the set that is represented by this attribute. Null if the 
 	 * attribute doesn't represent any of the columns
 	 */
-	public ColumnInfo findMatchingColumnFrom(Collection<? extends ColumnInfo> columns)
+	public Column findMatchingColumnFrom(Collection<? extends Column> columns)
 	{
-		for (ColumnInfo column : columns)
+		for (Column column : columns)
 		{
 			if (column.getName().equalsIgnoreCase(getDescription().getColumnName()))
 				return column;
@@ -566,7 +566,7 @@ public class Attribute
 		List<Attribute> tableAttributes = new ArrayList<>();
 		for (Attribute attribute : attributes)
 		{
-			for (ColumnInfo columnInfo : table.getColumnInfo())
+			for (Column columnInfo : table.getColumnInfo())
 			{
 				if (columnInfo.getName().equalsIgnoreCase(
 						attribute.getDescription().getColumnName()))
@@ -604,11 +604,11 @@ public class Attribute
 	 * @throws NoAttributeForColumnException If a column name couldn't be mapped 
 	 * to an attribute name
 	 */
-	public static List<AttributeDescription> getDescriptionsFrom(List<ColumnInfo> columnInfo, 
+	public static List<AttributeDescription> getDescriptionsFrom(List<Column> columnInfo, 
 			AttributeNameMapping nameMapping) throws NoAttributeForColumnException
 	{
 		List<AttributeDescription> descriptions = new ArrayList<>();
-		for (ColumnInfo column : columnInfo)
+		for (Column column : columnInfo)
 		{
 			descriptions.add(new AttributeDescription(column, nameMapping));
 		}
@@ -641,7 +641,7 @@ public class Attribute
 	public static AttributeDescription getColumnDescription(DatabaseTable table, 
 			String columnName) throws NoAttributeForColumnException
 	{
-		ColumnInfo column = DatabaseTable.findColumnWithName(
+		Column column = DatabaseTable.findColumnWithName(
 				table.getColumnInfo(), columnName);
 		if (column == null)
 			return null;
@@ -660,7 +660,7 @@ public class Attribute
 	public static AttributeDescription getTableAttributeDescription(DatabaseTable table, 
 			String attributeName) throws NoColumnForAttributeException
 	{
-		ColumnInfo column = DatabaseTable.findColumnForAttributeName(table, attributeName);
+		Column column = DatabaseTable.findColumnForAttributeName(table, attributeName);
 		if (column == null)
 			return null;
 		return new AttributeDescription(column, attributeName);
@@ -773,7 +773,7 @@ public class Attribute
 		// ATTRIBUTES	---------------
 		
 		private String name;
-		private ColumnInfo column;
+		private Column column;
 		
 		
 		// CONSTRUCTOR	---------------
@@ -799,10 +799,10 @@ public class Attribute
 		 * @param columnInfo The column this attribute is associated with
 		 * @param attributeName The name of the attribute
 		 */
-		public AttributeDescription(ColumnInfo columnInfo, String attributeName)
+		public AttributeDescription(Column columnInfo, String attributeName)
 		{
 			this.column = columnInfo;
-			this.name = attributeName;
+			this.name = attributeName.toLowerCase();
 		}
 		
 		/**
@@ -812,7 +812,7 @@ public class Attribute
 		 * @throws NoAttributeForColumnException If the mapping couldn't be used for finding 
 		 * the attribute name
 		 */
-		public AttributeDescription(ColumnInfo columnInfo, AttributeNameMapping nameMapping) 
+		public AttributeDescription(Column columnInfo, AttributeNameMapping nameMapping) 
 				throws NoAttributeForColumnException
 		{
 			this.column = columnInfo;
@@ -849,7 +849,7 @@ public class Attribute
 		/**
 		 * @return The column associated with this attribute
 		 */
-		public ColumnInfo getColumn()
+		public Column getColumn()
 		{
 			return this.column;
 		}

@@ -3,7 +3,7 @@ package vault_recording;
 import java.util.Collection;
 
 import vault_database.Attribute;
-import vault_database.DatabaseTable.ColumnInfo;
+import vault_database.DatabaseTable.Column;
 
 /**
  * These objects can be written into database.
@@ -66,7 +66,7 @@ public interface DatabaseWritable extends DatabaseStorable
 	 */
 	public static Attribute getIndexAttribute(DatabaseWritable object)
 	{
-		ColumnInfo primaryColumn = object.getTable().getPrimaryColumn();
+		Column primaryColumn = object.getTable().getPrimaryColumn();
 		if (primaryColumn == null)
 			return null;
 		else

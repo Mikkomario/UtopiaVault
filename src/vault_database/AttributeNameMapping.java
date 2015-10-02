@@ -6,7 +6,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-import vault_database.DatabaseTable.ColumnInfo;
+import vault_database.DatabaseTable.Column;
 
 /**
  * This map connects column names to attribute names. All names are case-insensitive. 
@@ -54,7 +54,7 @@ public class AttributeNameMapping
 		{
 			if (rule.canMapColumnName(columnName))
 			{
-				String attributeName = rule.getAttributeName(columnName);
+				String attributeName = rule.getAttributeName(columnName).toLowerCase();
 				addMapping(columnName, attributeName);
 				return attributeName;
 			}
@@ -140,9 +140,9 @@ public class AttributeNameMapping
 	 * doesn't create a mapping for the column.
 	 * @param columns The columns that should get mapped.
 	 */
-	public void addMappingForEachColumnWherePossible(Collection<? extends ColumnInfo> columns)
+	public void addMappingForEachColumnWherePossible(Collection<? extends Column> columns)
 	{
-		for (ColumnInfo column : columns)
+		for (Column column : columns)
 		{
 			try
 			{
@@ -164,12 +164,12 @@ public class AttributeNameMapping
 	 * @throws NoAttributeForColumnException If the operation possibly failed because a 
 	 * column name couldn't be mapped to an attribute name
 	 */
-	public ColumnInfo findColumnForAttribute(Collection<? extends ColumnInfo> columns, 
+	public Column findColumnForAttribute(Collection<? extends Column> columns, 
 			String attributeName) throws NoAttributeForColumnException
 	{
 		NoAttributeForColumnException latestException = null;
 		
-		for (ColumnInfo column : columns)
+		for (Column column : columns)
 		{
 			try
 			{

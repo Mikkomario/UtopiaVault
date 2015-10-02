@@ -50,12 +50,12 @@ public interface DatabaseTable
 	 * the table doesn't have a primary column (which is not recommended, by the way).
 	 * @see #findPrimaryColumnInfo(Collection)
 	 */
-	public ColumnInfo getPrimaryColumn();
+	public Column getPrimaryColumn();
 	
 	/**
 	 * @return All the information about the columns in the table
 	 */
-	public List<ColumnInfo> getColumnInfo();
+	public List<Column> getColumnInfo();
 	
 	/**
 	 * @return The column name to attribute name -mapping used with this table. The mapping 
@@ -73,9 +73,9 @@ public interface DatabaseTable
 	 * @return The (first) primary column in the set
 	 * @see #readColumnInfoFromDatabase(DatabaseTable)
 	 */
-	public static ColumnInfo findPrimaryColumnInfo(Collection<ColumnInfo> columnSet)
+	public static Column findPrimaryColumnInfo(Collection<Column> columnSet)
 	{
-		for (ColumnInfo info : columnSet)
+		for (Column info : columnSet)
 		{
 			if (info.isPrimary())
 				return info;
@@ -89,10 +89,10 @@ public interface DatabaseTable
 	 * @param columnInfo The column information from a single table
 	 * @return All the column names in a single table
 	 */
-	public static List<String> getColumnNamesFromColumnInfo(List<ColumnInfo> columnInfo)
+	public static List<String> getColumnNamesFromColumnInfo(List<Column> columnInfo)
 	{
 		List<String> columnNames = new ArrayList<>();
-		for (ColumnInfo info : columnInfo)
+		for (Column info : columnInfo)
 		{
 			columnNames.add(info.getName());
 		}
@@ -107,13 +107,13 @@ public interface DatabaseTable
 	 * @throws DatabaseUnavailableException If the database couldn't be accessed
 	 * @throws SQLException If the table doesn't exist
 	 */
-	public static List<ColumnInfo> readColumnInfoFromDatabase(DatabaseTable table) throws 
+	public static List<Column> readColumnInfoFromDatabase(DatabaseTable table) throws 
 			DatabaseUnavailableException, SQLException
 	{
 		DatabaseAccessor accessor = new DatabaseAccessor(table.getDatabaseName());
 		PreparedStatement statement = null;
 		ResultSet result = null;
-		List<ColumnInfo> columnInfo = new ArrayList<>();
+		List<Column> columnInfo = new ArrayList<>();
 		
 		try
 		{
@@ -130,7 +130,7 @@ public interface DatabaseTable
 				Object defaultValue = null;
 				if (!"NULL".equalsIgnoreCase(result.getString("Default")))
 					defaultValue = result.getObject("Default");
-				columnInfo.add(new ColumnInfo(name, type, nullAllowed, primary, autoInc, defaultValue));
+				columnInfo.add(new Column(name, type, nullAllowed, primary, autoInc, defaultValue));
 			}
 		}
 		finally
@@ -191,10 +191,10 @@ public interface DatabaseTable
 	 * @param columnName The name of the searched column
 	 * @return The column with the given name (not case-sensitive) or null if there isn't one
 	 */
-	public static ColumnInfo findColumnWithName(Collection<? extends ColumnInfo> columnInfo, 
+	public static Column findColumnWithName(Collection<? extends Column> columnInfo, 
 			String columnName)
 	{
-		for (ColumnInfo column : columnInfo)
+		for (Column column : columnInfo)
 		{
 			if (column.getName().equalsIgnoreCase(columnName))
 				return column;
@@ -211,10 +211,10 @@ public interface DatabaseTable
 	 * @throws NoColumnForAttributeException If the attribute name couldn't be retraced 
 	 * back to a column name
 	 */
-	public static ColumnInfo findColumnForAttributeName(DatabaseTable table, 
+	public static Column findColumnForAttributeName(DatabaseTable table, 
 			String attributeName) throws NoColumnForAttributeException
 	{
-		ColumnInfo column = findColumnWithName(table.getColumnInfo(), 
+		Column column = findColumnWithName(table.getColumnInfo(), 
 				table.getAttributeNameMapping().getColumnName(attributeName));
 		if (column == null)
 			throw new NoColumnForAttributeException(attributeName);
@@ -229,7 +229,7 @@ public interface DatabaseTable
 	 * @author Mikko Hilpinen
 	 * @since 30.5.2015
 	 */
-	public static class ColumnInfo
+	public static class Column
 	{
 		// ATTRIBUTES	----------------------
 		
@@ -250,7 +250,7 @@ public interface DatabaseTable
 		 * @param nullAllowed Is null allowed in this column
 		 * @param defaultValue The default value used for this column
 		 */
-		public ColumnInfo(String name, int type, boolean nullAllowed, boolean primary, 
+		public Column(String name, int type, boolean nullAllowed, boolean primary, 
 				boolean autoIncrement, Object defaultValue)
 		{
 			this.name = name;

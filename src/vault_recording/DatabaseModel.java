@@ -10,7 +10,7 @@ import vault_database.Attribute;
 import vault_database.AttributeNameMapping.NoAttributeForColumnException;
 import vault_database.DatabaseAccessor;
 import vault_database.DatabaseTable;
-import vault_database.DatabaseTable.ColumnInfo;
+import vault_database.DatabaseTable.Column;
 
 /**
  * DatabaseModels represent a single row in an indexed table
@@ -33,7 +33,7 @@ public class DatabaseModel implements DatabaseReadable, DatabaseWritable
 	 * @param table The table the model uses
 	 * @param allowUpdateRewrite Does the model allow attribute changes from the database if 
 	 * there is already an attribute with the same name
-	 * @see DatabaseAccessor#readObjectAttributesFromDatabase(DatabaseReadable, Collection)
+	 * @see DatabaseAccessor#readObjectAttributesFromDatabase(DatabaseReadable, Object)
 	 */
 	public DatabaseModel(DatabaseTable table, boolean allowUpdateRewrite)
 	{
@@ -160,7 +160,7 @@ public class DatabaseModel implements DatabaseReadable, DatabaseWritable
 			{
 				if (generateIfNotExists)
 				{
-					ColumnInfo column = getColumnForAttributeName(attributeName);
+					Column column = getColumnForAttributeName(attributeName);
 					if (column == null)
 						throw new NoAssociatedColumnExistsException(getTable(), attributeName);
 					addAttribute(new Attribute(column, getTable().getAttributeNameMapping(), 
@@ -259,7 +259,7 @@ public class DatabaseModel implements DatabaseReadable, DatabaseWritable
 	 * @throws NoAttributeForColumnException If the operation failed because a column name 
 	 * couldn't be mapped
 	 */
-	public ColumnInfo getColumnForAttributeName(String attributeName) throws NoAttributeForColumnException
+	public Column getColumnForAttributeName(String attributeName) throws NoAttributeForColumnException
 	{
 		return getTable().getAttributeNameMapping().findColumnForAttribute(
 				getTable().getColumnInfo(), attributeName);
@@ -277,7 +277,7 @@ public class DatabaseModel implements DatabaseReadable, DatabaseWritable
 	{
 		List<Attribute> newAttributes = new ArrayList<>();
 		
-		for (ColumnInfo column : getTable().getColumnInfo())
+		for (Column column : getTable().getColumnInfo())
 		{
 			Attribute attribute = new Attribute(column, getTable().getAttributeNameMapping(), 
 					null);

@@ -4,66 +4,24 @@ import java.sql.PreparedStatement;
 import java.sql.SQLException;
 
 /**
- * Where conditions are used in database methods to limit the number of operated rows
+ * Where conditions can be used in numerous database methods to limit the number of operated 
+ * rows
  * @author Mikko Hilpinen
- * @since 1.10.2015
+ * @since 2.10.2015
  */
 public abstract class WhereCondition
 {
-	// ATTRIBUTES	------------------
-	
-	private int dataType;
-	private boolean inverted;
-	private Object[] values;
-	
-	
-	// CONSTRUCTOR	------------------
-	
-	/**
-	 * Creates a new where condition
-	 * @param dataType The data type used for the values
-	 * @param values The values that are part of the condition
-	 * @param inverted Should the condition be inverted
-	 */
-	public WhereCondition(int dataType, Object[] values, boolean inverted)
-	{
-		this.dataType = dataType;
-		this.values = values;
-		this.inverted = inverted;
-	}
-	
-	
-	// ABSTRACT METHODS	--------------
-	
-	/**
-	 * In this method the subclass should return a string that represents the where condition 
-	 * in sql format. The placeholders for values should be marked with '?'
-	 * @param targetTable The table the operation will be completed on
-	 * @return A logical sql condition with a boolean return value and '?' as placeholders 
-	 * for the values
-	 */
-	protected abstract String getSQLWithPlaceholders(DatabaseTable targetTable);
-	
-	
-	// OTHER METHODS	--------------
+	// ABSTRACT METHODS	-------------------
 	
 	/**
 	 * Creates an sql statement based on this where condition. The value spots will be marked 
-	 * with '?' for future preparation
+	 * with '?' for future preparation. This sql statement doesn't include the first "WHERE", 
+	 * only the condition
 	 * @param targetTable The table the sql operation will be completed on
 	 * @return A logical sql condition like 'NOT (columName = 0)'
+	 * @throws WhereConditionParseException If the where condition can't be parsed into sql
 	 */
-	public String toSql(DatabaseTable targetTable)
-	{
-		StringBuilder sql = new StringBuilder();
-		if (this.inverted)
-			sql.append(" NOT");
-		sql.append(" (");
-		sql.append(getSQLWithPlaceholders(targetTable));
-		sql.append(")");
-		
-		return sql.toString();
-	}
+	protected abstract String toSql(DatabaseTable targetTable) throws WhereConditionParseException;
 	
 	/**
 	 * Sets condition values to the prepared sql statement
@@ -72,55 +30,101 @@ public abstract class WhereCondition
 	 * @return The index of the next value insert
 	 * @throws SQLException If the operation failed
 	 */
-	public int setObjectValues(PreparedStatement statement, int startIndex) throws SQLException
-	{
-		int i = startIndex;
-		for (Object value : this.values)
-		{
-			statement.setObject(i, value, this.dataType);
-			i ++;
-		}
-		
-		return i;
-	}
+	public abstract int setObjectValues(PreparedStatement statement, int startIndex) throws SQLException;
 	
 	/**
 	 * Returns a debug string that mimics the final sql statement created from this condition
 	 * @param targetTable The table this condition is used in
 	 * @return A debug sql statement
 	 */
-	public String getDebugSql(DatabaseTable targetTable)
+	public abstract String getDebugSql(DatabaseTable targetTable);
+	
+	
+	// OTHER METHODS	--------------------
+	
+	/**
+	 * Creates a new where condition from the two (or more) conditions. All of the conditions 
+	 * must be true for the combined condition to be true.
+	 * @param other The other condition
+	 * @param others The other conditions combined with these two
+	 * @return A combination of the conditions
+	 */
+	public CombinedWhereCondition and(WhereCondition other, WhereCondition... others)
+	{
+		return CombinedWhereCondition.createANDCombination(this, other, others);
+	}
+	
+	/**
+	 * Creates a new where condition from the two (or more) conditions. Only one of the 
+	 * conditions has to be true in order for the combined condition to be true
+	 * @param other The other condition
+	 * @param others The other conditions combined with these two
+	 * @return A combination of the conditions
+	 */
+	public CombinedWhereCondition or(WhereCondition other, WhereCondition... others)
+	{
+		return CombinedWhereCondition.createORConbination(this, other, others);
+	}
+	
+	/**
+	 * Creates a new where condition from the two conditions. The two conditions must have 
+	 * different logical values for the combination to be true
+	 * @param other The other condition
+	 * @return A combination of the conditions
+	 */
+	public CombinedWhereCondition xor(WhereCondition other)
+	{
+		return CombinedWhereCondition.createXORCombination(this, other);
+	}
+	
+	/**
+	 * Writes the condition as a where clause that includes the " WHERE" statement (including 
+	 * the first whitespace).
+	 * @param targetTable The table the condition is used in
+	 * @return The where condition as a where clause
+	 * @throws WhereConditionParseException If the where condition parsing failed
+	 */
+	public String toWhereClause(DatabaseTable targetTable) throws WhereConditionParseException
 	{
 		String sql = toSql(targetTable);
-		for (Object value : this.values)
+		
+		if (sql.isEmpty())
+			return sql;
+		else
+			return " WHERE " + sql;
+	}
+	
+	
+	// SUBCLASSES	------------------------
+	
+	/**
+	 * These exceptions are thrown when conditions can't be parsed / used
+	 * @author Mikko Hilpinen
+	 * @since 2.10.2015
+	 */
+	public static class WhereConditionParseException extends Exception
+	{
+		private static final long serialVersionUID = -7800912556657335734L;
+		
+		// CONSTRUCTOR	--------------------
+
+		/**
+		 * Creates a new exception
+		 * @param message The message sent along with the exception
+		 * @param source The source of the exception
+		 */
+		public WhereConditionParseException(String message, Throwable source)
 		{
-			String valueString;
-			if (value == null)
-				valueString = "null";
-			else
-				valueString = "'" + value.toString() + "'";
-			
-			sql.replaceFirst("\\?", valueString);
+			super(message, source);
 		}
 		
-		return sql;
-	}
-	
-	/**
-	 * A where clause created from the two conditions
-	 * @param other The other condition
-	 * @return A combination of these two conditions
-	 */
-	public WhereClause and(WhereCondition other)
-	{
-		return toClause().and(other);
-	}
-	
-	/**
-	 * @return The where condition as a where clause
-	 */
-	public WhereClause toClause()
-	{
-		return new WhereClause(this);
+		/**
+		 * Creates a new exception
+		 * @param message The message sent along with the exception
+		 */
+		public WhereConditionParseException(String message)
+		{
+			super(message);
+		}
 	}
 }

@@ -23,7 +23,7 @@ public enum TestTable implements DatabaseTable
 	
 	// ATTRIBUTES	------------------
 	
-	private static List<ColumnInfo> columnInfo = null;
+	private static List<Column> columnInfo = null;
 	private static AttributeNameMapping mapping = null;
 	
 	
@@ -54,13 +54,13 @@ public enum TestTable implements DatabaseTable
 	}
 
 	@Override
-	public ColumnInfo getPrimaryColumn()
+	public Column getPrimaryColumn()
 	{
 		return DatabaseTable.findPrimaryColumnInfo(getColumnInfo());
 	}
 
 	@Override
-	public List<ColumnInfo> getColumnInfo()
+	public List<Column> getColumnInfo()
 	{
 		if (columnInfo == null)
 		{
