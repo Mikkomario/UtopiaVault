@@ -2,6 +2,7 @@ package vault_database;
 
 import vault_database.AttributeNameMapping.NoColumnForAttributeException;
 import vault_database.DatabaseTable.Column;
+import vault_database.EqualsWhereCondition.Operator;
 
 /**
  * This class works like an equals condition, but it can be created using just attribute name 
@@ -15,36 +16,40 @@ public class AttributeNameEqualsWhereCondition extends SingleWhereCondition
 	// ATTRIBUTES	------------------
 	
 	private String[] attributeNames;
+	private Operator operator;
 	
 	
 	// CONSTRUCTOR	------------------
 	
 	/**
-	 * Creates a new where condition where the table attribute with the provided name must 
-	 * have the provided value
-	 * @param inverted Should the condition be not equals instead
+	 * Creates a new where condition where the condition checks a table attribute with the 
+	 * provided name
+	 * @param operator the operator used for checking the attribute value
 	 * @param attributeName The name of the table attribute
 	 * @param value The value the attribute must have
 	 */
-	public AttributeNameEqualsWhereCondition(boolean inverted, String attributeName, Object value)
+	public AttributeNameEqualsWhereCondition(Operator operator, String attributeName, 
+			DatabaseValue value)
 	{
-		super(-1, inverted, value);
+		super(false, value);
 		
 		this.attributeNames = new String[1];
 		this.attributeNames[0] = attributeName;
+		this.operator = operator;
 	}
 	
 	/**
-	 * Creates a new where condition where the two table attributes must have equal values
-	 * @param inverted Should the condition be not equals instead
+	 * Creates a new where condition that checks two table attributes
+	 * @param operator the operator used for checking the attribute values
 	 * @param firstAttributeName The name of the first table attribute
 	 * @param secondAttributeName The name of the second table attribute
 	 */
-	public AttributeNameEqualsWhereCondition(boolean inverted, String firstAttributeName, 
+	public AttributeNameEqualsWhereCondition(Operator operator, String firstAttributeName, 
 			String secondAttributeName)
 	{
-		super(-1, inverted);
+		super(false);
 		
+		this.operator = operator;
 		this.attributeNames = new String[2];
 		this.attributeNames[0] = firstAttributeName;
 		this.attributeNames[1] = secondAttributeName;
@@ -60,19 +65,20 @@ public class AttributeNameEqualsWhereCondition extends SingleWhereCondition
 		String[] columnNames = new String[this.attributeNames.length];
 		int i = 0;
 		
-		// Finds the data type
+		// Finds the used column names and desired data type
+		DataType desiredType;
 		try
 		{
 			Column firstColumn = DatabaseTable.findColumnForAttributeName(targetTable, 
 					this.attributeNames[0]);
-			updateDataType(firstColumn.getType());
+			desiredType = firstColumn.getType();
 			columnNames[0] = firstColumn.getName();
 			
 			// Finds the other column name(s)
 			for (i = 1; i < this.attributeNames.length; i++)
 			{
 				columnNames[i] = targetTable.getAttributeNameMapping().getColumnName(
-						this.attributeNames[i]);	
+						this.attributeNames[i]);
 			}
 		}
 		catch (NoColumnForAttributeException e)
@@ -82,8 +88,16 @@ public class AttributeNameEqualsWhereCondition extends SingleWhereCondition
 					targetTable.getTableName(), e);
 		}
 		
+		// Casts the provided values to correct type
+		castValuesToDataType(desiredType);
+		
+		// Checks for null comparisons
+		if (!this.operator.acceptsValues(getValues()))
+			throw new WhereConditionParseException("Operator '" + this.operator + 
+					"' doesn't allow null values");
+		
 		StringBuilder sql = new StringBuilder(columnNames[0]);
-		sql.append(" <=> ");
+		sql.append(this.operator.toString());
 		if (columnNames.length > 1)
 			sql.append(columnNames[1]);
 		else

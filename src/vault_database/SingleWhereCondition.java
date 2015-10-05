@@ -3,6 +3,8 @@ package vault_database;
 import java.sql.PreparedStatement;
 import java.sql.SQLException;
 
+import vault_database.DataType.InvalidDataTypeException;
+
 /**
  * This where condition has only a single condition
  * @author Mikko Hilpinen
@@ -12,22 +14,19 @@ public abstract class SingleWhereCondition extends WhereCondition
 {
 	// ATTRIBUTES	------------------
 	
-	private int dataType;
 	private boolean inverted;
-	private Object[] values;
+	private DatabaseValue[] values;
 	
 	
 	// CONSTRUCTOR	------------------
 	
 	/**
 	 * Creates a new where condition
-	 * @param dataType The data type used for the values
 	 * @param values The values that are part of the condition
 	 * @param inverted Should the condition be inverted
 	 */
-	public SingleWhereCondition(int dataType, boolean inverted, Object... values)
+	public SingleWhereCondition(boolean inverted, DatabaseValue... values)
 	{
-		this.dataType = dataType;
 		this.values = values;
 		this.inverted = inverted;
 	}
@@ -50,20 +49,45 @@ public abstract class SingleWhereCondition extends WhereCondition
 	// ACCESSORS	-----------------
 	
 	/**
-	 * @return The data type for the condition's values
+	 * @return The currently used values
 	 */
-	protected int getDataType()
+	protected DatabaseValue[] getValues()
 	{
-		return this.dataType;
+		return this.values;
 	}
 	
 	/**
-	 * Updates the condition's data type
-	 * @param newType The new data type for the condition values
+	 * Updates the currently used values. May be used by subclasses to change data types etc.
+	 * @param values The new value set
 	 */
-	protected void updateDataType(int newType)
+	protected void updateValues(DatabaseValue[] values)
 	{
-		this.dataType = newType;
+		this.values = values;
+	}
+	
+	/**
+	 * Casts all of the provided values to a certain data type
+	 * @param desiredType The type the values will be casted to
+	 * @throws WhereConditionParseException If the casting fails at some point
+	 */
+	protected void castValuesToDataType(DataType desiredType) throws WhereConditionParseException
+	{
+		// Parses the index to the correct type
+		try
+		{
+			DatabaseValue[] updatedValues = new DatabaseValue[getValues().length];
+			for (int i = 0; i < updatedValues.length; i++)
+			{
+				updatedValues[i] = new DatabaseValue(desiredType, getValues()[i]);
+			}
+			updateValues(updatedValues);
+		}
+		catch (InvalidDataTypeException e)
+		{
+			throw new WhereConditionParseException(
+					"The provided index can't be parsed to the desired data type (" + 
+					desiredType + ")", e);
+		}
 	}
 	
 	
@@ -86,9 +110,9 @@ public abstract class SingleWhereCondition extends WhereCondition
 	public int setObjectValues(PreparedStatement statement, int startIndex) throws SQLException
 	{
 		int i = startIndex;
-		for (Object value : this.values)
+		for (DatabaseValue value : this.values)
 		{
-			statement.setObject(i, value, this.dataType);
+			value.setToStatement(statement, i);
 			i ++;
 		}
 		
@@ -107,7 +131,7 @@ public abstract class SingleWhereCondition extends WhereCondition
 		{
 			return "Can't be parsed";
 		}
-		for (Object value : this.values)
+		for (DatabaseValue value : this.values)
 		{
 			String valueString;
 			if (value == null)

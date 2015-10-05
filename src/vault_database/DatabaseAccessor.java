@@ -14,7 +14,6 @@ import vault_database.Attribute.AttributeDescription;
 import vault_database.AttributeNameMapping.NoAttributeForColumnException;
 import vault_database.AttributeNameMapping.NoColumnForAttributeException;
 import vault_database.DatabaseSettings.UninitializedSettingsException;
-import vault_database.DatabaseTable.Column;
 import vault_database.WhereCondition.WhereConditionParseException;
 import vault_recording.DatabaseReadable;
 import vault_recording.DatabaseWritable;
@@ -476,7 +475,8 @@ public class DatabaseAccessor
 			WhereCondition where, int limit, String extraSQL) 
 			throws DatabaseUnavailableException, DatabaseException, NoAttributeForColumnException, WhereConditionParseException
 	{
-		return select(Attribute.getDescriptionsFrom(fromTable), fromTable, where, limit, extraSQL);
+		return select(Attribute.getDescriptionsFrom(fromTable), fromTable, where, limit, 
+				extraSQL);
 	}
 	
 	/**
@@ -500,7 +500,8 @@ public class DatabaseAccessor
 	public static List<List<Attribute>> selectAll(DatabaseTable fromTable, 
 			DatabaseTable joinTable, Collection<? extends JoinCondition> joinConditions, 
 			WhereCondition where, int limit, String extraSQL) 
-			throws DatabaseUnavailableException, DatabaseException, NoAttributeForColumnException, WhereConditionParseException
+			throws DatabaseUnavailableException, DatabaseException, 
+			NoAttributeForColumnException, WhereConditionParseException
 	{
 		List<AttributeDescription> selection = new ArrayList<>();
 		selection.addAll(Attribute.getDescriptionsFrom(fromTable));
@@ -529,7 +530,7 @@ public class DatabaseAccessor
 		// Only inserts non-null values that fit into the database and don't use auto-increment
 		Collection<Attribute> insertedAttributes = Attribute.getTableAttributesFrom(
 				getNonNullAttributes(attributes), intoTable);
-		removeAutoIncrementAttributes(insertedAttributes, intoTable.getColumnInfo());
+		removeAutoIncrementAttributes(insertedAttributes);
 		if (insertedAttributes.isEmpty())
 			return -1;
 		
@@ -679,7 +680,7 @@ public class DatabaseAccessor
 		// Null attributes may also be filtered
 		if (noNullUpdates)
 			updatedAttributes = getNonNullAttributes(setAttributes);
-		removeAutoIncrementAttributes(updatedAttributes, intoTable.getColumnInfo());
+		removeAutoIncrementAttributes(updatedAttributes);
 		
 		if (updatedAttributes.isEmpty())
 			return;
@@ -799,10 +800,11 @@ public class DatabaseAccessor
 	 * @throws NoAttributeForColumnException If a table's column name couldn't be mapped to an 
 	 * attribute name
 	 * @throws WhereConditionParseException If the provided where condition couldn't be 
-	 * parsed (the table doesn't have a primary column)
+	 * parsed (the table doesn't have a primary column or the index can't be casted to correct 
+	 * type)
 	 */
 	public static boolean readObjectAttributesFromDatabase(DatabaseReadable model, 
-			Object index) throws 
+			DatabaseValue index) throws 
 			DatabaseUnavailableException, DatabaseException, NoAttributeForColumnException, 
 			WhereConditionParseException
 	{
@@ -1040,26 +1042,19 @@ public class DatabaseAccessor
 		int i = startIndex;
 		for (Attribute attribute : attributes)
 		{
-			if (attribute.isNull())
-				statement.setNull(i, attribute.getDescription().getType());
-			else
-				statement.setObject(i, attribute.getValue(), 
-						attribute.getDescription().getType());
+			attribute.getValue().setToStatement(statement, i);
 			i ++;
 		}
 		
 		return i;
 	}
 	
-	private static void removeAutoIncrementAttributes(
-			Collection<? extends Attribute> targetGroup, Collection<? extends Column> columnInfo)
+	private static void removeAutoIncrementAttributes(Collection<? extends Attribute> targetGroup)
 	{
 		List<Attribute> autoIncrementAttributes = new ArrayList<>();
 		for (Attribute attribute : targetGroup)
 		{
-			Column matchingColumn = 
-					attribute.findMatchingColumnFrom(columnInfo);
-			if (matchingColumn.usesAutoIncrementIndexing())
+			if (attribute.getDescription().getColumn().usesAutoIncrementIndexing())
 				autoIncrementAttributes.add(attribute);
 		}
 		targetGroup.removeAll(autoIncrementAttributes);

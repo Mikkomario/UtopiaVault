@@ -13,13 +13,13 @@ public class IndexEqualsWhereCondition extends SingleWhereCondition
 	
 	/**
 	 * Creates a new where condition that is true only for the provided index value
-	 * @param inverted Should the condition be inverted (true for every row exept the one 
+	 * @param inverted Should the condition be inverted (true for every row except the one 
 	 * with the provided index value)
 	 * @param indexValue The value of the index the row must have
 	 */
-	public IndexEqualsWhereCondition(boolean inverted, Object indexValue)
+	public IndexEqualsWhereCondition(boolean inverted, DatabaseValue indexValue)
 	{
-		super(-1, inverted, indexValue);
+		super(inverted, indexValue);
 	}
 	
 	
@@ -35,7 +35,9 @@ public class IndexEqualsWhereCondition extends SingleWhereCondition
 			throw new WhereConditionParseException(
 					"Can't use index where condition for table (" + targetTable.getTableName() 
 					+ ") that doesn't have a primary column");
-		updateDataType(indexColumn.getType());
+		
+		// Parses the index to the correct type
+		castValuesToDataType(indexColumn.getType());
 		
 		// Creates the sql
 		return indexColumn.getName() + " <=> ?";

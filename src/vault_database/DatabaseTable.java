@@ -3,12 +3,12 @@ package vault_database;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
-import java.sql.Types;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 
 import vault_database.AttributeNameMapping.NoColumnForAttributeException;
+import vault_database.DataType.InvalidDataTypeException;
 
 /**
  * This class is an interface for all classes who need to represent tables in a database. 
@@ -125,12 +125,13 @@ public interface DatabaseTable
 				String name = result.getString("Field");
 				boolean primary = "PRI".equalsIgnoreCase(result.getString("Key"));
 				boolean autoInc = "auto_increment".equalsIgnoreCase(result.getString("Extra"));
-				int type = parseType(result.getString("Type"));
+				DataType type = new DataType(result.getString("Type"));
 				boolean nullAllowed = "YES".equalsIgnoreCase(result.getString("Null"));
 				Object defaultValue = null;
 				if (!"NULL".equalsIgnoreCase(result.getString("Default")))
 					defaultValue = result.getObject("Default");
-				columnInfo.add(new Column(name, type, nullAllowed, primary, autoInc, defaultValue));
+				columnInfo.add(new Column(name, type, nullAllowed, primary, autoInc, 
+						defaultValue));
 			}
 		}
 		finally
@@ -142,47 +143,6 @@ public interface DatabaseTable
 		}
 		
 		return columnInfo;
-	}
-	
-	/**
-	 * Parses an sql type from a string
-	 * @param s A string that represents a data type. For example "varchar(32)"
-	 * @return The data type represented by the string
-	 * @see Types
-	 */
-	public static int parseType(String s)
-	{
-		String lower = s.toLowerCase();
-		if (lower.startsWith("tiny"))
-			return parseType(s.substring(4));
-		if (lower.startsWith("big"))
-			return parseType(s.substring(3));
-		if (lower.startsWith("medium"))
-			return parseType(s.substring(6));
-		if (lower.startsWith("small"))
-			return parseType(s.substring(5));
-		if (lower.startsWith("varchar"))
-			return Types.VARCHAR;
-		if (lower.startsWith("int"))
-			return Types.INTEGER;
-		if (lower.startsWith("boolean"))
-			return Types.BOOLEAN;
-		if (lower.startsWith("float"))
-			return Types.FLOAT;
-		if (lower.startsWith("decimal"))
-			return Types.DECIMAL;
-		if (lower.startsWith("double"))
-			return Types.DOUBLE;
-		if (lower.startsWith("char"))
-			return Types.CHAR;
-		if (lower.startsWith("timestamp") || lower.startsWith("datetime"))
-			return Types.TIMESTAMP;
-		if (lower.startsWith("date"))
-			return Types.DATE;
-		if (lower.startsWith("time"))
-			return Types.TIME;
-		
-		return Types.OTHER;
 	}
 	
 	/**
@@ -235,8 +195,8 @@ public interface DatabaseTable
 		
 		private String name;
 		private boolean autoIncrement, primary, nullAllowed;
-		private int type;
-		private Object defaultValue;
+		private DataType type;
+		private DatabaseValue defaultValue;
 		
 		
 		// CONSTRUCTOR	----------------------
@@ -250,7 +210,7 @@ public interface DatabaseTable
 		 * @param nullAllowed Is null allowed in this column
 		 * @param defaultValue The default value used for this column
 		 */
-		public Column(String name, int type, boolean nullAllowed, boolean primary, 
+		public Column(String name, DataType type, boolean nullAllowed, boolean primary, 
 				boolean autoIncrement, Object defaultValue)
 		{
 			this.name = name;
@@ -258,7 +218,18 @@ public interface DatabaseTable
 			this.autoIncrement = autoIncrement;
 			this.type = type;
 			this.nullAllowed = nullAllowed;
-			this.defaultValue = defaultValue;
+			
+			try
+			{
+				this.defaultValue = DatabaseValue.objectValue(type, defaultValue);
+			}
+			catch (InvalidDataTypeException e)
+			{
+				// If default value can't be cast, it is ignored
+				this.defaultValue = DatabaseValue.nullValue(type);
+				System.err.println("Can't set default value for column " + name + " to " + 
+						defaultValue);
+			}
 		}
 		
 		
@@ -276,7 +247,7 @@ public interface DatabaseTable
 			if (usesAutoIncrementIndexing())
 				s.append(" auto-increment");
 			if (getDefaultValue() != null)
-				s.append("default = " + getDefaultValue());
+				s.append("default = " + getDefaultValue().toString());
 			
 			return s.toString();
 		}
@@ -310,9 +281,8 @@ public interface DatabaseTable
 		
 		/**
 		 * @return The data type of the column value
-		 * @see Types
 		 */
-		public int getType()
+		public DataType getType()
 		{
 			return this.type;
 		}
@@ -328,7 +298,7 @@ public interface DatabaseTable
 		/**
 		 * @return The default value used for this column (default = null)
 		 */
-		public Object getDefaultValue()
+		public DatabaseValue getDefaultValue()
 		{
 			return this.defaultValue;
 		}

@@ -9,10 +9,12 @@ import vault_database.Attribute;
 import vault_database.AttributeNameEqualsWhereCondition;
 import vault_database.AttributeNameMapping.MappingException;
 import vault_database.AttributeNameMapping.NoAttributeForColumnException;
+import vault_database.DataType;
 import vault_database.DatabaseAccessor;
 import vault_database.DatabaseException;
 import vault_database.DatabaseSettings;
-import vault_database.EqualsWhereCondition;
+import vault_database.DatabaseValue;
+import vault_database.EqualsWhereCondition.Operator;
 import vault_database.IndexAttributeRequiredException;
 import vault_database.Attribute.AttributeDescription;
 import vault_database.DatabaseUnavailableException;
@@ -207,8 +209,7 @@ public class DatabaseTest
 		for (List<Attribute> idResult : ids)
 		{
 			DatabaseModel model = new DatabaseModel(TestTable.DEFAULT, true);
-			DatabaseAccessor.readObjectAttributesFromDatabase(model, new EqualsWhereCondition(
-					false, idResult.get(0)));
+			DatabaseAccessor.readObjectAttributesFromDatabase(model, idResult.get(0).getValue());
 			models.add(model);
 		}
 		
@@ -251,7 +252,8 @@ public class DatabaseTest
 	{
 		//List<Attribute> whereAttributes = new Attribute(Attribute.getTableAttributeDescription(
 		//		TestTable.DEFAULT, "name"), name).wrapIntoList();
-		WhereCondition where = new AttributeNameEqualsWhereCondition(false, "name", (Object) name);
+		WhereCondition where = new AttributeNameEqualsWhereCondition(Operator.EQUALS, 
+				"name", new DatabaseValue(DataType.STRING, name));
 				//new Attribute(mapping.findColumnForAttribute(
 				//TestTable.DEFAULT.getColumnInfo(), "name"), mapping, name).wrapIntoList();
 		List<AttributeDescription> selection = new AttributeDescription(

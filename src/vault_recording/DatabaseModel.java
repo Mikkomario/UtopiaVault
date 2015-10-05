@@ -33,7 +33,7 @@ public class DatabaseModel implements DatabaseReadable, DatabaseWritable
 	 * @param table The table the model uses
 	 * @param allowUpdateRewrite Does the model allow attribute changes from the database if 
 	 * there is already an attribute with the same name
-	 * @see DatabaseAccessor#readObjectAttributesFromDatabase(DatabaseReadable, Object)
+	 * @see DatabaseAccessor#readObjectAttributesFromDatabase(DatabaseReadable, vault_database.DatabaseValue)
 	 */
 	public DatabaseModel(DatabaseTable table, boolean allowUpdateRewrite)
 	{
