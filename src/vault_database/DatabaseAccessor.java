@@ -395,10 +395,10 @@ public class DatabaseAccessor
 		sql.append(getJoinSql(fromTable, joinTable, joinConditions));
 		if (where != null)
 			sql.append(where.toWhereClause(fromTable));
-		if (limit >= 0)
-			sql.append(" LIMIT " + limit);
 		if (extraSQL != null)
 			sql.append(extraSQL);
+		if (limit >= 0)
+			sql.append(" LIMIT " + limit);
 		
 		// Executes the query
 		DatabaseAccessor accessor = new DatabaseAccessor(fromTable.getDatabaseName());

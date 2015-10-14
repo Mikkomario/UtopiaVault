@@ -112,7 +112,7 @@ public class Attribute
 		s.append(" (");
 		s.append(getDescription().getColumnName());
 		s.append(") = ");
-		s.append(getValue().toString());
+		s.append(getValue().getDescription());
 		
 		return s.toString();
 	}

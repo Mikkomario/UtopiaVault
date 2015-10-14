@@ -39,6 +39,10 @@ public class DataType
 	 * The string type (aka. varchar)
 	 */
 	public static DataType STRING = new DataType(Types.VARCHAR);
+	/**
+	 * The unknown / other type
+	 */
+	public static DataType OTHER = new DataType(Types.OTHER);
 	
 	private int type;
 	
@@ -117,6 +121,8 @@ public class DataType
 			return "boolean";
 		if (isOfStringType())
 			return "string";
+		if (isOfSqlType(Types.OTHER))
+			return "other";
 		
 		return "?";
 	}

@@ -186,6 +186,76 @@ public class DatabaseValue
 		return new DatabaseValue(dataType);
 	}
 	
+	/**
+	 * Creates a string value
+	 * @param string The value
+	 * @return A string value
+	 */
+	public static DatabaseValue String(String string)
+	{
+		return new DatabaseValue(DataType.STRING, string);
+	}
+	
+	/**
+	 * Creates a double value
+	 * @param number the value
+	 * @return a double value
+	 */
+	public static DatabaseValue Double(double number)
+	{
+		return new DatabaseValue(DataType.DOUBLE, number);
+	}
+	
+	/**
+	 * Creates a long value
+	 * @param number The value
+	 * @return A long type value
+	 */
+	public static DatabaseValue Long(long number)
+	{
+		return new DatabaseValue(DataType.LONG, number);
+	}
+	
+	/**
+	 * Creates an integer value
+	 * @param number the value
+	 * @return an integer type value
+	 */
+	public static DatabaseValue Integer(int number)
+	{
+		return new DatabaseValue(DataType.INTEGER, number);
+	}
+	
+	/**
+	 * Creates a date value
+	 * @param date the value
+	 * @return a date type value
+	 */
+	public static DatabaseValue Date(LocalDate date)
+	{
+		return new DatabaseValue(DataType.DATE, date);
+	}
+	
+	/**
+	 * Creates a date time value
+	 * @param date the value
+	 * @return a dateTime type value
+	 */
+	public static DatabaseValue DateTime(LocalDateTime date)
+	{
+		return new DatabaseValue(DataType.DATETIME, date);
+	}
+	
+	/**
+	 * creates a boolean value
+	 * @param bool the value
+	 * @return a boolean type value
+	 */
+	public static DatabaseValue Boolean(boolean bool)
+	{
+		return new DatabaseValue(DataType.BOOLEAN, bool);
+	}
+	
 	
 	// IMPLEMENTED METHODS	----------
 	
@@ -391,6 +461,25 @@ public class DatabaseValue
 	
 	
 	// OTHER METHODS	-------------
+	
+	/**
+	 * @return A description of this value, including the data type. May be something like 
+	 * '3 (int)' or 'test (string)'
+	 */
+	public String getDescription()
+	{
+		StringBuilder s = new StringBuilder();
+		if (isNull())
+			s.append("null");
+		else
+			s.append(toString());
+		
+		s.append(" (");
+		s.append(getDataType());
+		s.append(")");
+		
+		return s.toString();
+	}
 	
 	/**
 	 * Prepares the database value into a prepared statement

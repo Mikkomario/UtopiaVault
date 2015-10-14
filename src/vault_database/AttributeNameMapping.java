@@ -18,7 +18,8 @@ public class AttributeNameMapping
 {
 	// ATTRIBUTES	-------------------
 	
-	private Map<String, String> names; // column name, attribute name
+	private Map<String, String> names, columnCasing; // column name, attribute name | 
+	// columnName (lower), columnName (correct)
 	private List<NameMappingRule> rules;
 	
 	
@@ -31,6 +32,7 @@ public class AttributeNameMapping
 	{
 		this.names = new HashMap<>();
 		this.rules = new ArrayList<>();
+		this.columnCasing = new HashMap<>();
 	}
 
 	
@@ -76,7 +78,7 @@ public class AttributeNameMapping
 		for (String columnName : this.names.keySet())
 		{
 			if (this.names.get(columnName).equalsIgnoreCase(attributeName))
-				return columnName;
+				return getCorrectCasingForColumnName(columnName);
 		}
 		
 		// Tries to use applied rules
@@ -101,6 +103,7 @@ public class AttributeNameMapping
 	public void addMapping(String columnName, String attributeName)
 	{
 		this.names.put(columnName.toLowerCase(), attributeName.toLowerCase());
+		this.columnCasing.put(columnName.toLowerCase(), columnName);
 	}
 	
 	/**
@@ -186,6 +189,14 @@ public class AttributeNameMapping
 			throw latestException;
 		
 		return null;
+	}
+	
+	private String getCorrectCasingForColumnName(String columnName)
+	{
+		String correct = this.columnCasing.get(columnName);
+		if (correct != null)
+			return correct;
+		return columnName;
 	}
 	
 	

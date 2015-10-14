@@ -139,7 +139,7 @@ public abstract class SingleWhereCondition extends WhereCondition
 			else
 				valueString = "'" + value.toString() + "'";
 			
-			sql.replaceFirst("\\?", valueString);
+			sql = sql.replaceFirst("\\?", valueString);
 		}
 		
 		return sql;

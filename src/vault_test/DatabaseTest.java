@@ -256,6 +256,8 @@ public class DatabaseTest
 				"name", new DatabaseValue(DataType.STRING, name));
 				//new Attribute(mapping.findColumnForAttribute(
 				//TestTable.DEFAULT.getColumnInfo(), "name"), mapping, name).wrapIntoList();
+		System.out.println("Where: " + where.getDebugSql(TestTable.DEFAULT));
+		
 		List<AttributeDescription> selection = new AttributeDescription(
 				TestTable.DEFAULT.getPrimaryColumn(), 
 				TestTable.DEFAULT.getAttributeNameMapping()).wrapIntoList();

@@ -247,7 +247,7 @@ public interface DatabaseTable
 			if (usesAutoIncrementIndexing())
 				s.append(" auto-increment");
 			if (getDefaultValue() != null)
-				s.append("default = " + getDefaultValue().toString());
+				s.append(" default = " + getDefaultValue().toString());
 			
 			return s.toString();
 		}

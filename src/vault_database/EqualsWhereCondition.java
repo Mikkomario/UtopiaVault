@@ -106,7 +106,7 @@ public class EqualsWhereCondition extends SingleWhereCondition
 			// Finds out the desired data type from a column
 			Column column = DatabaseTable.findColumnWithName(targetTable.getColumnInfo(), 
 					this.usedColumns[0]);
-			if (column == null)
+			if (column == null && this.usedColumns.length > 1)
 			{
 				column = DatabaseTable.findColumnWithName(targetTable.getColumnInfo(), 
 						this.usedColumns[1]);
