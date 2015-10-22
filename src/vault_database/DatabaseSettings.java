@@ -15,15 +15,19 @@ public class DatabaseSettings
 	/**
 	 * ConnectionTarget is the host of the MariaDB server
 	 */
-	private static String connectionTarget;
+	private static String connectionTarget = null;
 	/**
 	 * passWord is the password used to identify the user accessing the database
 	 */
-	private static String password;
+	private static String password = null;
 	/**
 	 * user is the user used to access the database
 	 */
-	private static String user;
+	private static String user = null;
+	/**
+	 * The driver used when accessing the database
+	 */
+	private static String driver = null;
 	
 	
 	// CONSTRUCTOR	----------------------------------------------------
@@ -73,6 +77,14 @@ public class DatabaseSettings
 	}
 	
 	/**
+	 * @return The driver used when accessing the database. Null if not initialized or specified
+	 */
+	protected static String getDriver()
+	{
+		return driver;
+	}
+	
+	/**
 	 * Changes the name of the MariaDB server to be used
 	 * @param newTarget The new MariaDB server to be used. Should not include 
 	 * the name of the database. For example: "jdbc:mysql://localhost:3306/"
@@ -102,6 +114,15 @@ public class DatabaseSettings
 		user = newUser;
 	}
 	
+	/**
+	 * Changes the driver used when connecting to the database
+	 * @param newDriver The new driver that is used
+	 */
+	public static void setDriver(String newDriver)
+	{
+		driver = newDriver;
+	}
+	
 	
 	// OTHER METHODS	--------------------------------
 	
@@ -110,16 +131,24 @@ public class DatabaseSettings
 	 * Use the file provided in the data folder to create the multitable database
 	 * 
 	 * @param connectionTarget The MariaDB server to be used. Should not include 
-	 * the name of the database. For example: "jdbc:mysql://localhost:3306/"
-	 * @param user The userName used when connecting to the server
+	 * the name of the database. Null means "jdbc:mysql://localhost:3306/"
+	 * @param user The userName used when connecting to the server. Null means "root"
 	 * @param password The password used when connecting to the server
+	 * @param driver The driver used when connecting to the server. Eg. org.gjt.mm.mysql.Driver. 
+	 * Null if no driver class is specified (works with normal applications)
 	 */
-	public static void initialize(String connectionTarget, String user, String password)
+	public static void initialize(String connectionTarget, String user, String password, 
+			String driver)
 	{
+		if (connectionTarget == null)
+			connectionTarget = "jdbc:mysql://localhost:3306/";
+		if (user == null)
+			user = "root";
+		
 		setConnectionTarget(connectionTarget);
 		setUser(user);
 		setPassword(password);
-		//initializeMultiTableHandler(maxRowCount);
+		setDriver(driver);
 	}
 	
 	

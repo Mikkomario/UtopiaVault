@@ -21,6 +21,23 @@ public class CombinedWhereCondition extends WhereCondition
 	
 	// CONSTRUCTOR	-----------------
 
+	private CombinedWhereCondition(CombinationOperator operator, WhereCondition... conditions) 
+			throws WhereConditionParseException
+	{
+		this.operator = operator;
+		
+		// Checks that enough conditions were provided
+		if (conditions.length < 2 || (this.operator == CombinationOperator.XOR && conditions.length > 2))
+			throw new WhereConditionParseException("Operator " + operator + 
+					" doesn't work with " + conditions.length + " operands");
+		
+		this.conditions = new ArrayList<>();
+		for (WhereCondition condition : conditions)
+		{
+			this.conditions.add(condition);
+		}
+	}
+	
 	private CombinedWhereCondition(CombinationOperator operator, WhereCondition firstCondition, 
 			WhereCondition secondCondition, WhereCondition... additionalConditions)
 	{
@@ -33,6 +50,26 @@ public class CombinedWhereCondition extends WhereCondition
 		{
 			this.conditions.add(condition);
 		}
+	}
+	
+	/**
+	 * Combines a bunch of whereConditions together
+	 * @param operator The operator that separates the conditions
+	 * @param conditions The conditions that are combined (0 or more)
+	 * @return Null if no conditions were provided, a single whereCondition if only one 
+	 * condition was provided, a combined whereCondition if multiple conditions were provided
+	 * @throws WhereConditionParseException If {@link CombinationOperator#XOR} was used with 
+	 * more than 2 operands
+	 */
+	public static WhereCondition combineConditions(CombinationOperator operator, 
+			WhereCondition... conditions) throws WhereConditionParseException
+	{
+		if (conditions.length == 0)
+			return null;
+		else if (conditions.length == 1)
+			return conditions[0];
+		else
+			return new CombinedWhereCondition(operator, conditions);
 	}
 	
 	/**
@@ -76,7 +113,7 @@ public class CombinedWhereCondition extends WhereCondition
 			WhereCondition secondCondition)
 	{
 		return new CombinedWhereCondition(CombinationOperator.XOR, firstCondition, 
-				secondCondition);
+				secondCondition, new WhereCondition[0]);
 	}
 	
 	
@@ -139,7 +176,7 @@ public class CombinedWhereCondition extends WhereCondition
 	 * @author Mikko Hilpinen
 	 * @since 2.10.2015
 	 */
-	private static enum CombinationOperator
+	public static enum CombinationOperator
 	{
 		/**
 		 * True if all of the conditions are true

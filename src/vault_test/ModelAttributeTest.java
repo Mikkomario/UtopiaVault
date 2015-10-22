@@ -41,7 +41,7 @@ public class ModelAttributeTest
 		
 		try
 		{
-			DatabaseSettings.initialize(address, user, password);
+			DatabaseSettings.initialize(address, user, password, null);
 			
 			DatabaseModel testModel = new DatabaseModel(TestTable.DEFAULT, true);
 			testModel.initializeTableAttributesToNull(true);

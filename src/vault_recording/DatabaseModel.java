@@ -7,6 +7,7 @@ import java.util.List;
 import java.util.Map;
 
 import vault_database.Attribute;
+import vault_database.Attribute.AttributeDescription;
 import vault_database.AttributeNameMapping.NoAttributeForColumnException;
 import vault_database.DatabaseAccessor;
 import vault_database.DatabaseTable;
@@ -132,6 +133,14 @@ public class DatabaseModel implements DatabaseReadable, DatabaseWritable
 	// OTHER METHODS	-----------------------
 	
 	/**
+	 * @return The descriptions for the model's existing attributes
+	 */
+	public List<AttributeDescription> getAttributeDescriptions()
+	{
+		return Attribute.getDescriptionsFrom(getAttributes());
+	}
+	
+	/**
 	 * Returns one of the model's attributes. Not case-sensitive.
 	 * @param attributeName The name of the attribute
 	 * @return Model's attribute with the given name, null if no such attribute exists
@@ -139,6 +148,31 @@ public class DatabaseModel implements DatabaseReadable, DatabaseWritable
 	public Attribute getAttribute(String attributeName)
 	{
 		return DatabaseWritable.getAttributeByName(this, attributeName);
+	}
+	
+	/**
+	 * Returns one of the model's attributes. Not case-sensitive. If there is no such 
+	 * attribute in the model, one may be generated (with default initial value, null if 
+	 * default value not present)
+	 * @param attributeName The name of the attribute
+	 * @param generateIfNotExists If there doesn't exist an attribute with the given name, 
+	 * should one be generated (if possible)
+	 * @return The requested attribute, possibly generated, null if 
+	 * generateIfNotExists was false and there was no attribute with the given name
+	 * @throws NoAssociatedColumnExistsException If the generated attribute couldn't 
+	 * be mapped to a column in the model's table
+	 */
+	public Attribute getAttribute(String attributeName, boolean generateIfNotExists) throws 
+			NoAssociatedColumnExistsException
+	{
+		Attribute attribute = getAttribute(attributeName);
+		if (attribute == null && generateIfNotExists)
+		{
+			setAttributeValue(attributeName, null, true);
+			return getAttribute(attributeName);
+		}
+		else
+			return attribute;
 	}
 	
 	/**
@@ -179,6 +213,18 @@ public class DatabaseModel implements DatabaseReadable, DatabaseWritable
 			else
 				attribute.setToNull();
 		}
+	}
+	
+	/**
+	 * Changes an attribute's value. If an attribute doesn't exist, the value isn't added
+	 * @param attributeName The name of the attribute
+	 * @param newValue The new value of the attribute (if one exists)
+	 */
+	public void setAttributeValue(String attributeName, Object newValue)
+	{
+		Attribute attribute = getAttribute(attributeName);
+		if (attribute != null)
+			attribute.setValue(newValue);
 	}
 	
 	/**
@@ -320,4 +366,29 @@ public class DatabaseModel implements DatabaseReadable, DatabaseWritable
 					source);
 		}
 	}
+	
+	/**
+	 * These exceptions are thrown when an attribute is used that doesn't exist in the 
+	 * model
+	 * @author Mikko Hilpinen
+	 * @since 22.10.2015
+	 */
+	/*
+	public static class NoSuchAttributeExistsException extends RuntimeException
+	{
+		private static final long serialVersionUID = -3336141768045425709L;
+
+		/**
+		 * Creates a new exception
+		 * @param table The table the model is from
+		 * @param attributeName The name of the requested attribute
+		 */
+	/*
+		public NoSuchAttributeExistsException(DatabaseTable table, String attributeName)
+		{
+			super("No attribute with name '" + attributeName + "' in model from table " + 
+					table);
+		}
+	}
+	*/
 }

@@ -1,5 +1,10 @@
 package vault_database;
 
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.List;
+
+import vault_database.CombinedWhereCondition.CombinationOperator;
 import vault_database.DatabaseTable.Column;
 import vault_recording.DatabaseWritable;
 
@@ -91,6 +96,52 @@ public class EqualsWhereCondition extends SingleWhereCondition
 			throw new IndexAttributeRequiredException(model, 
 					"Can't search for object index for object that doesn't have an index");
 		return new EqualsWhereCondition(Operator.EQUALS, index);
+	}
+	
+	/**
+	 * Creates a new where condition that is true when the provided operator is true for 
+	 * each attribute in the provided collection, basically chaining multiple attribute conditions 
+	 * with AND.
+	 * @param operator The operator used for the attribute conditions (usually equals)
+	 * @param attributes a set of attributes that form the condition
+	 * @param noNullConditions Should null value attributes be skipped when creating the 
+	 * condition
+	 * @return A where condition. Null if the condition allows all rows (empty or null 
+	 * attributes collection or all attributes were null and noNullConditions was true)
+	 */
+	public static WhereCondition createWhereModelAttributesCondition(Operator operator, 
+			Collection<? extends Attribute> attributes, boolean noNullConditions)
+	{
+		if (attributes == null)
+			return null;
+		
+		List<Attribute> conditionAttributes = new ArrayList<>();
+		if (noNullConditions)
+		{
+			for (Attribute attribute : attributes)
+			{
+				if (!attribute.isNull())
+					conditionAttributes.add(attribute);
+			}
+		}
+		else
+			conditionAttributes.addAll(attributes);
+		
+		WhereCondition[] conditions = new WhereCondition[conditionAttributes.size()];
+		for (int i = 0; i < conditions.length; i++)
+		{
+			conditions[i] = new EqualsWhereCondition(operator, conditionAttributes.get(i));
+		}
+		
+		try
+		{
+			return CombinedWhereCondition.combineConditions(CombinationOperator.AND, conditions);
+		}
+		catch (WhereConditionParseException e)
+		{
+			// XOR not used so this won't be reached
+			return null;
+		}
 	}
 	
 	

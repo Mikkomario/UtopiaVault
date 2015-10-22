@@ -72,7 +72,8 @@ public class DatabaseTest
 		{
 			System.out.println("Initializes settings");
 			
-			DatabaseSettings.initialize(address, user, password);
+			// com.mysql.jdbc.Driver
+			DatabaseSettings.initialize(address, user, password, "org.mariadb.jdbc.Driver");
 			
 			System.out.println("Integer type: " + Types.INTEGER);
 			System.out.println("Varchar type: " + Types.VARCHAR);

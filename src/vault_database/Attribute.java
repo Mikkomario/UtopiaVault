@@ -177,7 +177,7 @@ public class Attribute
 	
 	/**
 	 * Changes the attribute's value.
-	 * @param object The attribute's new value.
+	 * @param object The attribute's new value. Either an object or a database value goes.
 	 * @throws InvalidDataTypeException If the provided value can't be parsed to the 
 	 * attribute's data type
 	 */
@@ -185,6 +185,8 @@ public class Attribute
 	{
 		if (object == null)
 			setToNull();
+		else if (object instanceof DatabaseValue)
+			setValue((DatabaseValue) object);
 		else
 			this.value = DatabaseValue.objectValue(getDescription().getType(), object);
 	}

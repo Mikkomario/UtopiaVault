@@ -165,7 +165,7 @@ public class DatabaseValue
 	}
 	
 	/**
-	 * Creates a new value from an object value
+	 * Creates a new value from an object value or DatabaseValue object
 	 * @param dataType The intended data type of the value
 	 * @param value The value in ambiguous object form
 	 * @return A database value parsed from the object
@@ -173,7 +173,10 @@ public class DatabaseValue
 	 */
 	public static DatabaseValue objectValue(DataType dataType, Object value) throws InvalidDataTypeException
 	{
-		return new DatabaseValue(dataType, value);
+		if (value instanceof DatabaseValue)
+			return new DatabaseValue(dataType, (DatabaseValue) value);
+		else
+			return new DatabaseValue(dataType, value);
 	}
 	
 	/**

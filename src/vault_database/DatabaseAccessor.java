@@ -97,6 +97,19 @@ public class DatabaseAccessor
 			if (this.currentConnection != null && !this.currentConnection.isClosed())
 				return;
 			
+			String driver = DatabaseSettings.getDriver();
+			if (driver != null)
+			{
+				try
+				{
+					Class.forName(driver).newInstance();
+				}
+				catch (Exception e)
+				{
+					System.err.println("Can't use driver " + driver);
+					e.printStackTrace();
+				}
+			}
 			this.currentConnection = DriverManager.getConnection(
 					DatabaseSettings.getConnectionTarget() + this.databaseName, 
 					DatabaseSettings.getUser(), DatabaseSettings.getPassword());
@@ -637,6 +650,23 @@ public class DatabaseAccessor
 	}
 	
 	/**
+	 * Updates model attributes to database where the where condition allows
+	 * @param model The model who's attributes are added
+	 * @param where A where condition for the model's table that limits the updated rows. 
+	 * Null if each row should be updated.
+	 * @param noNullUpdates Should null values be updated into the database.
+	 * @throws DatabaseUnavailableException If the database can't be accessed
+	 * @throws DatabaseException If the operation failed
+	 * @throws WhereConditionParseException If the provided where condition couldn't be used
+	 */
+	public static void update(DatabaseWritable model, WhereCondition where, 
+			boolean noNullUpdates) throws DatabaseUnavailableException, DatabaseException, 
+			WhereConditionParseException
+	{
+		update(model.getTable(), model.getAttributes(), where, noNullUpdates, null);
+	}
+	
+	/**
 	 * Updates attributes into database where the conditions are met
 	 * @param intoTable The table the values will be updated into
 	 * @param setAttributes The attributes that will be updated into the table
@@ -942,8 +972,7 @@ public class DatabaseAccessor
 	{
 		try
 		{
-			update(model.getTable(), model.getAttributes(), 
-					EqualsWhereCondition.createWhereIndexCondition(model), noNullUpdates);
+			update(model, EqualsWhereCondition.createWhereIndexCondition(model), noNullUpdates);
 		}
 		catch (WhereConditionParseException e)
 		{
