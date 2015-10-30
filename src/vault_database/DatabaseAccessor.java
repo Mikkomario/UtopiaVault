@@ -106,8 +106,7 @@ public class DatabaseAccessor
 				}
 				catch (Exception e)
 				{
-					System.err.println("Can't use driver " + driver);
-					e.printStackTrace();
+					throw new DatabaseUnavailableException("Can't use driver " + driver, e);
 				}
 			}
 			this.currentConnection = DriverManager.getConnection(
@@ -392,6 +391,7 @@ public class DatabaseAccessor
 	 * @throws DatabaseException If the operation failed
 	 * @throws WhereConditionParseException If the where condition couldn't be parsed
 	 */
+	@SuppressWarnings("resource")
 	public static List<List<Attribute>> select(Collection<? extends AttributeDescription> 
 			selectedAttributes, 
 			DatabaseTable fromTable, DatabaseTable joinTable, Collection<? extends 
@@ -533,6 +533,7 @@ public class DatabaseAccessor
 	 * @throws DatabaseUnavailableException If the database can't be accessed at this time
 	 * @throws DatabaseException If the operation failed
 	 */
+	@SuppressWarnings("resource")
 	public static int insert(DatabaseTable intoTable, Collection<? extends Attribute> attributes) throws 
 			DatabaseUnavailableException, DatabaseException
 	{
@@ -616,6 +617,7 @@ public class DatabaseAccessor
 	 * @throws DatabaseException If the operation failed
 	 * @throws WhereConditionParseException If the where condition couldn't be parsed
 	 */
+	@SuppressWarnings("resource")
 	public static void delete(DatabaseTable fromTable, DatabaseTable joinTable, 
 			Collection<? extends JoinCondition> joinConditions, 
 			WhereCondition where) throws DatabaseUnavailableException, DatabaseException, 
@@ -697,6 +699,7 @@ public class DatabaseAccessor
 	 * @throws DatabaseException If the operation failed
 	 * @throws WhereConditionParseException If the where condition couldn't be parsed
 	 */
+	@SuppressWarnings("resource")
 	public static void update(DatabaseTable intoTable, Collection<? extends Attribute> setAttributes, 
 			WhereCondition where, boolean noNullUpdates, String extraSQL) throws 
 			DatabaseUnavailableException, DatabaseException, WhereConditionParseException

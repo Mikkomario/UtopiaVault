@@ -232,6 +232,7 @@ public class DataType
 	public static int parseSqlType(String s)
 	{
 		String lower = s.toLowerCase();
+		
 		if (lower.startsWith("tiny"))
 			return parseSqlType(s.substring(4));
 		if (lower.startsWith("big"))
@@ -240,7 +241,10 @@ public class DataType
 			return parseSqlType(s.substring(6));
 		if (lower.startsWith("small"))
 			return parseSqlType(s.substring(5));
-		if (lower.startsWith("varchar"))
+		if (lower.startsWith("long"))
+			return parseSqlType(s.substring(4));
+		
+		if (lower.startsWith("varchar") || lower.startsWith("text"))
 			return Types.VARCHAR;
 		if (lower.startsWith("int"))
 			return Types.INTEGER;
@@ -260,6 +264,8 @@ public class DataType
 			return Types.DATE;
 		if (lower.startsWith("time"))
 			return Types.TIME;
+		if (lower.startsWith("blob"))
+			return Types.VARBINARY;
 		
 		return Types.OTHER;
 	}

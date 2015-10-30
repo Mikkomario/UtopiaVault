@@ -106,7 +106,7 @@ public class IsBetweenWhereCondition extends SingleWhereCondition
 		if (this.columnNames.length < 2)
 			sql.append("? AND ?");
 		else if (this.columnNames.length == 2)
-			sql.append(this.columnNames[0] + " AND" + this.columnNames[1]);
+			sql.append(this.columnNames[0] + " AND " + this.columnNames[1]);
 		else
 			sql.append(this.columnNames[1] + " AND " + this.columnNames[2]);
 		
