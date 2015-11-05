@@ -94,9 +94,23 @@ public class IsBetweenWhereCondition extends SingleWhereCondition
 		if (desiredType != null)
 			castValuesToDataType(desiredType);
 		
+		return getSql();
+	}
+
+	@Override
+	protected String getDebugSqlWithNoParsing(DatabaseTable targetTable)
+	{
+		return getSql();
+	}
+	
+	
+	// OTHER METHODS	--------
+	
+	private String getSql()
+	{
 		// Parses the sql
 		StringBuilder sql = new StringBuilder();
-		if (this.columnNames.length != 2)
+		if (this.columnNames.length != 2 && this.columnNames.length > 0)
 			sql.append(this.columnNames[0]);
 		else
 			sql.append("?");

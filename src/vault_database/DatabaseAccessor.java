@@ -238,25 +238,20 @@ public class DatabaseAccessor
 	 * 
 	 * @param newDatabaseName The name of the new database to be used
 	 * @return The name of the database used after the call of this method
+	 * @throws DatabaseUnavailableException If the database can't be accessed
+	 * @throws SQLException If an sql exception occurred
 	 */
-	public String changeDatabase(String newDatabaseName)
+	public String changeDatabase(String newDatabaseName) throws SQLException, 
+			DatabaseUnavailableException
 	{
-		try
+		// The change is simple when a connection is closed
+		if (this.currentConnection == null || this.currentConnection.isClosed())
+			this.databaseName = newDatabaseName;
+		// When a connection is open, informs the server
+		else
 		{
-			// The change is simple when a connection is closed
-			if (this.currentConnection == null || this.currentConnection.isClosed())
-				this.databaseName = newDatabaseName;
-			// When a connection is open, informs the server
-			else
-			{
-				executeStatement("USE " + newDatabaseName + ";");
-				this.databaseName = newDatabaseName;	
-			}
-		}
-		catch (SQLException | DatabaseUnavailableException e)
-		{
-			System.err.println("DatabaseAccessor failed to change the database name");
-			e.printStackTrace();
+			executeStatement("USE " + newDatabaseName + ";");
+			this.databaseName = newDatabaseName;	
 		}
 		
 		return this.databaseName;
@@ -264,7 +259,6 @@ public class DatabaseAccessor
 	
 	/**
 	 * Closes a currently open statement
-	 * 
 	 * @param statement The statement that will be closed
 	 */
 	public static void closeStatement(Statement statement)
@@ -283,7 +277,6 @@ public class DatabaseAccessor
 	
 	/**
 	 * Closes a currently open resultSet
-	 * 
 	 * @param resultSet The results that will be closed
 	 */
 	public static void closeResults(ResultSet resultSet)
@@ -309,22 +302,14 @@ public class DatabaseAccessor
 	 * @return A list of attribute sets. One set for each row. Each set contains selected 
 	 * data for that row.
 	 * @throws DatabaseUnavailableException If the database can't be accessed at this time
-	 * @throws DatabaseException If the operation failed
+	 * @throws DatabaseException If the operation was misused (logic error)
 	 */
 	public static List<List<Attribute>> select(Collection<? extends AttributeDescription> 
 			selectedAttributes, 
 			DatabaseTable fromTable, int limit) throws 
 			DatabaseUnavailableException, DatabaseException
 	{
-		try
-		{
-			return select(selectedAttributes, fromTable, null, limit, null);
-		}
-		catch (WhereConditionParseException e)
-		{
-			// Where condition is not used -> can always be parsed
-			return null;
-		}
+		return select(selectedAttributes, fromTable, null, limit, null);
 	}
 	
 	/**
@@ -337,13 +322,12 @@ public class DatabaseAccessor
 	 * @return A list of attribute sets. One set for each row. Each set contains selected 
 	 * data for that row.
 	 * @throws DatabaseUnavailableException If the database can't be accessed at this time
-	 * @throws DatabaseException If the operation failed
-	 * @throws WhereConditionParseException If the where condition couldn't be parsed
+	 * @throws DatabaseException If the operation was misused (logic error)
 	 */
 	public static List<List<Attribute>> select(
 			Collection<? extends AttributeDescription> selectedAttributes, 
 			DatabaseTable fromTable, WhereCondition where, int limit) throws 
-			DatabaseUnavailableException, DatabaseException, WhereConditionParseException
+			DatabaseUnavailableException, DatabaseException
 	{
 		return select(selectedAttributes, fromTable, where, limit, null);
 	}
@@ -360,14 +344,13 @@ public class DatabaseAccessor
 	 * @return A list of attribute sets. One set for each row. Each set contains selected 
 	 * data for that row.
 	 * @throws DatabaseUnavailableException If the database can't be accessed at this time
-	 * @throws DatabaseException If the operation failed
-	 * @throws WhereConditionParseException If the where condition couldn't be parsed
+	 * @throws DatabaseException If the operation was misused (logic error)
 	 */
 	public static List<List<Attribute>> select(
 			Collection<? extends AttributeDescription> selectedAttributes, 
 			DatabaseTable fromTable, WhereCondition where, int limit, 
 			String extraSQL) throws 
-			DatabaseUnavailableException, DatabaseException, WhereConditionParseException
+			DatabaseUnavailableException, DatabaseException
 	{
 		return select(selectedAttributes, fromTable, null, null, where, limit, 
 				extraSQL);
@@ -388,16 +371,14 @@ public class DatabaseAccessor
 	 * @return A list of attribute sets. One set for each row. Each set contains selected 
 	 * data for that row.
 	 * @throws DatabaseUnavailableException If the database can't be accessed at this time
-	 * @throws DatabaseException If the operation failed
-	 * @throws WhereConditionParseException If the where condition couldn't be parsed
+	 * @throws DatabaseException If the operation was misused (logic error)
 	 */
 	@SuppressWarnings("resource")
 	public static List<List<Attribute>> select(Collection<? extends AttributeDescription> 
 			selectedAttributes, 
 			DatabaseTable fromTable, DatabaseTable joinTable, Collection<? extends 
 			JoinCondition> joinConditions, WhereCondition where, 
-			int limit, String extraSQL) throws DatabaseException, DatabaseUnavailableException, 
-			WhereConditionParseException
+			int limit, String extraSQL) throws DatabaseUnavailableException, DatabaseException
 	{
 		List<List<Attribute>> rows = new ArrayList<>();
 		
@@ -407,7 +388,16 @@ public class DatabaseAccessor
 		sql.append(fromTable.getTableName());
 		sql.append(getJoinSql(fromTable, joinTable, joinConditions));
 		if (where != null)
-			sql.append(where.toWhereClause(fromTable));
+		{
+			try
+			{
+				sql.append(where.toWhereClause(fromTable));
+			}
+			catch (WhereConditionParseException e)
+			{
+				throw new DatabaseException(e, fromTable, where);
+			}
+		}
 		if (extraSQL != null)
 			sql.append(extraSQL);
 		if (limit >= 0)
@@ -457,15 +447,20 @@ public class DatabaseAccessor
 	 * @return A list of attribute sets. One set for each row. Each set contains selected 
 	 * data for that row.
 	 * @throws DatabaseUnavailableException If the database can't be accessed at this time
-	 * @throws DatabaseException If the operation failed
-	 * @throws NoAttributeForColumnException If a table's column name couldn't be mapped to an 
 	 * attribute name
+	 * @throws DatabaseException If the operation was misused (logic error)
 	 */
 	public static List<List<Attribute>> selectAll(DatabaseTable fromTable) 
-			throws DatabaseUnavailableException, DatabaseException, 
-			NoAttributeForColumnException
+			throws DatabaseUnavailableException, DatabaseException
 	{
-		return select(Attribute.getDescriptionsFrom(fromTable), fromTable, -1);
+		try
+		{
+			return select(Attribute.getDescriptionsFrom(fromTable), fromTable, -1);
+		}
+		catch (NoAttributeForColumnException e)
+		{
+			throw new DatabaseException(e, fromTable);
+		}
 	}
 	
 	/**
@@ -479,17 +474,21 @@ public class DatabaseAccessor
 	 * @return A list of attribute sets. One set for each row. Each set contains selected 
 	 * data for that row.
 	 * @throws DatabaseUnavailableException If the database can't be accessed at this time
-	 * @throws DatabaseException If the operation failed
-	 * @throws NoAttributeForColumnException If a table's column name couldn't be mapped to an 
-	 * attribute name
-	 * @throws WhereConditionParseException If the where condition couldn't be parsed
+	 * @throws DatabaseException If the operation was misused (logic error)
 	 */
 	public static List<List<Attribute>> selectAll(DatabaseTable fromTable, 
 			WhereCondition where, int limit, String extraSQL) 
-			throws DatabaseUnavailableException, DatabaseException, NoAttributeForColumnException, WhereConditionParseException
+			throws DatabaseUnavailableException, DatabaseException
 	{
-		return select(Attribute.getDescriptionsFrom(fromTable), fromTable, where, limit, 
-				extraSQL);
+		try
+		{
+			return select(Attribute.getDescriptionsFrom(fromTable), fromTable, where, limit, 
+					extraSQL);
+		}
+		catch (NoAttributeForColumnException e)
+		{
+			throw new DatabaseException(e, fromTable);
+		}
 	}
 	
 	/**
@@ -505,21 +504,34 @@ public class DatabaseAccessor
 	 * @return A list of attribute sets. One set for each row. Each set contains selected 
 	 * data for that row.
 	 * @throws DatabaseUnavailableException If the database can't be accessed at this time
-	 * @throws DatabaseException If the operation failed
-	 * @throws NoAttributeForColumnException If a table's column name couldn't be mapped to an 
-	 * attribute name
-	 * @throws WhereConditionParseException If the where condition couldn't be parsed
+	 * @throws DatabaseException If the operation was misused (logic error)
 	 */
 	public static List<List<Attribute>> selectAll(DatabaseTable fromTable, 
 			DatabaseTable joinTable, Collection<? extends JoinCondition> joinConditions, 
 			WhereCondition where, int limit, String extraSQL) 
-			throws DatabaseUnavailableException, DatabaseException, 
-			NoAttributeForColumnException, WhereConditionParseException
+			throws DatabaseUnavailableException, DatabaseException
 	{
 		List<AttributeDescription> selection = new ArrayList<>();
-		selection.addAll(Attribute.getDescriptionsFrom(fromTable));
+		try
+		{
+			selection.addAll(Attribute.getDescriptionsFrom(fromTable));
+		}
+		catch (NoAttributeForColumnException e)
+		{
+			throw new DatabaseException(e, fromTable);
+		}
 		if (joinTable != null)
-			selection.addAll(Attribute.getDescriptionsFrom(joinTable));
+		{
+			try
+			{
+				selection.addAll(Attribute.getDescriptionsFrom(joinTable));
+			}
+			catch (NoAttributeForColumnException e)
+			{
+				throw new DatabaseException(e, joinTable);
+			}
+		}
+		
 		return select(selection, fromTable, joinTable, joinConditions, 
 				where, limit, extraSQL);
 	}
@@ -531,7 +543,7 @@ public class DatabaseAccessor
 	 * contain all "not null" columns
 	 * @return An auto-increment index if one was generated, -1 otherwise
 	 * @throws DatabaseUnavailableException If the database can't be accessed at this time
-	 * @throws DatabaseException If the operation failed
+	 * @throws DatabaseException If the operation was misused (logic error)
 	 */
 	@SuppressWarnings("resource")
 	public static int insert(DatabaseTable intoTable, Collection<? extends Attribute> attributes) throws 
@@ -571,9 +583,7 @@ public class DatabaseAccessor
 			{
 				results = statement.getGeneratedKeys();
 				if (results.next())
-				{
-					return results.getInt(intoTable.getPrimaryColumn().getName());
-				}
+					return results.getInt(1);
 			}
 			else if (resultsFound)
 				results = statement.getResultSet();
@@ -597,11 +607,10 @@ public class DatabaseAccessor
 	 * @param fromTable The table the row(s) are deleted from
 	 * @param where The where clause used in the delete. Null if all rows are to be deleted
 	 * @throws DatabaseUnavailableException If the database can't be accessed
-	 * @throws DatabaseException If the operation failed
-	 * @throws WhereConditionParseException If the where condition couldn't be parsed
+	 * @throws DatabaseException 
 	 */
 	public static void delete(DatabaseTable fromTable, WhereCondition where) 
-			throws DatabaseUnavailableException, DatabaseException, WhereConditionParseException
+			throws DatabaseUnavailableException, DatabaseException
 	{
 		delete(fromTable, null, null, where);
 	}
@@ -614,20 +623,27 @@ public class DatabaseAccessor
 	 * is made)
 	 * @param where The where clause used in the delete. Null if all rows are to be deleted
 	 * @throws DatabaseUnavailableException If the database can't be accessed
-	 * @throws DatabaseException If the operation failed
-	 * @throws WhereConditionParseException If the where condition couldn't be parsed
+	 * @throws DatabaseException If the operation was misused (logic error)
 	 */
 	@SuppressWarnings("resource")
 	public static void delete(DatabaseTable fromTable, DatabaseTable joinTable, 
 			Collection<? extends JoinCondition> joinConditions, 
-			WhereCondition where) throws DatabaseUnavailableException, DatabaseException, 
-			WhereConditionParseException
+			WhereCondition where) throws DatabaseUnavailableException, DatabaseException
 	{
 		StringBuilder sql = new StringBuilder("DELETE FROM ");
 		sql.append(fromTable.getTableName());
 		sql.append(getJoinSql(fromTable, joinTable, joinConditions));
 		if (where != null)
-			sql.append(where.toWhereClause(fromTable));
+		{
+			try
+			{
+				sql.append(where.toWhereClause(fromTable));
+			}
+			catch (WhereConditionParseException e)
+			{
+				throw new DatabaseException(e, fromTable, where);
+			}
+		}
 		
 		DatabaseAccessor accessor = new DatabaseAccessor(fromTable.getDatabaseName());
 		PreparedStatement statement = null;
@@ -658,12 +674,10 @@ public class DatabaseAccessor
 	 * Null if each row should be updated.
 	 * @param noNullUpdates Should null values be updated into the database.
 	 * @throws DatabaseUnavailableException If the database can't be accessed
-	 * @throws DatabaseException If the operation failed
-	 * @throws WhereConditionParseException If the provided where condition couldn't be used
+	 * @throws DatabaseException If the operation was misused (logic error)
 	 */
 	public static void update(DatabaseWritable model, WhereCondition where, 
-			boolean noNullUpdates) throws DatabaseUnavailableException, DatabaseException, 
-			WhereConditionParseException
+			boolean noNullUpdates) throws DatabaseUnavailableException, DatabaseException
 	{
 		update(model.getTable(), model.getAttributes(), where, noNullUpdates, null);
 	}
@@ -676,12 +690,11 @@ public class DatabaseAccessor
 	 * are to be updated.
 	 * @param noNullUpdates Should null value updates be skipped entirely
 	 * @throws DatabaseUnavailableException If the database can't be accessed at this time
-	 * @throws DatabaseException If the operation failed
-	 * @throws WhereConditionParseException If the where condition couldn't be parsed
+	 * @throws DatabaseException If the operation was misused (logic error)
 	 */
 	public static void update(DatabaseTable intoTable, Collection<? extends Attribute> setAttributes, 
 			WhereCondition where, boolean noNullUpdates) 
-			throws DatabaseUnavailableException, DatabaseException, WhereConditionParseException
+			throws DatabaseUnavailableException, DatabaseException
 	{
 		update(intoTable, setAttributes, where, noNullUpdates, null);
 	}
@@ -696,13 +709,12 @@ public class DatabaseAccessor
 	 * @param extraSQL The sql string that will be added to the end of the update statement. 
 	 * Null if not used.
 	 * @throws DatabaseUnavailableException If the database can't be accessed at this time
-	 * @throws DatabaseException If the operation failed
-	 * @throws WhereConditionParseException If the where condition couldn't be parsed
+	 * @throws DatabaseException If the operation was misused (logic error)
 	 */
 	@SuppressWarnings("resource")
 	public static void update(DatabaseTable intoTable, Collection<? extends Attribute> setAttributes, 
 			WhereCondition where, boolean noNullUpdates, String extraSQL) throws 
-			DatabaseUnavailableException, DatabaseException, WhereConditionParseException
+			DatabaseUnavailableException, DatabaseException
 	{
 		if (intoTable == null || setAttributes == null)
 			return;
@@ -723,7 +735,16 @@ public class DatabaseAccessor
 		sql.append(" SET ");
 		sql.append(parseSetSql(updatedAttributes));
 		if (where != null)
-			sql.append(where.toWhereClause(intoTable));
+		{
+			try
+			{
+				sql.append(where.toWhereClause(intoTable));
+			}
+			catch (WhereConditionParseException e)
+			{
+				throw new DatabaseException(e, intoTable, where);
+			}
+		}
 		if (extraSQL != null)
 			sql.append(extraSQL);
 		
@@ -756,13 +777,11 @@ public class DatabaseAccessor
 	 * @param model The object that will be updated
 	 * @return Was any data read from the database
 	 * @throws DatabaseUnavailableException If the database couldn't be accessed
-	 * @throws IndexAttributeRequiredException If the provided object doesn't use 
-	 * auto-increment indexing and doesn't have an index attribute
-	 * @throws DatabaseException If the operation failed
+	 * @throws DatabaseException If the operation was misused (logic error)
 	 */
 	public static <T extends DatabaseReadable & DatabaseWritable> boolean 
 			updateExistingObjectAttributesFromDatabase(T model) throws 
-			DatabaseUnavailableException, IndexAttributeRequiredException, DatabaseException
+			DatabaseUnavailableException, DatabaseException
 	{
 		// If the object uses auto-increment indexing and doesn't have an index, it can't be 
 		// in the database
@@ -786,10 +805,9 @@ public class DatabaseAccessor
 			else
 				return false;
 		}
-		catch (WhereConditionParseException e)
+		catch (IndexAttributeRequiredException e)
 		{
-			// If there is an exception of this type it means there is a fatal programming error
-			throw new RuntimeException(e);
+			throw new DatabaseException(e, model);
 		}
 	}
 	
@@ -800,16 +818,11 @@ public class DatabaseAccessor
 	 * leaves multiple rows, only the first one is used
 	 * @return Was any data read
 	 * @throws DatabaseUnavailableException If the database couldn't be accessed
-	 * @throws DatabaseException If the operation failed
-	 * @throws NoAttributeForColumnException If a table's column name couldn't be mapped to an 
-	 * attribute name
-	 * @throws WhereConditionParseException If the provided where condition couldn't be 
-	 * parsed
+	 * @throws DatabaseException If the operation was misused (logic error)
 	 */
 	public static boolean readObjectAttributesFromDatabase(DatabaseReadable model, 
 			WhereCondition where) throws 
-			DatabaseUnavailableException, DatabaseException, NoAttributeForColumnException, 
-			WhereConditionParseException
+			DatabaseUnavailableException, DatabaseException
 	{
 		List<List<Attribute>> results = DatabaseAccessor.selectAll(model.getTable(), 
 				where, 1, null);
@@ -829,17 +842,11 @@ public class DatabaseAccessor
 	 * @param index The primary index of the row that contains the object's data
 	 * @return Was any data read
 	 * @throws DatabaseUnavailableException If the database couldn't be accessed
-	 * @throws DatabaseException If the operation failed
-	 * @throws NoAttributeForColumnException If a table's column name couldn't be mapped to an 
-	 * attribute name
-	 * @throws WhereConditionParseException If the provided where condition couldn't be 
-	 * parsed (the table doesn't have a primary column or the index can't be casted to correct 
-	 * type)
+	 * @throws DatabaseException If the operation was misused (logic error)
 	 */
 	public static boolean readObjectAttributesFromDatabase(DatabaseReadable model, 
 			DatabaseValue index) throws 
-			DatabaseUnavailableException, DatabaseException, NoAttributeForColumnException, 
-			WhereConditionParseException
+			DatabaseUnavailableException, DatabaseException
 	{
 		return readObjectAttributesFromDatabase(model, new IndexEqualsWhereCondition(
 				false, index));
@@ -852,12 +859,10 @@ public class DatabaseAccessor
 	 * @param noNullUpdates In case previous data will be updated, should null values be 
 	 * skipped (leaving possible previous data)
 	 * @throws DatabaseUnavailableException If the database is not available
-	 * @throws IndexAttributeRequiredException If the object doesn't use auto-increment 
-	 * indexing and doesn't have an index attribute
-	 * @throws DatabaseException If the operation failed
+	 * @throws DatabaseException If the operation was misused (logic error)
 	 */
 	public static void updateObjectToDatabase(DatabaseWritable model, boolean noNullUpdates) 
-			throws DatabaseUnavailableException, IndexAttributeRequiredException, DatabaseException
+			throws DatabaseUnavailableException, DatabaseException
 	{
 		// Auto-increment indexing models with no previous index are inserted as new
 		if (!objectIsInDatabase(model))
@@ -871,12 +876,10 @@ public class DatabaseAccessor
 	 * @param model The object that may be inserted
 	 * @return Was the object inserted into the database
 	 * @throws DatabaseUnavailableException If the database can't be accessed
-	 * @throws IndexAttributeRequiredException If the object doesn't use auto-increment 
-	 * indexing and doesn't have an index attribute
-	 * @throws DatabaseException If the operation failed
+	 * @throws DatabaseException If the operation was misused (logic error)
 	 */
 	public static boolean insertObjectToDatabaseIfNotExists(DatabaseWritable model) throws 
-			DatabaseUnavailableException, IndexAttributeRequiredException, DatabaseException
+			DatabaseUnavailableException, DatabaseException
 	{
 		// Auto-increment indexing models with no previous index are inserted as new
 		if (!objectIsInDatabase(model))
@@ -895,12 +898,10 @@ public class DatabaseAccessor
 	 * @param noNullUpdates Should null attributes be skipped, leaving previous data intact
 	 * @return Was the object updated into the database
 	 * @throws DatabaseUnavailableException If the database can't be accessed
-	 * @throws IndexAttributeRequiredException If the object doesn't have an index attribute
-	 * @throws DatabaseException If the operation failed
+	 * @throws DatabaseException If the operation was misused (logic error)
 	 */
 	public static boolean updateObjectToDatabaseIfExists(DatabaseWritable model, 
-			boolean noNullUpdates) throws DatabaseUnavailableException,  
-			IndexAttributeRequiredException, DatabaseException
+			boolean noNullUpdates) throws DatabaseUnavailableException, DatabaseException
 	{
 		if (!objectIsInDatabase(model))
 			return false;
@@ -912,20 +913,18 @@ public class DatabaseAccessor
 	 * Deletes the object from the database (deletes a row with the same primary key index)
 	 * @param model The model that will be deleted
 	 * @throws DatabaseUnavailableException If the database can't be accessed
-	 * @throws IndexAttributeRequiredException If the object doesn't have an index
-	 * @throws DatabaseException If the operation failed
+	 * @throws DatabaseException If the operation was misused (logic error)
 	 */
 	public static void deleteObjectFromDatabase(DatabaseWritable model) throws 
-			DatabaseUnavailableException, IndexAttributeRequiredException, DatabaseException
+			DatabaseUnavailableException, DatabaseException
 	{
 		try
 		{
 			delete(model.getTable(), EqualsWhereCondition.createWhereIndexCondition(model));
 		}
-		catch (WhereConditionParseException e)
+		catch (IndexAttributeRequiredException e)
 		{
-			// This can be reached only in case of a serious programming error
-			throw new RuntimeException(e);
+			throw new DatabaseException(e, model);
 		}
 	}
 	
@@ -934,12 +933,10 @@ public class DatabaseAccessor
 	 * @param model The object that may exist in the database
 	 * @return Is there already data where the object would be saved (on same primary key index)
 	 * @throws DatabaseUnavailableException If the database is unavailable
-	 * @throws IndexAttributeRequiredException If the object doesn't use auto-increment 
-	 * indexing and doesn't have an index attribute
-	 * @throws DatabaseException If the operation failed
+	 * @throws DatabaseException If the operation was misused (logic error)
 	 */
 	public static boolean objectIsInDatabase(DatabaseWritable model) throws 
-			DatabaseUnavailableException, IndexAttributeRequiredException, DatabaseException
+			DatabaseUnavailableException, DatabaseException
 	{
 		if (modelUsesAutoIncrementButHasNoIndex(model))
 			return false;
@@ -953,10 +950,9 @@ public class DatabaseAccessor
 			
 			return !result.isEmpty();
 		}
-		catch (WhereConditionParseException e)
+		catch (IndexAttributeRequiredException e)
 		{
-			// Only reached with serious errors
-			throw new RuntimeException(e);
+			throw new DatabaseException(e, model);
 		}
 	}
 	
@@ -970,17 +966,15 @@ public class DatabaseAccessor
 	}
 	
 	private static void overwriteObjectIntoDatabase(DatabaseWritable model, 
-			boolean noNullUpdates) throws DatabaseUnavailableException, 
-			IndexAttributeRequiredException, DatabaseException
+			boolean noNullUpdates) throws DatabaseUnavailableException, DatabaseException
 	{
 		try
 		{
 			update(model, EqualsWhereCondition.createWhereIndexCondition(model), noNullUpdates);
 		}
-		catch (WhereConditionParseException e)
+		catch (IndexAttributeRequiredException e)
 		{
-			// Only reached with serious programming errors
-			throw new RuntimeException(e); 
+			throw new DatabaseException(e, model);
 		}
 	}
 	

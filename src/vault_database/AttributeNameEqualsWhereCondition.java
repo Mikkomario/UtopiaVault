@@ -105,4 +105,24 @@ public class AttributeNameEqualsWhereCondition extends SingleWhereCondition
 		
 		return sql.toString();
 	}
+
+	@Override
+	protected String getDebugSqlWithNoParsing(DatabaseTable targetTable)
+	{
+		StringBuilder s = new StringBuilder();
+		
+		s.append(this.attributeNames[0]);
+		s.append(" (attribute)");
+		s.append(this.operator);
+		
+		if (this.attributeNames.length > 1)
+		{
+			s.append(this.attributeNames[1]);
+			s.append(" (attribute)");
+		}
+		else
+			s.append("?");
+		
+		return s.toString();
+	}
 }

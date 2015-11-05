@@ -145,15 +145,18 @@ public class AttributeNameMapping
 	 */
 	public void addMappingForEachColumnWherePossible(Collection<? extends Column> columns)
 	{
-		for (Column column : columns)
+		if (columns != null)
 		{
-			try
+			for (Column column : columns)
 			{
-				getAttributeName(column.getName());
-			}
-			catch (NoAttributeForColumnException e)
-			{
-				// Ignored
+				try
+				{
+					getAttributeName(column.getName());
+				}
+				catch (NoAttributeForColumnException e)
+				{
+					// Ignored
+				}
 			}
 		}
 	}
@@ -189,6 +192,50 @@ public class AttributeNameMapping
 			throw latestException;
 		
 		return null;
+	}
+	
+	/**
+	 * @return Parses a debug message that describes the contents of this mapping
+	 */
+	public String getDebugString()
+	{
+		StringBuilder s = new StringBuilder();
+		if (this.columnCasing.isEmpty())
+			s.append("No existing mappings");
+		else
+		{
+			s.append("Mappings:");
+			for (String columnName : this.columnCasing.values())
+			{
+				s.append("\n");
+				s.append(columnName);
+				s.append(" <=> ");
+				try
+				{
+					s.append(getAttributeName(columnName));
+				}
+				catch (NoAttributeForColumnException e)
+				{
+					s.append("ERROR");
+				}
+			}
+		}
+		
+		if (!this.rules.isEmpty())
+		{
+			s.append("\nRules:");
+			for (NameMappingRule rule : this.rules)
+			{
+				s.append("\n");
+				String className = rule.getClass().getSimpleName();
+				if (className != null)
+					s.append(className);
+				else
+					s.append("?");
+			}
+		}
+		
+		return s.toString();
 	}
 	
 	private String getCorrectCasingForColumnName(String columnName)

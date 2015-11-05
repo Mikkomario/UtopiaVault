@@ -195,6 +195,25 @@ public class EqualsWhereCondition extends SingleWhereCondition
 		return sql.toString();
 	}
 	
+	@Override
+	protected String getDebugSqlWithNoParsing(DatabaseTable targetTable)
+	{
+		StringBuilder s = new StringBuilder();
+		
+		if (this.usedColumns.length == 0)
+			s.append(this.usedColumns[0]);
+		else
+			s.append("?");
+		
+		s.append(this.operator.toString());
+		
+		if (this.usedColumns.length > 1)
+			s.append(this.usedColumns[1]);
+		else
+			s.append("?");
+		
+		return s.toString();
+	}
 	
 	
 	

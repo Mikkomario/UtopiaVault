@@ -45,6 +45,14 @@ public abstract class SingleWhereCondition extends WhereCondition
 	protected abstract String getSQLWithPlaceholders(DatabaseTable targetTable) throws 
 			WhereConditionParseException;
 	
+	/**
+	 * This method is used when creating a debug message for a where condition that couldn't 
+	 * be parsed.
+	 * @param targetTable The table the condition was used for
+	 * @return A debug message describing the where condition. No parsing should be done.
+	 */
+	protected abstract String getDebugSqlWithNoParsing(DatabaseTable targetTable);
+	
 	
 	// ACCESSORS	-----------------
 	
@@ -122,26 +130,49 @@ public abstract class SingleWhereCondition extends WhereCondition
 	@Override
 	public String getDebugSql(DatabaseTable targetTable)
 	{
-		String sql;
 		try
 		{
-			sql = toSql(targetTable);
+			String sql = toSql(targetTable);
+			for (DatabaseValue value : this.values)
+			{
+				String valueString;
+				if (value == null)
+					valueString = "null";
+				else
+					valueString = "'" + value.toString() + "'";
+				
+				sql = sql.replaceFirst("\\?", valueString);
+			}
+			
+			return sql;
 		}
 		catch (WhereConditionParseException e)
 		{
-			return "Can't be parsed";
-		}
-		for (DatabaseValue value : this.values)
-		{
-			String valueString;
-			if (value == null)
-				valueString = "null";
+			StringBuilder s = new StringBuilder();
+			if (this.inverted)
+			{
+				s.append("NOT (");
+				s.append(getDebugSqlWithNoParsing(targetTable));
+				s.append(")");
+			}
 			else
-				valueString = "'" + value.toString() + "'";
+				s.append(getDebugSqlWithNoParsing(targetTable));
 			
-			sql = sql.replaceFirst("\\?", valueString);
+			if (this.values.length == 0)
+				s.append("\nNo provided values");
+			{
+				s.append("\nValues used: ");
+				for (int i = 0; i < this.values.length; i++)
+				{
+					if (i != 0)
+						s.append(", ");
+					s.append(this.values[i]);
+				}
+			}
+			
+			return s.toString();
 		}
 		
-		return sql;
+		
 	}
 }

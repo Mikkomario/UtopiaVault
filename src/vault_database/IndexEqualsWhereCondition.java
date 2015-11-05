@@ -43,4 +43,15 @@ public class IndexEqualsWhereCondition extends SingleWhereCondition
 		return indexColumn.getName() + " <=> ?";
 	}
 
+
+	@Override
+	protected String getDebugSqlWithNoParsing(DatabaseTable targetTable)
+	{
+		Column indexColumn = targetTable.getPrimaryColumn();
+		
+		if (indexColumn == null)
+			return "index (missing) <=> ?";
+		else
+			return indexColumn.getName() + " <=> ?";
+	}
 }

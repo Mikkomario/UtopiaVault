@@ -15,11 +15,9 @@ import vault_database.DatabaseException;
 import vault_database.DatabaseSettings;
 import vault_database.DatabaseValue;
 import vault_database.EqualsWhereCondition.Operator;
-import vault_database.IndexAttributeRequiredException;
 import vault_database.Attribute.AttributeDescription;
 import vault_database.DatabaseUnavailableException;
 import vault_database.WhereCondition;
-import vault_database.WhereCondition.WhereConditionParseException;
 import vault_recording.DatabaseModel;
 
 /**
@@ -110,27 +108,9 @@ public class DatabaseTest
 			
 			System.out.println("OK!");
 		}
-		catch (DatabaseException e)
-		{
-			System.err.println("Failure due to databaseException");
-			System.err.println(e.getDebugMessage());
-			e.printStackTrace();
-		}
 		catch (DatabaseUnavailableException e)
 		{
 			System.err.println("Failure. Can't connect to DB");
-			e.printStackTrace();
-		}
-		catch (IndexAttributeRequiredException e)
-		{
-			System.err.println("Failure. No index.");
-			if (e.getSourceObject() != null)
-			{
-				for (Attribute attribute : e.getSourceObject().getAttributes())
-				{
-					System.err.println(attribute);
-				}
-			}
 			e.printStackTrace();
 		}
 		catch (MappingException e)
@@ -138,9 +118,10 @@ public class DatabaseTest
 			System.err.println("Failure. Attribute name mapping failed");
 			e.printStackTrace();
 		}
-		catch (WhereConditionParseException e)
+		catch (DatabaseException e)
 		{
-			System.err.println("Failure. Where condition couldn't be parsed");
+			System.err.println("Failure. Database exception");
+			System.err.println(e.getDebugMessage());
 			e.printStackTrace();
 		}
 	}
@@ -150,7 +131,7 @@ public class DatabaseTest
 	
 	private static List<DatabaseModel> insert(int amount, String[] possibleNames, 
 			Integer[] possibleAdditionals) throws 
-			DatabaseUnavailableException, IndexAttributeRequiredException, DatabaseException
+			DatabaseUnavailableException, DatabaseException
 	{
 		Random random = new Random();
 		List<DatabaseModel> data = new ArrayList<>();
@@ -193,8 +174,7 @@ public class DatabaseTest
 	}
 	
 	private static List<DatabaseModel> read() throws 
-			DatabaseUnavailableException, DatabaseException, NoAttributeForColumnException, 
-			WhereConditionParseException
+			DatabaseUnavailableException, NoAttributeForColumnException, DatabaseException
 	{
 		// Finds out all the id's
 		AttributeDescription indexDescription = new AttributeDescription(
@@ -218,7 +198,7 @@ public class DatabaseTest
 	}
 	
 	private static void removeTestData(List<DatabaseModel> data) throws  
-			DatabaseUnavailableException, IndexAttributeRequiredException, DatabaseException
+			DatabaseUnavailableException, DatabaseException
 	{
 		for (DatabaseModel model : data)
 		{
@@ -227,7 +207,7 @@ public class DatabaseTest
 	}
 	
 	private static void update(List<DatabaseModel> data) throws DatabaseUnavailableException, 
-			IndexAttributeRequiredException, DatabaseException
+			DatabaseException
 	{
 		for (DatabaseModel model: data)
 		{
@@ -249,7 +229,7 @@ public class DatabaseTest
 	}
 	
 	private static int numberOfModelsWithName(String name) throws DatabaseUnavailableException, 
-			DatabaseException, NoAttributeForColumnException, WhereConditionParseException
+			NoAttributeForColumnException, DatabaseException
 	{
 		//List<Attribute> whereAttributes = new Attribute(Attribute.getTableAttributeDescription(
 		//		TestTable.DEFAULT, "name"), name).wrapIntoList();
