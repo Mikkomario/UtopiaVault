@@ -144,13 +144,17 @@ public class DatabaseException extends DebuggableException
 			DatabaseTable table)
 	{
 		StringBuilder s = new StringBuilder(cause.getMessage());
-		if (where != null)
+		if (table != null)
 		{
-			s.append("\nWhere: ");
-			s.append(where.getDebugSql(table));
+			if (where != null && table != null)
+			{
+				s.append("\nWhere: ");
+				s.append(where.getDebugSql(table));
+			}
+			
+			s.append("\nWith table: ");
+			s.append(table);
 		}
-		s.append("\nWith table: ");
-		s.append(table);
 		
 		return s.toString();
 	}
