@@ -12,8 +12,9 @@ import vault_database.Attribute;
 public interface DatabaseReadable extends DatabaseStorable
 {
 	/**
-	 * Updates the object's attributes, possibly adding new ones
-	 * @param readAttributes The attributes read from the database
+	 * Updates the object's attributes, possibly adding new ones. Previous attributes or 
+	 * attribute values may be overwritten.
+	 * @param attributes The new attributes stored in the model
 	 */
-	public void updateAttributes(Collection<Attribute> readAttributes);
+	public void addAttributes(Collection<Attribute> attributes);
 }

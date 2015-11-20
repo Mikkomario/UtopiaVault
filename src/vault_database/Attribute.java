@@ -49,16 +49,16 @@ public class Attribute
 	
 	/**
 	 * Creates a new attribute
-	 * @param columnInfo The column associated with this attribute
+	 * @param column The column associated with this attribute
 	 * @param nameMapping The column name to attribute name -mapping
 	 * @param value The attribute's value
 	 * @throws NoAttributeForColumnException If the column name couldn't be mapped to an 
 	 * attribute name
 	 */
-	public Attribute(Column columnInfo, AttributeNameMapping nameMapping, Object value) 
+	public Attribute(Column column, AttributeNameMapping nameMapping, Object value) 
 			throws NoAttributeForColumnException
 	{
-		this.description = new AttributeDescription(columnInfo, nameMapping);
+		this.description = new AttributeDescription(column, nameMapping);
 		setValue(value);
 	}
 	
@@ -390,16 +390,16 @@ public class Attribute
 		
 		/**
 		 * Creates a new description. The attribute name will be read from the name mapping
-		 * @param columnInfo The column this attribute is based on
+		 * @param column The column this attribute is based on
 		 * @param nameMapping The column name to attribute name -mappings
 		 * @throws NoAttributeForColumnException If the mapping couldn't be used for finding 
 		 * the attribute name
 		 */
-		public AttributeDescription(Column columnInfo, AttributeNameMapping nameMapping) 
+		public AttributeDescription(Column column, AttributeNameMapping nameMapping) 
 				throws NoAttributeForColumnException
 		{
-			this.column = columnInfo;
-			this.name = nameMapping.getAttributeName(columnInfo.getName());
+			this.column = column;
+			this.name = nameMapping.getAttributeName(column.getName());
 		}
 		
 		

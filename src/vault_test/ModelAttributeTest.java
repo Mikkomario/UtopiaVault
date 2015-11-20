@@ -43,7 +43,7 @@ public class ModelAttributeTest
 		{
 			DatabaseSettings.initialize(address, user, password, null);
 			
-			DatabaseModel testModel = new DatabaseModel(TestTable.DEFAULT, true);
+			DatabaseModel testModel = new DatabaseModel(TestTable.DEFAULT);
 			testModel.initializeTableAttributesToNull(true);
 			
 			System.out.println("Attributes read: " + testModel.getAttributes().size());

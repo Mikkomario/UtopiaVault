@@ -15,7 +15,6 @@ import vault_database.DataType.InvalidDataTypeException;
  * DatabaseTables are used in multiTableHandling, for example. The subclasses should be 
  * enumerations rather than normal classes. In case a normal class inherits this class, it 
  * should override its equals method.
- * 
  * @author Mikko Hilpinen
  * @since 25.7.2014
  */

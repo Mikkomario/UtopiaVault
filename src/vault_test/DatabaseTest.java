@@ -139,7 +139,7 @@ public class DatabaseTest
 		
 		for (int i = 0; i < amount; i++)
 		{
-			DatabaseModel model = new DatabaseModel(TestTable.DEFAULT, true);
+			DatabaseModel model = new DatabaseModel(TestTable.DEFAULT);
 			// Adds name & additional
 			/*
 			for (ColumnInfo column : columnInfo)
@@ -189,7 +189,7 @@ public class DatabaseTest
 		List<DatabaseModel> models = new ArrayList<>();
 		for (List<Attribute> idResult : ids)
 		{
-			DatabaseModel model = new DatabaseModel(TestTable.DEFAULT, true);
+			DatabaseModel model = new DatabaseModel(TestTable.DEFAULT);
 			DatabaseAccessor.readObjectAttributesFromDatabase(model, idResult.get(0).getValue());
 			models.add(model);
 		}

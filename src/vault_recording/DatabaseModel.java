@@ -24,7 +24,6 @@ public class DatabaseModel implements DatabaseReadable, DatabaseWritable
 	
 	private Map<String, Attribute> attributes;
 	private DatabaseTable table;
-	private boolean allowUpdateRewrite;
 	
 	
 	// CONSTRUCTOR	--------------------
@@ -32,33 +31,26 @@ public class DatabaseModel implements DatabaseReadable, DatabaseWritable
 	/**
 	 * Creates a new empty database model
 	 * @param table The table the model uses
-	 * @param allowUpdateRewrite Does the model allow attribute changes from the database if 
-	 * there is already an attribute with the same name
 	 * @see DatabaseAccessor#readObjectAttributesFromDatabase(DatabaseReadable, vault_database.DatabaseValue)
 	 */
-	public DatabaseModel(DatabaseTable table, boolean allowUpdateRewrite)
+	public DatabaseModel(DatabaseTable table)
 	{
 		this.attributes = new HashMap<>();
 		this.table = table;
-		this.allowUpdateRewrite = allowUpdateRewrite;
 	}
 	
 	/**
 	 * Creates a new database model with existing attributes
 	 * @param table The table the model uses
-	 * @param allowUpdateRewrite Does the model allow attribute changes from the database if 
-	 * there is already an attribute with the same name
 	 * @param attributes The attributes the model will have. The model will use a different 
 	 * collection and just copies values from this one
 	 * @see DatabaseAccessor#updateObjectToDatabase(DatabaseWritable, boolean)
 	 */
-	public DatabaseModel(DatabaseTable table, boolean allowUpdateRewrite, 
-			Collection<? extends Attribute> attributes)
+	public DatabaseModel(DatabaseTable table, Collection<? extends Attribute> attributes)
 	{
 		this.attributes = new HashMap<>();
 		addAttributes(attributes, true);
 		this.table = table;
-		this.allowUpdateRewrite = allowUpdateRewrite;
 	}
 	
 	/**
@@ -70,7 +62,6 @@ public class DatabaseModel implements DatabaseReadable, DatabaseWritable
 	{
 		this.attributes = new HashMap<>();
 		this.table = other.getTable();
-		this.allowUpdateRewrite = other.allowsUpdateRewrite();
 		
 		// Copies the attributes
 		for (Attribute attribute : other.getAttributes())
@@ -95,9 +86,9 @@ public class DatabaseModel implements DatabaseReadable, DatabaseWritable
 	}
 
 	@Override
-	public void updateAttributes(Collection<Attribute> readAttributes)
+	public void addAttributes(Collection<Attribute> readAttributes)
 	{
-		addAttributes(readAttributes, allowsUpdateRewrite());
+		addAttributes(readAttributes, true);
 	}
 	
 	@Override
@@ -115,18 +106,6 @@ public class DatabaseModel implements DatabaseReadable, DatabaseWritable
 					" can't be mapped to an attribute name");
 			e.printStackTrace();
 		}
-	}
-	
-	
-	// ACCESSORS	---------------------------
-	
-	/**
-	 * @return Should the object overwrite it's existing attributes with those read from a 
-	 * database
-	 */
-	public boolean allowsUpdateRewrite()
-	{
-		return this.allowUpdateRewrite;
 	}
 	
 	

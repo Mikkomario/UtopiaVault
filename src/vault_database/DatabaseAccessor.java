@@ -799,7 +799,7 @@ public class DatabaseAccessor
 					EqualsWhereCondition.createWhereIndexCondition(model), 1);
 			if (!results.isEmpty())
 			{
-				model.updateAttributes(results.get(0));
+				model.addAttributes(results.get(0));
 				return true;
 			}
 			else
@@ -828,7 +828,7 @@ public class DatabaseAccessor
 				where, 1, null);
 		if (!results.isEmpty())
 		{
-			model.updateAttributes(results.get(0));
+			model.addAttributes(results.get(0));
 			return true;
 		}
 		else
