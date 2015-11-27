@@ -341,6 +341,22 @@ public class Attribute
 	}
 	
 	/**
+	 * Creates a new attribute description based on a database table's primary column
+	 * @param table a database table
+	 * @return The attribute description for the table's primary column. Null if the table 
+	 * doesn't have a primary column
+	 * @throws NoAttributeForColumnException If attribute name mapping failed
+	 */
+	public static AttributeDescription getPrimaryColumnDescription(DatabaseTable table) throws 
+			NoAttributeForColumnException
+	{
+		Column column = table.getPrimaryColumn();
+		if (column == null)
+			return null;
+		return new AttributeDescription(column, table.getAttributeNameMapping());
+	}
+	
+	/**
 	 * Creates a new attribute description for a table's attribute
 	 * @param table The database table
 	 * @param attributeName An attribute that should be associated with a column in the table

@@ -49,8 +49,8 @@ public class DatabaseModel implements DatabaseReadable, DatabaseWritable
 	public DatabaseModel(DatabaseTable table, Collection<? extends Attribute> attributes)
 	{
 		this.attributes = new HashMap<>();
-		addAttributes(attributes, true);
 		this.table = table;
+		addAttributes(attributes, true);
 	}
 	
 	/**
@@ -236,20 +236,26 @@ public class DatabaseModel implements DatabaseReadable, DatabaseWritable
 	}
 	
 	/**
-	 * Adds a single attribute to the model
+	 * Adds a single attribute to the model. Only adds attributes that belong to the model's 
+	 * table.
 	 * @param attribute The attribute that will be added
 	 * @param replaceIfExists If there already exists an attribute with the same name, should 
 	 * it be overwritten by this one
 	 */
 	public void addAttribute(Attribute attribute, boolean replaceIfExists)
 	{
-		if (attribute != null && (replaceIfExists || 
-				!this.attributes.containsKey(attribute.getName())))
+		// Only adds attributes that belong to the model's table
+		if (attribute == null || !getTable().getColumnInfo().contains(
+				attribute.getDescription().getColumn()))
+			return;
+		
+		if (replaceIfExists || !this.attributes.containsKey(attribute.getName()))
 			this.attributes.put(attribute.getName(), attribute);
 	}
 	
 	/**
-	 * Adds multiple attributes to the model
+	 * Adds multiple attributes to the model. Only adds attributes that belong to the model's 
+	 * table.
 	 * @param attributes The attributes that will be added
 	 * @param replaceIfExists If there already exists attributes with same names, should they 
 	 * be overwritten

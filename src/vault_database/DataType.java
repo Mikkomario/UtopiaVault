@@ -233,6 +233,9 @@ public class DataType
 	{
 		String lower = s.toLowerCase();
 		
+		if (lower.startsWith("bigint"))
+			return Types.BIGINT;
+		
 		if (lower.startsWith("tiny"))
 			return parseSqlType(s.substring(4));
 		if (lower.startsWith("big"))

@@ -112,6 +112,27 @@ public class EqualsWhereCondition extends SingleWhereCondition
 	public static WhereCondition createWhereModelAttributesCondition(Operator operator, 
 			Collection<? extends Attribute> attributes, boolean noNullConditions)
 	{
+		return createWhereModelAttributesCondition(operator, attributes, noNullConditions, 
+				CombinationOperator.AND);
+	}
+	
+	/**
+	 * Creates a new where condition that is true when the provided operator is true for 
+	 * each attribute in the provided collection, basically chaining multiple attribute conditions 
+	 * with a combination operator.
+	 * @param operator The operator used for the attribute conditions (usually equals)
+	 * @param attributes a set of attributes that form the condition
+	 * @param noNullConditions Should null value attributes be skipped when creating the 
+	 * condition
+	 * @param combinationOperator The operator that is used for combining the conditions 
+	 * (default = AND)
+	 * @return A where condition. Null if the condition allows all rows (empty or null 
+	 * attributes collection or all attributes were null and noNullConditions was true)
+	 */
+	public static WhereCondition createWhereModelAttributesCondition(Operator operator, 
+			Collection<? extends Attribute> attributes, boolean noNullConditions, 
+			CombinationOperator combinationOperator)
+	{
 		if (attributes == null)
 			return null;
 		
@@ -135,7 +156,7 @@ public class EqualsWhereCondition extends SingleWhereCondition
 		
 		try
 		{
-			return CombinedWhereCondition.combineConditions(CombinationOperator.AND, conditions);
+			return CombinedWhereCondition.combineConditions(combinationOperator, conditions);
 		}
 		catch (WhereConditionParseException e)
 		{

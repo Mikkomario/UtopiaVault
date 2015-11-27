@@ -609,10 +609,46 @@ public class DatabaseAccessor
 	 * @throws DatabaseUnavailableException If the database can't be accessed
 	 * @throws DatabaseException 
 	 */
+	@SuppressWarnings("resource")
 	public static void delete(DatabaseTable fromTable, WhereCondition where) 
 			throws DatabaseUnavailableException, DatabaseException
 	{
-		delete(fromTable, null, null, where);
+		//delete(fromTable, null, null, where);
+		
+		StringBuilder sql = new StringBuilder("DELETE FROM ");
+		sql.append(fromTable.getTableName());
+		if (where != null)
+		{
+			try
+			{
+				sql.append(where.toWhereClause(fromTable));
+			}
+			catch (WhereConditionParseException e)
+			{
+				throw new DatabaseException(e, fromTable, where);
+			}
+		}
+		
+		DatabaseAccessor accessor = new DatabaseAccessor(fromTable.getDatabaseName());
+		PreparedStatement statement = null;
+		try
+		{
+			// Prepares the statement
+			statement = accessor.getPreparedStatement(sql.toString());
+			if (where != null)
+				where.setObjectValues(statement, 1);
+			// Executes
+			statement.executeUpdate();
+		}
+		catch (SQLException e)
+		{
+			throw new DatabaseException(e, sql.toString(), fromTable, where, null);
+		}
+		finally
+		{
+			closeStatement(statement);
+			accessor.closeConnection();
+		}
 	}
 	
 	/**
@@ -625,6 +661,7 @@ public class DatabaseAccessor
 	 * @throws DatabaseUnavailableException If the database can't be accessed
 	 * @throws DatabaseException If the operation was misused (logic error)
 	 */
+	/*
 	@SuppressWarnings("resource")
 	public static void delete(DatabaseTable fromTable, DatabaseTable joinTable, 
 			Collection<? extends JoinCondition> joinConditions, 
@@ -666,6 +703,7 @@ public class DatabaseAccessor
 			accessor.closeConnection();
 		}
 	}
+	*/
 	
 	/**
 	 * Updates model attributes to database where the where condition allows
