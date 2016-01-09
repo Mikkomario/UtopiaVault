@@ -6,6 +6,7 @@ import java.sql.Types;
  * This represents a data type usable with the databases
  * @author Mikko Hilpinen
  * @since 2.10.2015
+ * @deprecated Use vault_generics.SqlDataType instead
  */
 public class DataType
 {

@@ -15,6 +15,7 @@ import vault_database.DataType.InvalidDataTypeException;
  * operations that are data type independent
  * @author Mikko Hilpinen
  * @since 2.10.2015
+ * @deprecated Use flow_generics.Value instead
  */
 public class DatabaseValue
 {
@@ -699,7 +700,14 @@ public class DatabaseValue
 		}
 		catch (NumberFormatException e)
 		{
-			throw getDataCastException(DataType.STRING, DataType.INTEGER, value);
+			try
+			{
+				return (int) Double.parseDouble(value);
+			}
+			catch (NumberFormatException e1)
+			{
+				throw getDataCastException(DataType.STRING, DataType.INTEGER, value);
+			}
 		}
 	}
 	

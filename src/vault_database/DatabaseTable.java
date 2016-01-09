@@ -17,6 +17,7 @@ import vault_database.DataType.InvalidDataTypeException;
  * should override its equals method.
  * @author Mikko Hilpinen
  * @since 25.7.2014
+ * @deprecated Use the {@link vault_generics.DatabaseTable} instead
  */
 public interface DatabaseTable
 {
@@ -187,6 +188,7 @@ public interface DatabaseTable
 	 * ColumnInfo is a simple description of a single column in a table
 	 * @author Mikko Hilpinen
 	 * @since 30.5.2015
+	 * @deprecated use vault_generics.Column instead
 	 */
 	public static class Column
 	{
