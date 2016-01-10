@@ -5,17 +5,17 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 
-import vault_database.Attribute;
-import vault_database.Attribute.AttributeDescription;
-import vault_database.AttributeNameMapping.NoAttributeForColumnException;
-import vault_database.AttributeNameMapping.NoColumnForAttributeException;
-import vault_database.CombinedWhereCondition.CombinationOperator;
-import vault_database.DatabaseAccessor;
-import vault_database.DatabaseException;
-import vault_database.DatabaseUnavailableException;
-import vault_database.DatabaseValue;
-import vault_database.EqualsWhereCondition;
-import vault_database.EqualsWhereCondition.Operator;
+import vault_database_old.Attribute;
+import vault_database_old.DatabaseAccessor;
+import vault_database_old.DatabaseException;
+import vault_database_old.DatabaseUnavailableException;
+import vault_database_old.DatabaseValue;
+import vault_database_old.EqualsWhereCondition;
+import vault_database_old.Attribute.AttributeDescription;
+import vault_database_old.AttributeNameMapping.NoAttributeForColumnException;
+import vault_database_old.AttributeNameMapping.NoColumnForAttributeException;
+import vault_database_old.CombinedWhereCondition.CombinationOperator;
+import vault_database_old.EqualsWhereCondition.Operator;
 
 /**
  * This is a static collection of example methods that perform different database queries 

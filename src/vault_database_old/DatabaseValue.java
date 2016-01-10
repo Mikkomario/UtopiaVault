@@ -1,4 +1,4 @@
-package vault_database;
+package vault_database_old;
 
 import java.sql.Date;
 import java.sql.PreparedStatement;
@@ -8,7 +8,7 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeParseException;
 
-import vault_database.DataType.InvalidDataTypeException;
+import vault_database_old.DataType.InvalidDataTypeException;
 
 /**
  * DatabaseValue is a bit more secure version of Object class to be used with database 

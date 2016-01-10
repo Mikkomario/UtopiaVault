@@ -1,9 +1,8 @@
 package vault_generics;
 
-import flow_generics.DataType;
+import vault_generics.VariableNameMapping.NoVariableForColumnException;
 import flow_generics.Value;
 import flow_generics.VariableDeclaration;
-import vault_database.AttributeNameMapping.NoAttributeForColumnException;
 
 /**
  * Column is a description of a single column in a table
@@ -15,11 +14,11 @@ public class Column extends VariableDeclaration
 	// ATTRIBUTES	----------------------
 	
 	private String columnName;
-	private DatabaseTable table;
+	private Table table;
 	private boolean autoIncrement, primary, nullAllowed;
 	private Value defaultValue;
+	private SqlDataType type;
 	
-	// TODO: Add default value assign as well as cast to database variable
 	
 	// CONSTRUCTOR	----------------------
 	
@@ -33,13 +32,15 @@ public class Column extends VariableDeclaration
 	 * @param nullAllowed Is null allowed in this column
 	 * @param defaultValue The default value used for this column. The value will be cast 
 	 * to the correct type
-	 * @throws NoAttributeForColumnException If the column name has not been mapped
+	 * @throws NoVariableForColumnException If the column name couldn't be mapped to a 
+	 * variable name
 	 */
-	public Column(DatabaseTable table, String columnName, DataType type, boolean nullAllowed, 
-			boolean primary, boolean autoIncrement, Value defaultValue) throws NoAttributeForColumnException
+	public Column(Table table, String columnName, SqlDataType type, boolean nullAllowed, 
+			boolean primary, boolean autoIncrement, Value defaultValue) throws NoVariableForColumnException
 	{
-		super(table.getNameMapping().getAttributeName(columnName), type);
+		super(table.getNameMapping().getVariableName(columnName), type);
 		
+		this.type = type;
 		this.table = table;
 		this.columnName = columnName;
 		this.primary = primary;
@@ -68,12 +69,12 @@ public class Column extends VariableDeclaration
 	}
 	
 	
-	// GETTERS & SETTERS	---------------
+	// ACCESSORS	---------------
 	
 	/**
 	 * @return The table the column is in
 	 */
-	public DatabaseTable getTable()
+	public Table getTable()
 	{
 		return this.table;
 	}
@@ -116,5 +117,13 @@ public class Column extends VariableDeclaration
 	public Value getDefaultValue()
 	{
 		return this.defaultValue;
+	}
+	
+	/**
+	 * @return The data type of the column in sql type format
+	 */
+	public SqlDataType getSqlType()
+	{
+		return this.type;
 	}
 }

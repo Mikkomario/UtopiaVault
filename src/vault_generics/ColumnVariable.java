@@ -13,11 +13,13 @@ import flow_generics.Variable;
  * @author Mikko Hilpinen
  * @since 9.1.2015
  */
-public class DatabaseVariable extends Variable
+public class ColumnVariable extends Variable
 {
 	// ATTRIBUTES	-----------------
 	
 	private Column column;
+	
+	// TODO: Add handling for default value
 	
 	
 	// CONSTRUCTOR	-----------------
@@ -26,7 +28,7 @@ public class DatabaseVariable extends Variable
 	 * Creates a copy of another database variable
 	 * @param other
 	 */
-	public DatabaseVariable(DatabaseVariable other)
+	public ColumnVariable(ColumnVariable other)
 	{
 		super(other);
 		
@@ -38,12 +40,12 @@ public class DatabaseVariable extends Variable
 	 * @param table A table that should contain the variable's column
 	 * @param other another variable
 	 */
-	public DatabaseVariable(Variable other, DatabaseTable table)
+	public ColumnVariable(Variable other, Table table)
 	{
 		super(other);
 		
-		if (other instanceof DatabaseVariable)
-			this.column = ((DatabaseVariable) other).getColumn();
+		if (other instanceof ColumnVariable)
+			this.column = ((ColumnVariable) other).getColumn();
 		else
 			this.column = table.findColumnWithVariableName(getName());
 	}
@@ -53,7 +55,7 @@ public class DatabaseVariable extends Variable
 	 * @param column The column the variable is based on
 	 * @param value The value assigned to the variable
 	 */
-	public DatabaseVariable(Column column, Value value)
+	public ColumnVariable(Column column, Value value)
 	{
 		super(column.getName(), column.getType(), value);
 		this.column = column;
@@ -63,7 +65,7 @@ public class DatabaseVariable extends Variable
 	 * Creates a new database variable with the default value
 	 * @param column the column this variable is based on
 	 */
-	public DatabaseVariable(Column column)
+	public ColumnVariable(Column column)
 	{
 		super(column.getName(), column.getType(), column.getDefaultValue());
 		this.column = column;
@@ -77,7 +79,7 @@ public class DatabaseVariable extends Variable
 	 * @param valueType The data type of the provided value
 	 * @throws DataTypeException If the casting failed
 	 */
-	public DatabaseVariable(Column column, Object value, DataType valueType) throws DataTypeException
+	public ColumnVariable(Column column, Object value, DataType valueType) throws DataTypeException
 	{
 		super(column.getName(), column.getType(), value, valueType);
 		this.column = column;
@@ -90,11 +92,11 @@ public class DatabaseVariable extends Variable
 	 * @param value The value that will be assigned to the variable
 	 * @return A new database variable
 	 */
-	public static DatabaseVariable createVariable(DatabaseTable table, String variableName, 
+	public static ColumnVariable createVariable(Table table, String variableName, 
 			Value value)
 	{
 		Column column = table.findColumnWithVariableName(variableName);
-		return new DatabaseVariable(column, value);
+		return new ColumnVariable(column, value);
 	}
 
 	

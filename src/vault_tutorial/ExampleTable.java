@@ -5,10 +5,10 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-import vault_database.AfterLastUnderLineRule;
-import vault_database.AttributeNameMapping;
-import vault_database.DatabaseTable;
-import vault_database.DatabaseUnavailableException;
+import vault_database_old.AttributeNameMapping;
+import vault_database_old.DatabaseTable;
+import vault_database_old.DatabaseUnavailableException;
+import vault_generics.AfterLastUnderLineRule;
 
 /**
  * This is an example implementation of the {@link DatabaseTable} interface. Notice that the 

@@ -1,17 +1,8 @@
 package vault_generics;
 
-import java.sql.PreparedStatement;
-import java.sql.ResultSet;
-import java.sql.SQLException;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.List;
-
-import flow_generics.DataType;
-import flow_generics.Value;
-import vault_database.AttributeNameMapping;
-import vault_database.AttributeNameMapping.NoAttributeForColumnException;
-import vault_database.DatabaseAccessor;
-import vault_database.DatabaseUnavailableException;
 
 /**
  * A database table represents a table in a database and contains the necessary column 
@@ -19,19 +10,18 @@ import vault_database.DatabaseUnavailableException;
  * @author Mikko Hilpinen
  * @since 9.1.2016
  */
-public class DatabaseTable
+public class Table
 {
 	// ATTRIBUTES	-------------
 	
 	private String databaseName, name;
-	private AttributeNameMapping nameMapping;
+	private VariableNameMapping nameMapping;
+	private ColumnInitialiser initialiser;
 	
 	private List<Column> columns = null;
 	private Column primaryColumn = null;
 	
-	// TODO: Add a mapping generator class
-	// TODO: Add model declaration generation
-	// TODO: Add a new fuzzy logic name mapper class
+	// TODO: Add fuzzy logic for column search
 	
 	
 	// CONSTRUCTOR	-------------
@@ -41,12 +31,16 @@ public class DatabaseTable
 	 * @param databaseName The name of the database the table uses
 	 * @param name The name of the table
 	 * @param nameMapping The name mapping the table uses
+	 * @param initialiser The initialiser that is able to initialise the table's column data 
+	 * when necessary
 	 */
-	public DatabaseTable(String databaseName, String name, AttributeNameMapping nameMapping)
+	public Table(String databaseName, String name, VariableNameMapping nameMapping, 
+			ColumnInitialiser initialiser)
 	{
 		this.databaseName = databaseName;
 		this.name = name;
 		this.nameMapping = nameMapping;
+		this.initialiser = initialiser;
 	}
 	
 	
@@ -76,9 +70,9 @@ public class DatabaseTable
 			return true;
 		if (obj == null)
 			return false;
-		if (!(obj instanceof DatabaseTable))
+		if (!(obj instanceof Table))
 			return false;
-		DatabaseTable other = (DatabaseTable) obj;
+		Table other = (Table) obj;
 		if (getDatabaseName() == null)
 		{
 			if (other.getDatabaseName() != null)
@@ -118,7 +112,7 @@ public class DatabaseTable
 	/**
 	 * @return The attribute name mapping that defines the variable names for the columns
 	 */
-	public AttributeNameMapping getNameMapping()
+	public VariableNameMapping getNameMapping()
 	{
 		return this.nameMapping;
 	}
@@ -133,11 +127,53 @@ public class DatabaseTable
 		// Reads the column data from the database when first requested
 		if (this.columns == null)
 		{
-			this.columns = readColumnsFromDatabase();
-			// TODO: Also finalise the name mapping
+			this.columns = new ArrayList<>(this.initialiser.generateColumns(this));
+			// Also initialises the mappings
+			getNameMapping().addMappingForEachColumnWherePossible(this.columns);
 		}
 		
 		return this.columns;
+	}
+	
+	/**
+	 * Finds a set of columns that are represented by the provided variable names
+	 * @param variableNames The names of the variables whose columns are requested
+	 * @return A list of columns containing a column for each of the provided variable names 
+	 * that has a corresponding column in this table
+	 */
+	public List<Column> getVariableColumns(Collection<String> variableNames)
+	{
+		List<Column> columns = new ArrayList<>();
+		for (Column column : getColumns())
+		{
+			for (String variableName : variableNames)
+			{
+				if (variableName.equalsIgnoreCase(column.getName()))
+				{
+					columns.add(column);
+					break;
+				}
+			}
+		}
+		
+		return columns;
+	}
+	
+	/**
+	 * Finds a set of columns that are represented by the provided variable names
+	 * @param variableNames The names of the variables whose columns are requested
+	 * @return A list of columns containing a column for each of the provided variable names 
+	 * that has a corresponding column in this table
+	 */
+	public List<Column> getVariableColumns(String... variableNames)
+	{
+		List<String> varNames = new ArrayList<>();
+		for (String varName : variableNames)
+		{
+			varNames.add(varName);
+		}
+		
+		return getVariableColumns(varNames);
 	}
 	
 	/**
@@ -194,9 +230,10 @@ public class DatabaseTable
 	/**
 	 * Finds a column in this table that has the provided variable name
 	 * @param variableName The name of the column variable
-	 * @return A column in this table with the provided name. Null if no such column exists.
+	 * @return A column in this table with the provided name.
+	 * @throws NoSuchColumnException If the column can't be found
 	 */
-	public Column findColumnWithVariableName(String variableName)
+	public Column findColumnWithVariableName(String variableName) throws NoSuchColumnException
 	{
 		for (Column column : getColumns())
 		{
@@ -204,15 +241,16 @@ public class DatabaseTable
 				return column;
 		}
 		
-		return null;
+		throw new NoSuchColumnException(this, variableName, true);
 	}
 	
 	/**
 	 * Finds a column in this table that has the provided column name
 	 * @param columnName The name of a column in the database
-	 * @return A column in this table with the provided column name. Null if no such column exists.
+	 * @return A column in this table with the provided column name.
+	 * @throws NoSuchColumnException If the column can't be found
 	 */
-	public Column findColumnWithColumnName(String columnName)
+	public Column findColumnWithColumnName(String columnName) throws NoSuchColumnException
 	{
 		for (Column column : getColumns())
 		{
@@ -220,59 +258,39 @@ public class DatabaseTable
 				return column;
 		}
 		
-		return null;
+		throw new NoSuchColumnException(this, columnName, false);
 	}
 	
-	private List<Column> readColumnsFromDatabase() throws DatabaseTableInitialisationException
+	/**
+	 * Checks whether the table contains a column with the provided name
+	 * @param columnName The column name of the searched column
+	 * @return Does the table contain a column with the given column name
+	 */
+	public boolean containsColumn(String columnName)
 	{
-		DatabaseAccessor accessor = new DatabaseAccessor(getDatabaseName());
-		PreparedStatement statement = null;
-		ResultSet result = null;
-		List<Column> columns = new ArrayList<>();
-		DatabaseTableInitialisationException exception = null;
-		
-		try
+		for (Column column : getColumns())
 		{
-			statement = accessor.getPreparedStatement("DESCRIBE " + getName());
-			result = statement.executeQuery();
-			// Reads the field names
-			while (result.next())
-			{
-				String name = result.getString("Field");
-				boolean primary = "PRI".equalsIgnoreCase(result.getString("Key"));
-				boolean autoInc = "auto_increment".equalsIgnoreCase(result.getString("Extra"));
-				DataType type = SimpleSqlDataType.parseSqlType(result.getString("Type"));
-				boolean nullAllowed = "YES".equalsIgnoreCase(result.getString("Null"));
-				Value defaultValue = null;
-				if ("NULL".equalsIgnoreCase(result.getString("Default")))
-					defaultValue = Value.NullValue(type);
-				else
-				{
-					Value stringValue = Value.String(result.getString("Default"));
-					defaultValue = stringValue.castTo(type);
-				}
-				
-				columns.add(new Column(this, name, type, nullAllowed, primary, autoInc, 
-						defaultValue));
-			}
-		}
-		catch (DatabaseUnavailableException | SQLException | NoAttributeForColumnException e)
-		{
-			exception = new DatabaseTableInitialisationException(
-					"Failed to read columns for table " + getName(), e);
-		}
-		finally
-		{
-			// Closes the connections
-			DatabaseAccessor.closeResults(result);
-			DatabaseAccessor.closeStatement(statement);
-			accessor.closeConnection();
+			if (column.getColumnName().equalsIgnoreCase(columnName))
+				return true;
 		}
 		
-		if (exception == null)
-			return columns;
-		else
-			throw exception;
+		return false;
+	}
+	
+	/**
+	 * Checks whether the table contains a column with the variable name
+	 * @param variableName The variable name of the searched column
+	 * @return Does the table contain a column with the given variable name
+	 */
+	public boolean containsColumnForVariable(String variableName)
+	{
+		for (Column column : getColumns())
+		{
+			if (column.getName().equalsIgnoreCase(variableName))
+				return true;
+		}
+		
+		return false;
 	}
 	
 	
@@ -291,6 +309,22 @@ public class DatabaseTable
 		private DatabaseTableInitialisationException(String message, Throwable cause)
 		{
 			super(message, cause);
+		}
+	}
+	
+	/**
+	 * These exceptions are thrown when table columns can't be found
+	 * @author Mikko Hilpinen
+	 * @since 10.1.2016
+	 */
+	public static class NoSuchColumnException extends RuntimeException
+	{
+		private static final long serialVersionUID = -1578765040593262050L;
+
+		private NoSuchColumnException(Table table, String name, boolean isVarName)
+		{
+			super(table + " doesn't contain a column with " + (isVarName ? "variable" : "column") + 
+					"name " + name);
 		}
 	}
 }

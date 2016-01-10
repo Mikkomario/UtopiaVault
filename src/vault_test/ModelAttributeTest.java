@@ -1,7 +1,7 @@
 package vault_test;
 
-import vault_database.DatabaseSettings;
-import vault_database.AttributeNameMapping.NoAttributeForColumnException;
+import vault_database_old.DatabaseSettings;
+import vault_database_old.AttributeNameMapping.NoAttributeForColumnException;
 import vault_recording.DatabaseModel;
 
 /**

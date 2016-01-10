@@ -1,4 +1,4 @@
-package vault_database;
+package vault_database_old;
 
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
@@ -7,8 +7,8 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 
-import vault_database.AttributeNameMapping.NoColumnForAttributeException;
-import vault_database.DataType.InvalidDataTypeException;
+import vault_database_old.AttributeNameMapping.NoColumnForAttributeException;
+import vault_database_old.DataType.InvalidDataTypeException;
 
 /**
  * This class is an interface for all classes who need to represent tables in a database. 
@@ -17,7 +17,7 @@ import vault_database.DataType.InvalidDataTypeException;
  * should override its equals method.
  * @author Mikko Hilpinen
  * @since 25.7.2014
- * @deprecated Use the {@link vault_generics.DatabaseTable} instead
+ * @deprecated Use the {@link vault_generics.Table} instead
  */
 public interface DatabaseTable
 {

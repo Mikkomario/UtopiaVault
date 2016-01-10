@@ -1,8 +1,8 @@
 package vault_tutorial;
 
-import vault_database.EqualsWhereCondition;
-import vault_database.EqualsWhereCondition.Operator;
-import vault_database.WhereCondition;
+import vault_database_old.EqualsWhereCondition;
+import vault_database_old.WhereCondition;
+import vault_database_old.EqualsWhereCondition.Operator;
 import vault_tutorial.ExampleUserModel.ExampleRoleModel;
 
 /**

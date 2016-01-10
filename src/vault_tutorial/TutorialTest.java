@@ -2,11 +2,11 @@ package vault_tutorial;
 
 import java.util.Collection;
 
-import vault_database.AttributeNameMapping.MappingException;
-import vault_database.DatabaseAccessor;
-import vault_database.DatabaseException;
-import vault_database.DatabaseSettings;
-import vault_database.DatabaseUnavailableException;
+import vault_database_old.DatabaseAccessor;
+import vault_database_old.DatabaseException;
+import vault_database_old.DatabaseSettings;
+import vault_database_old.DatabaseUnavailableException;
+import vault_database_old.AttributeNameMapping.MappingException;
 import vault_tutorial.ExampleUserModel.ExampleRoleModel;
 
 /**

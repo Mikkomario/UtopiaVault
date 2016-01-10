@@ -3,10 +3,10 @@ package vault_test;
 import java.sql.SQLException;
 import java.util.List;
 
-import vault_database.AfterLastUnderLineRule;
-import vault_database.AttributeNameMapping;
-import vault_database.DatabaseTable;
-import vault_database.DatabaseUnavailableException;
+import vault_database_old.AttributeNameMapping;
+import vault_database_old.DatabaseTable;
+import vault_database_old.DatabaseUnavailableException;
+import vault_generics.AfterLastUnderLineRule;
 
 /**
  * Table(s) used for testing

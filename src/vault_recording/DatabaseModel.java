@@ -6,17 +6,19 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-import vault_database.Attribute;
-import vault_database.Attribute.AttributeDescription;
-import vault_database.AttributeNameMapping.NoAttributeForColumnException;
-import vault_database.DatabaseAccessor;
-import vault_database.DatabaseTable;
-import vault_database.DatabaseTable.Column;
+import vault_database_old.Attribute;
+import vault_database_old.DatabaseAccessor;
+import vault_database_old.DatabaseTable;
+import vault_database_old.Attribute.AttributeDescription;
+import vault_database_old.AttributeNameMapping.NoAttributeForColumnException;
+import vault_database_old.DatabaseTable.Column;
+import vault_generics.CombinedModel;
 
 /**
  * DatabaseModels represent a single row in an indexed table
  * @author Mikko Hilpinen
  * @since 18.9.2015
+ * @deprecated Use {@link CombinedModel} instead
  */
 public class DatabaseModel implements DatabaseReadable, DatabaseWritable
 {
@@ -31,7 +33,7 @@ public class DatabaseModel implements DatabaseReadable, DatabaseWritable
 	/**
 	 * Creates a new empty database model
 	 * @param table The table the model uses
-	 * @see DatabaseAccessor#readObjectAttributesFromDatabase(DatabaseReadable, vault_database.DatabaseValue)
+	 * @see DatabaseAccessor#readObjectAttributesFromDatabase(DatabaseReadable, vault_database_old.DatabaseValue)
 	 */
 	public DatabaseModel(DatabaseTable table)
 	{

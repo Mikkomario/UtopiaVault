@@ -1,7 +1,7 @@
 package vault_tutorial;
 
-import vault_database.DatabaseAccessor;
-import vault_database.DatabaseAccessor.JoinCondition;
+import vault_database_old.DatabaseAccessor;
+import vault_database_old.DatabaseAccessor.JoinCondition;
 
 /**
  * This is a static collection that contains example methods for creating join conditions.

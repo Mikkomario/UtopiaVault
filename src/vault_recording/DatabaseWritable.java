@@ -2,13 +2,15 @@ package vault_recording;
 
 import java.util.Collection;
 
-import vault_database.Attribute;
-import vault_database.DatabaseTable.Column;
+import vault_database_old.Attribute;
+import vault_database_old.DatabaseTable.Column;
+import vault_generics.TableModel;
 
 /**
  * These objects can be written into database.
  * @author Mikko Hilpinen
  * @since 30.5.2015
+ * @deprecated {@link TableModel} makes this interface unnecessary
  */
 public interface DatabaseWritable extends DatabaseStorable
 {
