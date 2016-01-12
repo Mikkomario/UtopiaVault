@@ -6,6 +6,7 @@ import flow_generics.BasicDataType;
 import flow_generics.DataType;
 import flow_generics.DataTypes;
 import flow_generics.SubTypeSet;
+import flow_generics.Value;
 
 /**
  * These data types work like any other, except that they can be used in sql operations
@@ -62,5 +63,15 @@ public interface SqlDataType extends DataType
 		}
 		
 		return types;
+	}
+	
+	/**
+	 * Casts a value to one of the sql-compatible data types
+	 * @param value The value that is casted
+	 * @return The casted value
+	 */
+	public static Value castToSqlType(Value value)
+	{
+		return DataTypes.getInstance().cast(value, getSqlTypes());
 	}
 }

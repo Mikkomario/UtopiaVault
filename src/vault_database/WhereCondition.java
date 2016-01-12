@@ -1,14 +1,15 @@
-package vault_database_old;
+package vault_database;
 
 import java.sql.PreparedStatement;
 import java.sql.SQLException;
+
+import vault_generics.Table;
 
 /**
  * Where conditions can be used in numerous database methods to limit the number of operated 
  * rows
  * @author Mikko Hilpinen
  * @since 2.10.2015
- * @deprecated Replaced with {@link vault_database.WhereCondition}
  */
 public abstract class WhereCondition
 {
@@ -17,28 +18,29 @@ public abstract class WhereCondition
 	/**
 	 * Creates an sql statement based on this where condition. The value spots will be marked 
 	 * with '?' for future preparation. This sql statement doesn't include the first "WHERE", 
-	 * only the condition
-	 * @param targetTable The table the sql operation will be completed on
-	 * @return A logical sql condition like 'NOT (columName = 0)'
+	 * only the condition (Eg. "columnName <=> ? AND another > ?)"
+	 * @return A logical sql condition like 'NOT (columName = ?)'
 	 * @throws WhereConditionParseException If the where condition can't be parsed into sql
 	 */
-	protected abstract String toSql(DatabaseTable targetTable) throws WhereConditionParseException;
+	protected abstract String toSql() throws WhereConditionParseException;
 	
 	/**
 	 * Sets condition values to the prepared sql statement
 	 * @param statement The statement that is being prepared.
 	 * @param startIndex The index where the first value of this condition occurs.
 	 * @return The index of the next value insert
-	 * @throws SQLException If the operation failed
+	 * @throws SQLException If the operation failed due to an sql error
+	 * @throws WhereConditionParseException If the where condition couldn't be parsed 
+	 * to a desirable state
 	 */
-	public abstract int setObjectValues(PreparedStatement statement, int startIndex) throws SQLException;
+	public abstract int setObjectValues(PreparedStatement statement, int startIndex) throws 
+			SQLException, WhereConditionParseException;
 	
 	/**
 	 * Returns a debug string that mimics the final sql statement created from this condition
-	 * @param targetTable The table this condition is used in
 	 * @return A debug sql statement
 	 */
-	public abstract String getDebugSql(DatabaseTable targetTable);
+	public abstract String getDebugSql();
 	
 	
 	// OTHER METHODS	--------------------
@@ -85,9 +87,9 @@ public abstract class WhereCondition
 	 * @return The where condition as a where clause
 	 * @throws WhereConditionParseException If the where condition parsing failed
 	 */
-	public String toWhereClause(DatabaseTable targetTable) throws WhereConditionParseException
+	public String toWhereClause(Table targetTable) throws WhereConditionParseException
 	{
-		String sql = toSql(targetTable);
+		String sql = toSql();
 		
 		if (sql.isEmpty())
 			return sql;
