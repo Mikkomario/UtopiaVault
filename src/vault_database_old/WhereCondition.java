@@ -8,7 +8,7 @@ import java.sql.SQLException;
  * rows
  * @author Mikko Hilpinen
  * @since 2.10.2015
- * @deprecated Replaced with {@link vault_database.WhereCondition}
+ * @deprecated Replaced with {@link vault_database.Condition}
  */
 public abstract class WhereCondition
 {

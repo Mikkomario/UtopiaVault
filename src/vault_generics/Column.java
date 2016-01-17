@@ -88,6 +88,15 @@ public class Column extends VariableDeclaration
 	}
 	
 	/**
+	 * @return The name of the column, including the columns table. A column named 'bar' in 
+	 * table 'foo' would result in 'foo.bar'
+	 */
+	public String getColumnNameWithTable()
+	{
+		return this.table.getName() + "." + this.columnName;
+	}
+	
+	/**
 	 * @return Does the column hold a primary key (default = false)
 	 */
 	public boolean isPrimary()

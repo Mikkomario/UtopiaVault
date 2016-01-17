@@ -2,7 +2,7 @@ package vault_database;
 
 import java.util.Collection;
 
-import vault_database.CombinedWhereCondition.CombinationOperator;
+import vault_database.CombinedCondition.CombinationOperator;
 import vault_generics.Column;
 import vault_generics.ColumnVariable;
 import vault_generics.Table.NoSuchColumnException;
@@ -14,7 +14,7 @@ import flow_generics.Value;
  * @author Mikko Hilpinen
  * @since 17.1.2016
  */
-public class ComparisonWhereCondition extends SingleWhereCondition
+public class ComparisonCondition extends SingleCondition
 {
 	// ATTRIBUTES	------------------
 	
@@ -30,7 +30,7 @@ public class ComparisonWhereCondition extends SingleWhereCondition
 	 * @param operator The operator used for comparing the column values
 	 * @param secondColumn The column on the right side of the comparison
 	 */
-	public ComparisonWhereCondition(Column firstColumn, Operator operator, Column secondColumn)
+	public ComparisonCondition(Column firstColumn, Operator operator, Column secondColumn)
 	{
 		this.columns = new Column[] {firstColumn, secondColumn};
 		this.operator = operator;
@@ -42,7 +42,7 @@ public class ComparisonWhereCondition extends SingleWhereCondition
 	 * @param firstColumn The column on the left side of the comparison
 	 * @param secondColumn The column on the right side of the comparison
 	 */
-	public ComparisonWhereCondition(Column firstColumn, Column secondColumn)
+	public ComparisonCondition(Column firstColumn, Column secondColumn)
 	{
 		this.columns = new Column[] {firstColumn, secondColumn};
 		this.operator = Operator.EQUALS;
@@ -54,7 +54,7 @@ public class ComparisonWhereCondition extends SingleWhereCondition
 	 * @param operator The operator that is used in the comparison
 	 * @param value The value the column's value is compared with
 	 */
-	public ComparisonWhereCondition(Column column, Operator operator, Value value)
+	public ComparisonCondition(Column column, Operator operator, Value value)
 	{
 		super(value);
 		this.columns = new Column[] {column};
@@ -67,7 +67,7 @@ public class ComparisonWhereCondition extends SingleWhereCondition
 	 * @param column The column which is compared
 	 * @param value The value the column's value is compared with
 	 */
-	public ComparisonWhereCondition(Column column, Value value)
+	public ComparisonCondition(Column column, Value value)
 	{
 		super(value);
 		this.columns = new Column[] {column};
@@ -79,7 +79,7 @@ public class ComparisonWhereCondition extends SingleWhereCondition
 	 * @param variable The variable that is compared to the database equivalent
 	 * @param operator The operator used in the comparison
 	 */
-	public ComparisonWhereCondition(ColumnVariable variable, Operator operator)
+	public ComparisonCondition(ColumnVariable variable, Operator operator)
 	{
 		super(variable.getValue());
 		this.columns = new Column[] {variable.getColumn()};
@@ -91,7 +91,7 @@ public class ComparisonWhereCondition extends SingleWhereCondition
 	 * database state (where the associated column has the same value as the provided variable)
 	 * @param variable a variable
 	 */
-	public ComparisonWhereCondition(ColumnVariable variable)
+	public ComparisonCondition(ColumnVariable variable)
 	{
 		super(variable.getValue());
 		this.columns = new Column[] {variable.getColumn()};
@@ -103,18 +103,18 @@ public class ComparisonWhereCondition extends SingleWhereCondition
 	 * @param model A model
 	 * @param operator The operator used in the comparison
 	 * @return A condition
-	 * @throws WhereConditionParseException If the model's table doesn't have a primary key
+	 * @throws ConditionParseException If the model's table doesn't have a primary key
 	 */
-	public static ComparisonWhereCondition createIndexCondition(TableModel model, 
-			Operator operator) throws WhereConditionParseException
+	public static ComparisonCondition createIndexCondition(TableModel model, 
+			Operator operator) throws ConditionParseException
 	{
 		try
 		{
-			return new ComparisonWhereCondition(model.getIndexAttribute(), operator);
+			return new ComparisonCondition(model.getIndexAttribute(), operator);
 		}
 		catch (NoSuchColumnException e)
 		{
-			throw new WhereConditionParseException(
+			throw new ConditionParseException(
 					"The provided model's table doesn't have a primary key", e);
 		}
 	}
@@ -124,10 +124,10 @@ public class ComparisonWhereCondition extends SingleWhereCondition
 	 * key as the model's index / equivalent
 	 * @param model A model
 	 * @return A condition
-	 * @throws WhereConditionParseException If the model's table doesn't have a primary key
+	 * @throws ConditionParseException If the model's table doesn't have a primary key
 	 */
-	public static ComparisonWhereCondition createIndexEqualsCondition(TableModel model) 
-			throws WhereConditionParseException
+	public static ComparisonCondition createIndexEqualsCondition(TableModel model) 
+			throws ConditionParseException
 	{
 		return createIndexCondition(model, Operator.EQUALS);
 	}
@@ -137,25 +137,25 @@ public class ComparisonWhereCondition extends SingleWhereCondition
 	 * {@link Operator#EQUALS} comparison.
 	 * @param variables The variables that are checked
 	 * @param combinationOperator The operator used for combining the conditions
-	 * @return A combined where condition based on the variables and the provided operator
-	 * @throws WhereConditionParseException If XOR was used with more than 2 variables
+	 * @return A combined condition based on the variables and the provided operator
+	 * @throws ConditionParseException If XOR was used with more than 2 variables
 	 */
-	public static WhereCondition createVariableSetEqualsCondition(
+	public static Condition createVariableSetEqualsCondition(
 			Collection<? extends ColumnVariable> variables, 
-			CombinationOperator combinationOperator) throws WhereConditionParseException
+			CombinationOperator combinationOperator) throws ConditionParseException
 	{
 		if (variables.isEmpty())
 			return null;
 		
-		WhereCondition[] conditions = new WhereCondition[variables.size()];
+		Condition[] conditions = new Condition[variables.size()];
 		int i = 0;
 		for (ColumnVariable variable : variables)
 		{
-			conditions[i] = new ComparisonWhereCondition(variable);
+			conditions[i] = new ComparisonCondition(variable);
 			i ++;
 		}
 		
-		return CombinedWhereCondition.combineConditions(combinationOperator, conditions);
+		return CombinedCondition.combineConditions(combinationOperator, conditions);
 	}
 	
 	/**
@@ -163,16 +163,16 @@ public class ComparisonWhereCondition extends SingleWhereCondition
 	 * {@link Operator#EQUALS} comparison. Each of the variables must match the row's 
 	 * equivalents for the row to be selected.
 	 * @param variables The variables that are checked
-	 * @return A combined where condition based on the variables
+	 * @return A combined condition based on the variables
 	 */
-	public static WhereCondition createVariableSetEqualsCondition(
+	public static Condition createVariableSetEqualsCondition(
 			Collection<? extends ColumnVariable> variables)
 	{
 		try
 		{
 			return createVariableSetEqualsCondition(variables, CombinationOperator.AND);
 		}
-		catch (WhereConditionParseException e)
+		catch (ConditionParseException e)
 		{
 			// This exception is only thrown when using XOR, this time AND is used so 
 			// this block shouldn't be reached
@@ -187,7 +187,7 @@ public class ComparisonWhereCondition extends SingleWhereCondition
 	 * @param model a model
 	 * @return a condition
 	 */
-	public static WhereCondition createModelEqualsCondition(TableModel model)
+	public static Condition createModelEqualsCondition(TableModel model)
 	{
 		return createVariableSetEqualsCondition(model.getAttributes());
 	}
@@ -196,24 +196,17 @@ public class ComparisonWhereCondition extends SingleWhereCondition
 	// IMPLEMENTED METHODS	---------
 
 	@Override
-	protected String getSQLWithPlaceholders() throws WhereConditionParseException
+	protected String getSQLWithPlaceholders() throws ConditionParseException
 	{
 		// Specifies the desired data type
 		specifyValueDataType(this.columns[0].getSqlType());
 		// Makes sure the values are accepted by the operator
 		if (!this.operator.acceptsValues(getValues()))
-			throw new WhereConditionParseException("Operator" + this.operator + 
+			throw new ConditionParseException("Operator" + this.operator + 
 					"doesn't accept null values");
 		
 		StringBuilder sql = new StringBuilder();
-		sql.append(this.columns[0].getColumnName());
-		
-		sql.append(this.operator);
-		
-		if (this.columns.length < 2)
-			sql.append("?");
-		else
-			sql.append(this.columns[1]);
+		appendSql(sql);
 		
 		return sql.toString();
 	}
@@ -222,16 +215,25 @@ public class ComparisonWhereCondition extends SingleWhereCondition
 	protected String getDebugSqlWithNoParsing()
 	{
 		StringBuilder sql = new StringBuilder();
-		sql.append(this.columns[0].getColumnName());
+		appendSql(sql);
+		return sql.toString();
+	}
+	
+	
+	// OTHER METHODS	---------------
+	
+	private void appendSql(StringBuilder sql)
+	{
+		// TODO: If table names don't work in all conditions, add a special attribute to 
+		// determine whether they should be added or not
+		sql.append(this.columns[0].getColumnNameWithTable());
 		
 		sql.append(this.operator);
 		
 		if (this.columns.length < 2)
 			sql.append("?");
 		else
-			sql.append(this.columns[1]);
-		
-		return sql.toString();
+			sql.append(this.columns[1].getColumnNameWithTable());
 	}
 
 	

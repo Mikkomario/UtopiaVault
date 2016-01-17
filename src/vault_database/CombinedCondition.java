@@ -6,71 +6,71 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * A where clause is a set of where conditions that must be met. The clause can be used in 
- * sql operations. The clause is immutable once created.
+ * A combined condition is a set of conditions that must be met. The clause can be used in 
+ * sql operations. The condition is immutable once created.
  * @author Mikko Hilpinen
  * @since 1.10.2015
  */
-public class CombinedWhereCondition extends WhereCondition
+public class CombinedCondition extends Condition
 {	
 	// ATTRIBUTES	-----------------
 	
-	private List<WhereCondition> conditions;
+	private List<Condition> conditions;
 	private CombinationOperator operator;
 	
 	
 	// CONSTRUCTOR	-----------------
 
-	private CombinedWhereCondition(CombinationOperator operator, 
-			WhereCondition... conditions) throws WhereConditionParseException
+	private CombinedCondition(CombinationOperator operator, 
+			Condition... conditions) throws ConditionParseException
 	{
 		this.operator = operator;
 		
 		// Checks that enough conditions were provided
 		if (conditions.length < 2 || (this.operator == CombinationOperator.XOR && conditions.length > 2))
-			throw new WhereConditionParseException("Operator " + operator + 
+			throw new ConditionParseException("Operator " + operator + 
 					" doesn't work with " + conditions.length + " operands");
 		
 		this.conditions = new ArrayList<>();
-		for (WhereCondition condition : conditions)
+		for (Condition condition : conditions)
 		{
 			this.conditions.add(condition);
 		}
 	}
 	
-	private CombinedWhereCondition(CombinationOperator operator, 
-			WhereCondition firstCondition, WhereCondition secondCondition, 
-			WhereCondition... additionalConditions)
+	private CombinedCondition(CombinationOperator operator, 
+			Condition firstCondition, Condition secondCondition, 
+			Condition... additionalConditions)
 	{
 		this.operator = operator;
 		this.conditions = new ArrayList<>();
 		this.conditions.add(firstCondition);
 		this.conditions.add(secondCondition);
 		
-		for (WhereCondition condition : additionalConditions)
+		for (Condition condition : additionalConditions)
 		{
 			this.conditions.add(condition);
 		}
 	}
 	
 	/**
-	 * Combines a bunch of whereConditions together
+	 * Combines a bunch of conditions together
 	 * @param operator The operator that separates the conditions
 	 * @param conditions The conditions that are combined (0 or more)
-	 * @return Null if no conditions were provided, a single whereCondition if only one 
-	 * condition was provided, a combined whereCondition if multiple conditions were provided
-	 * @throws WhereConditionParseException If {@link CombinationOperator#XOR} was used with 
+	 * @return Null if no conditions were provided, a single condition if only one 
+	 * condition was provided, a combined condition if multiple conditions were provided
+	 * @throws ConditionParseException If {@link CombinationOperator#XOR} was used with 
 	 * more than 2 operands
 	 */
-	public static WhereCondition combineConditions(CombinationOperator operator, 
-			WhereCondition... conditions) throws WhereConditionParseException
+	public static Condition combineConditions(CombinationOperator operator, 
+			Condition... conditions) throws ConditionParseException
 	{
 		if (conditions.length == 0)
 			return null;
 		else if (conditions.length == 1)
 			return conditions[0];
 		else
-			return new CombinedWhereCondition(operator, conditions);
+			return new CombinedCondition(operator, conditions);
 	}
 	
 	/**
@@ -81,10 +81,10 @@ public class CombinedWhereCondition extends WhereCondition
 	 * @param additionalConditions Other conditions that must be true
 	 * @return The conditions combined with AND
 	 */
-	public static CombinedWhereCondition createANDCombination(WhereCondition firstCondition, 
-			WhereCondition secondCondition, WhereCondition... additionalConditions)
+	public static CombinedCondition createANDCombination(Condition firstCondition, 
+			Condition secondCondition, Condition... additionalConditions)
 	{
-		return new CombinedWhereCondition(CombinationOperator.AND, 
+		return new CombinedCondition(CombinationOperator.AND, 
 				firstCondition, secondCondition, additionalConditions);
 	}
 	
@@ -96,10 +96,10 @@ public class CombinedWhereCondition extends WhereCondition
 	 * @param additionalConditions Other conditions
 	 * @return The conditions combined with OR
 	 */
-	public static CombinedWhereCondition createORConbination(WhereCondition firstCondition, 
-			WhereCondition secondCondition, WhereCondition... additionalConditions)
+	public static CombinedCondition createORConbination(Condition firstCondition, 
+			Condition secondCondition, Condition... additionalConditions)
 	{
-		return new CombinedWhereCondition(CombinationOperator.OR, 
+		return new CombinedCondition(CombinationOperator.OR, 
 				firstCondition, secondCondition, additionalConditions);
 	}
 	
@@ -110,23 +110,23 @@ public class CombinedWhereCondition extends WhereCondition
 	 * @param secondCondition The second condition
 	 * @return The conditions combined with XOR
 	 */
-	public static CombinedWhereCondition createXORCombination(WhereCondition firstCondition, 
-			WhereCondition secondCondition)
+	public static CombinedCondition createXORCombination(Condition firstCondition, 
+			Condition secondCondition)
 	{
-		return new CombinedWhereCondition(CombinationOperator.XOR, 
-				firstCondition, secondCondition, new WhereCondition[0]);
+		return new CombinedCondition(CombinationOperator.XOR, 
+				firstCondition, secondCondition, new Condition[0]);
 	}
 	
 	
 	// OTHER METHODS	--------------
 	
 	@Override
-	public String toSql() throws WhereConditionParseException
+	public String toSql() throws ConditionParseException
 	{
 		StringBuilder sql = new StringBuilder("(");
 		
 		boolean isFirst = true;
-		for (WhereCondition condition : this.conditions)
+		for (Condition condition : this.conditions)
 		{
 			if (!isFirst)
 				sql.append(" " + this.operator.toSql() + " ");
@@ -140,10 +140,10 @@ public class CombinedWhereCondition extends WhereCondition
 	
 	@Override
 	public int setObjectValues(PreparedStatement statement, int startIndex) throws 
-			SQLException, WhereConditionParseException
+			SQLException, ConditionParseException
 	{
 		int i = startIndex;
-		for (WhereCondition condition : this.conditions)
+		for (Condition condition : this.conditions)
 		{
 			i = condition.setObjectValues(statement, i);
 		}
@@ -158,7 +158,7 @@ public class CombinedWhereCondition extends WhereCondition
 		StringBuilder sql = new StringBuilder("(");
 		
 		boolean isFirst = true;
-		for (WhereCondition condition : this.conditions)
+		for (Condition condition : this.conditions)
 		{
 			if (!isFirst)
 				sql.append(" " + this.operator.toSql() + " ");

@@ -8,11 +8,11 @@ import flow_generics.DataTypeException;
 import flow_generics.Value;
 
 /**
- * This where condition has only a single condition
+ * This condition has only a single condition
  * @author Mikko Hilpinen
  * @since 1.10.2015
  */
-public abstract class SingleWhereCondition extends WhereCondition
+public abstract class SingleCondition extends Condition
 {
 	// ATTRIBUTES	------------------
 	
@@ -28,7 +28,7 @@ public abstract class SingleWhereCondition extends WhereCondition
 	 * @param values The value(s) used in the condition (optional)
 	 * @param inverted Should the condition be inverted
 	 */
-	public SingleWhereCondition(boolean inverted, Value... values)
+	public SingleCondition(boolean inverted, Value... values)
 	{
 		this.values = values;
 		this.inverted = inverted;
@@ -38,7 +38,7 @@ public abstract class SingleWhereCondition extends WhereCondition
 	 * Creates a new where condition
 	 * @param values The value(s) used in the condition (optional)
 	 */
-	public SingleWhereCondition(Value... values)
+	public SingleCondition(Value... values)
 	{
 		this.values = values;
 		this.inverted = false;
@@ -52,10 +52,10 @@ public abstract class SingleWhereCondition extends WhereCondition
 	 * in sql format. The place holders for values should be marked with '?'
 	 * @return A logical sql condition with a boolean return value and '?' as place holders 
 	 * for the values
-	 * @throws WhereConditionParseException If the parsing fails
+	 * @throws ConditionParseException If the parsing fails
 	 */
 	protected abstract String getSQLWithPlaceholders() throws 
-			WhereConditionParseException;
+			ConditionParseException;
 	
 	/**
 	 * This method is used when creating a debug message for a where condition that couldn't 
@@ -68,7 +68,7 @@ public abstract class SingleWhereCondition extends WhereCondition
 	// IMPLEMENTED METHODS	--------
 	
 	@Override
-	public String toSql() throws WhereConditionParseException
+	public String toSql() throws ConditionParseException
 	{
 		if (!this.inverted)
 			return getSQLWithPlaceholders();
@@ -82,7 +82,7 @@ public abstract class SingleWhereCondition extends WhereCondition
 	
 	@Override
 	public int setObjectValues(PreparedStatement statement, int startIndex) throws 
-			SQLException, WhereConditionParseException
+			SQLException, ConditionParseException
 	{
 		// If there is no value, there is no insert
 		int index = startIndex;
@@ -110,7 +110,7 @@ public abstract class SingleWhereCondition extends WhereCondition
 			}
 			catch (DataTypeException e)
 			{
-				throw new WhereConditionParseException("Failed to cast " + 
+				throw new ConditionParseException("Failed to cast " + 
 						value.getDescription() + " to a compatible data type", e);
 			}
 		}
@@ -137,7 +137,7 @@ public abstract class SingleWhereCondition extends WhereCondition
 			
 			return sql;
 		}
-		catch (WhereConditionParseException e)
+		catch (ConditionParseException e)
 		{
 			StringBuilder s = new StringBuilder();
 			if (this.inverted)

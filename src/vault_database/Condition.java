@@ -6,12 +6,12 @@ import java.sql.SQLException;
 import vault_generics.Table;
 
 /**
- * Where conditions can be used in numerous database methods to limit the number of operated 
- * rows
+ * Conditions can be used in numerous database methods to limit the number of operated 
+ * rows, joined rows, etc. in sql queries
  * @author Mikko Hilpinen
  * @since 2.10.2015
  */
-public abstract class WhereCondition
+public abstract class Condition
 {
 	// ABSTRACT METHODS	-------------------
 	
@@ -20,9 +20,9 @@ public abstract class WhereCondition
 	 * with '?' for future preparation. This sql statement doesn't include the first "WHERE", 
 	 * only the condition (Eg. "columnName <=> ? AND another > ?)"
 	 * @return A logical sql condition like 'NOT (columName = ?)'
-	 * @throws WhereConditionParseException If the where condition can't be parsed into sql
+	 * @throws ConditionParseException If the where condition can't be parsed into sql
 	 */
-	protected abstract String toSql() throws WhereConditionParseException;
+	protected abstract String toSql() throws ConditionParseException;
 	
 	/**
 	 * Sets condition values to the prepared sql statement
@@ -30,11 +30,11 @@ public abstract class WhereCondition
 	 * @param startIndex The index where the first value of this condition occurs.
 	 * @return The index of the next value insert
 	 * @throws SQLException If the operation failed due to an sql error
-	 * @throws WhereConditionParseException If the where condition couldn't be parsed 
+	 * @throws ConditionParseException If the where condition couldn't be parsed 
 	 * to a desirable state
 	 */
 	public abstract int setObjectValues(PreparedStatement statement, int startIndex) throws 
-			SQLException, WhereConditionParseException;
+			SQLException, ConditionParseException;
 	
 	/**
 	 * Returns a debug string that mimics the final sql statement created from this condition
@@ -52,9 +52,9 @@ public abstract class WhereCondition
 	 * @param others The other conditions combined with these two
 	 * @return A combination of the conditions
 	 */
-	public CombinedWhereCondition and(WhereCondition other, WhereCondition... others)
+	public CombinedCondition and(Condition other, Condition... others)
 	{
-		return CombinedWhereCondition.createANDCombination(this, other, others);
+		return CombinedCondition.createANDCombination(this, other, others);
 	}
 	
 	/**
@@ -64,9 +64,9 @@ public abstract class WhereCondition
 	 * @param others The other conditions combined with these two
 	 * @return A combination of the conditions
 	 */
-	public CombinedWhereCondition or(WhereCondition other, WhereCondition... others)
+	public CombinedCondition or(Condition other, Condition... others)
 	{
-		return CombinedWhereCondition.createORConbination(this, other, others);
+		return CombinedCondition.createORConbination(this, other, others);
 	}
 	
 	/**
@@ -75,9 +75,9 @@ public abstract class WhereCondition
 	 * @param other The other condition
 	 * @return A combination of the conditions
 	 */
-	public CombinedWhereCondition xor(WhereCondition other)
+	public CombinedCondition xor(Condition other)
 	{
-		return CombinedWhereCondition.createXORCombination(this, other);
+		return CombinedCondition.createXORCombination(this, other);
 	}
 	
 	/**
@@ -85,9 +85,9 @@ public abstract class WhereCondition
 	 * the first whitespace).
 	 * @param targetTable The table the condition is used in
 	 * @return The where condition as a where clause
-	 * @throws WhereConditionParseException If the where condition parsing failed
+	 * @throws ConditionParseException If the where condition parsing failed
 	 */
-	public String toWhereClause(Table targetTable) throws WhereConditionParseException
+	public String toWhereClause(Table targetTable) throws ConditionParseException
 	{
 		String sql = toSql();
 		
@@ -105,7 +105,7 @@ public abstract class WhereCondition
 	 * @author Mikko Hilpinen
 	 * @since 2.10.2015
 	 */
-	public static class WhereConditionParseException extends Exception
+	public static class ConditionParseException extends Exception
 	{
 		private static final long serialVersionUID = -7800912556657335734L;
 		
@@ -116,7 +116,7 @@ public abstract class WhereCondition
 		 * @param message The message sent along with the exception
 		 * @param source The source of the exception
 		 */
-		public WhereConditionParseException(String message, Throwable source)
+		public ConditionParseException(String message, Throwable source)
 		{
 			super(message, source);
 		}
@@ -125,7 +125,7 @@ public abstract class WhereCondition
 		 * Creates a new exception
 		 * @param message The message sent along with the exception
 		 */
-		public WhereConditionParseException(String message)
+		public ConditionParseException(String message)
 		{
 			super(message);
 		}
