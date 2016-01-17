@@ -174,6 +174,15 @@ public class CombinedModel
 	}
 	
 	/**
+	 * @return The model's index attribute (the one associated with the table's primary key)
+	 * @throws NoSuchColumnException If the model's table doesn't have a primary key
+	 */
+	public ColumnVariable getIndexAttribute() throws NoSuchColumnException
+	{
+		return this.dbModel.getIndexAttribute();
+	}
+	
+	/**
 	 * Changes an attribute value of the model. The targeted value may be a database attribute 
 	 * or a general attribute
 	 * @param attributeName The name of the attribute

@@ -94,4 +94,26 @@ public class TableModel extends Model<ColumnVariable, Column>
 	{
 		return this.table;
 	}
+	
+	
+	// OTHER METHODS	--------------
+	
+	/**
+	 * Finds an attribute for a specific column
+	 * @param column The column for which an attribute is requested
+	 * @return An attribute used for the provided column
+	 */
+	public ColumnVariable getAttribute(Column column)
+	{
+		return getAttribute(column.getName());
+	}
+	
+	/**
+	 * @return The index attribute of this model
+	 * @throws NoSuchColumnException If the model's table doesn't have an index attribute
+	 */
+	public ColumnVariable getIndexAttribute() throws NoSuchColumnException
+	{
+		return getAttribute(getTable().getPrimaryColumn());
+	}
 }

@@ -17,7 +17,7 @@ public abstract class SingleWhereCondition extends WhereCondition
 	// ATTRIBUTES	------------------
 	
 	private boolean inverted;
-	private Value value;
+	private Value[] values;
 	private SqlDataType targetType = null;
 	
 	
@@ -25,31 +25,22 @@ public abstract class SingleWhereCondition extends WhereCondition
 	
 	/**
 	 * Creates a new where condition
-	 * @param value The value used in the condition (optional)
+	 * @param values The value(s) used in the condition (optional)
 	 * @param inverted Should the condition be inverted
 	 */
-	public SingleWhereCondition(boolean inverted, Value value)
+	public SingleWhereCondition(boolean inverted, Value... values)
 	{
-		this.value = value;
+		this.values = values;
 		this.inverted = inverted;
 	}
 	
 	/**
 	 * Creates a new where condition
-	 * @param value The value used in the condition
+	 * @param values The value(s) used in the condition (optional)
 	 */
-	public SingleWhereCondition(Value value)
+	public SingleWhereCondition(Value... values)
 	{
-		this.value = value;
-		this.inverted = false;
-	}
-	
-	/**
-	 * Creates a new where condition that doesn't use values
-	 */
-	public SingleWhereCondition()
-	{
-		this.value = null;
+		this.values = values;
 		this.inverted = false;
 	}
 	
@@ -94,9 +85,8 @@ public abstract class SingleWhereCondition extends WhereCondition
 			SQLException, WhereConditionParseException
 	{
 		// If there is no value, there is no insert
-		if (this.value == null)
-			return startIndex;
-		else
+		int index = startIndex;
+		for (Value value : this.values)
 		{
 			try
 			{
@@ -106,25 +96,26 @@ public abstract class SingleWhereCondition extends WhereCondition
 				
 				if (this.targetType != null)
 				{
-					castValue = this.value.castTo(this.targetType);
+					castValue = value.castTo(this.targetType);
 					targetType = this.targetType;
 				}
 				else
 				{
-					castValue = SqlDataType.castToSqlType(this.value);
+					castValue = SqlDataType.castToSqlType(value);
 					targetType = SqlDataType.castToSqlDataType(castValue.getType());
 				}
 				
 				statement.setObject(startIndex, castValue.getObjectValue(), targetType.getSqlType());
-				
-				return startIndex + 1;
+				index ++;
 			}
 			catch (DataTypeException e)
 			{
 				throw new WhereConditionParseException("Failed to cast " + 
-						this.value.getDescription() + " to a compatible data type", e);
+						value.getDescription() + " to a compatible data type", e);
 			}
 		}
+		
+		return index;
 	}
 	
 	@Override
@@ -133,11 +124,9 @@ public abstract class SingleWhereCondition extends WhereCondition
 		try
 		{
 			String sql = toSql();
-			if (this.value == null)
-				return sql;
-			else
+			for (Value value : this.values)
 			{
-				String valueString = this.value.toString();
+				String valueString = value.toString();
 				if (valueString == null)
 					valueString = "null";
 				else
@@ -160,27 +149,30 @@ public abstract class SingleWhereCondition extends WhereCondition
 			else
 				s.append(getDebugSqlWithNoParsing());
 			
-			if (this.value != null)
+			if (this.values.length == 0)
+				s.append("\n No values used");
+			else
 			{
-				s.append("\nValue: ");
-				s.append(this.value.getDescription());
+				s.append("\nValues used:");
+				for (Value value : this.values)
+				{
+					s.append(value.getDescription());
+				}
 			}
 			
 			return s.toString();
 		}
-		
-		
 	}
 	
 	
 	// ACCESSORS	-----------------
 	
 	/**
-	 * @return The value used in the condition
+	 * @return The value(s) used in the condition
 	 */
-	protected Value getValue()
+	protected Value[] getValues()
 	{
-		return this.value;
+		return this.values;
 	}
 	
 	

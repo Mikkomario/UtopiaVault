@@ -177,9 +177,22 @@ public class Table
 	}
 	
 	/**
+	 * @return The primary column in this table.
+	 * @throws NoSuchColumnException If there is no primary column in this table
+	 */
+	public Column getPrimaryColumn() throws NoSuchColumnException
+	{
+		Column primary = findPrimaryColumn();
+		if (primary == null)
+			throw new NoSuchColumnException("Table " + this + " doesn't have a primary column");
+		else
+			return primary;
+	}
+	
+	/**
 	 * @return The primary column in this table. Null if there is no primary column
 	 */
-	public Column getPrimaryColumn()
+	public Column findPrimaryColumn()
 	{
 		if (this.primaryColumn == null)
 		{
@@ -325,6 +338,11 @@ public class Table
 		{
 			super(table + " doesn't contain a column with " + (isVarName ? "variable" : "column") + 
 					"name " + name);
+		}
+		
+		private NoSuchColumnException(String message)
+		{
+			super(message);
 		}
 	}
 }
