@@ -5,11 +5,14 @@ import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.List;
 
+import vault_database.CombinedCondition;
+
 /**
  * A where clause is a set of where conditions that must be met. The clause can be used in 
  * sql operations. The clause is immutable once created.
  * @author Mikko Hilpinen
  * @since 1.10.2015
+ * @deprecated Replaced with {@link CombinedCondition}
  */
 public class CombinedWhereCondition extends WhereCondition
 {	

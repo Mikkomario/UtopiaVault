@@ -3,9 +3,9 @@ package vault_database;
 import java.sql.PreparedStatement;
 import java.sql.SQLException;
 
+import utopia.flow.generics.DataTypeException;
+import utopia.flow.generics.Value;
 import vault_generics.SqlDataType;
-import flow_generics.DataTypeException;
-import flow_generics.Value;
 
 /**
  * This condition has only a single condition

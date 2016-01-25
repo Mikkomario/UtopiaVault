@@ -68,9 +68,9 @@ public class VariableNameMapping
 	 * to use rules to define the column name. If a rule is applied, creates a new mapping.
 	 * @param variableName The variable name
 	 * @return A column name mapped to the provided variable name
-	 * @throws NoColumnForvariableException If the column name couldn't be found
+	 * @throws NoColumnForVariableException If the column name couldn't be found
 	 */
-	public String getColumnName(String variableName) throws NoColumnForvariableException
+	public String getColumnName(String variableName) throws NoColumnForVariableException
 	{
 		// Searches for a direct mapping
 		for (String columnName : this.names.keySet())
@@ -90,7 +90,7 @@ public class VariableNameMapping
 			}
 		}
 		
-		throw new NoColumnForvariableException(variableName);
+		throw new NoColumnForVariableException(variableName);
 	}
 	
 	/**
@@ -279,7 +279,7 @@ public class VariableNameMapping
 	 * @author Mikko Hilpinen
 	 * @since 24.9.2015
 	 */
-	public static class NoColumnForvariableException extends MappingException
+	public static class NoColumnForVariableException extends MappingException
 	{
 		// variableS	---------------------
 		
@@ -293,7 +293,7 @@ public class VariableNameMapping
 		 * Creates a new exception
 		 * @param variableName The variable name that couldn't be retraced to a column name
 		 */
-		public NoColumnForvariableException(String variableName)
+		public NoColumnForVariableException(String variableName)
 		{
 			super("Can't find column name for variable name '" + variableName + "'");
 			this.variableName = variableName;
@@ -305,7 +305,7 @@ public class VariableNameMapping
 		/**
 		 * @return The column name that couldn't be mapped to an variable name
 		 */
-		public String getvariableName()
+		public String getVariableName()
 		{
 			return this.variableName;
 		}

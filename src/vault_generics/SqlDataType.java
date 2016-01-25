@@ -2,11 +2,11 @@ package vault_generics;
 
 import java.sql.Types;
 
-import flow_generics.BasicDataType;
-import flow_generics.DataType;
-import flow_generics.DataTypes;
-import flow_generics.SubTypeSet;
-import flow_generics.Value;
+import utopia.flow.generics.BasicDataType;
+import utopia.flow.generics.DataType;
+import utopia.flow.generics.DataTypes;
+import utopia.flow.generics.SubTypeSet;
+import utopia.flow.generics.Value;
 
 /**
  * These data types work like any other, except that they can be used in sql operations

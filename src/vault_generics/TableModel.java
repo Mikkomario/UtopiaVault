@@ -2,9 +2,9 @@ package vault_generics;
 
 import java.util.Collection;
 
+import utopia.flow.generics.Model;
+import utopia.flow.generics.Value;
 import vault_generics.Table.NoSuchColumnException;
-import flow_generics.Model;
-import flow_generics.Value;
 
 /**
  * This model works like it's super class but also contains support methods for database 
@@ -62,7 +62,7 @@ public class TableModel extends Model<ColumnVariable, Column>
 
 	@Override
 	protected ColumnVariable generateAttribute(String attributeName,
-			Value value)
+			Value value) throws NoSuchColumnException
 	{
 		return ColumnVariable.createVariable(getTable(), attributeName, value);
 	}
@@ -99,6 +99,19 @@ public class TableModel extends Model<ColumnVariable, Column>
 	// OTHER METHODS	--------------
 	
 	/**
+	 * Assigns a new value for a model's attribute. If the attribute didn't exist in the 
+	 * model previously, it is added
+	 * @param attributeName The name of the attribute
+	 * @param value The value assigned to the attribute
+	 * @throws NoSuchColumnException If the model's table doesn't contain a column for the 
+	 * attribute
+	 */
+	public void setAttributeValue(String attributeName, Value value) throws NoSuchColumnException
+	{
+		setAttributeValue(attributeName, value, true);
+	}
+	
+	/**
 	 * Finds an attribute for a specific column
 	 * @param column The column for which an attribute is requested
 	 * @return An attribute used for the provided column
@@ -115,5 +128,25 @@ public class TableModel extends Model<ColumnVariable, Column>
 	public ColumnVariable getIndexAttribute() throws NoSuchColumnException
 	{
 		return getAttribute(getTable().getPrimaryColumn());
+	}
+	
+	/**
+	 * Changes the model's index
+	 * @param index The new index value for the model
+	 * @throws NoSuchColumnException If the model's table doesn't have an index attribute
+	 */
+	public void setIndex(Value index) throws NoSuchColumnException
+	{
+		addAttribute(getTable().getPrimaryColumn().assignValue(index), true);
+	}
+	
+	/**
+	 * @return The model's index, which is the value of the attribute representing the primary 
+	 * column of the model's table
+	 * @throws NoSuchColumnException If the model's table doesn't have an index attribute
+	 */
+	public Value getIndex() throws NoSuchColumnException
+	{
+		return getIndexAttribute().getValue();
 	}
 }

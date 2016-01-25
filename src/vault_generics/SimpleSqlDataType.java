@@ -4,9 +4,9 @@ import java.sql.Date;
 import java.sql.Timestamp;
 import java.sql.Types;
 
-import flow_generics.DataType;
-import flow_generics.DataTypes;
-import flow_generics.Value;
+import utopia.flow.generics.DataType;
+import utopia.flow.generics.DataTypes;
+import utopia.flow.generics.Value;
 
 /**
  * These are the data types used in the sql operations

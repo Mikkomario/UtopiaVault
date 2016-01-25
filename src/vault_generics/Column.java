@@ -1,8 +1,12 @@
 package vault_generics;
 
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.List;
+
+import utopia.flow.generics.Value;
+import utopia.flow.generics.VariableDeclaration;
 import vault_generics.VariableNameMapping.NoVariableForColumnException;
-import flow_generics.Value;
-import flow_generics.VariableDeclaration;
 
 /**
  * Column is a description of a single column in a table
@@ -66,6 +70,18 @@ public class Column extends VariableDeclaration
 			s.append(" default = " + getDefaultValue().toString());
 		
 		return s.toString();
+	}
+	
+	@Override
+	public ColumnVariable assignValue(Object value)
+	{
+		return new ColumnVariable(this, new Value(value, getType()));
+	}
+	
+	@Override
+	public ColumnVariable assignValue(Value value)
+	{
+		return new ColumnVariable(this, value);
 	}
 	
 	
@@ -134,5 +150,24 @@ public class Column extends VariableDeclaration
 	public SqlDataType getSqlType()
 	{
 		return this.type;
+	}
+	
+	
+	// OTHER METHODS	----------
+	
+	/**
+	 * Collects all the columns used in the provided collection of column variables
+	 * @param variables A collection of variables
+	 * @return The columns used by the variables
+	 */
+	public static List<Column> getColumnsFrom(Collection<? extends ColumnVariable> variables)
+	{
+		List<Column> columns = new ArrayList<>();
+		for (ColumnVariable variable : variables)
+		{
+			columns.add(variable.getColumn());
+		}
+		
+		return columns;
 	}
 }

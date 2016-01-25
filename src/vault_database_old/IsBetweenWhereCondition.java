@@ -1,11 +1,13 @@
 package vault_database_old;
 
+import vault_database.IsBetweenCondition;
 import vault_database_old.DatabaseTable.Column;
 
 /**
  * This where condition checks if a value is between two other values
  * @author Mikko Hilpinen
  * @since 5.10.2015
+ * @deprecated Replaced with {@link IsBetweenCondition}
  */
 public class IsBetweenWhereCondition extends SingleWhereCondition
 {

@@ -15,6 +15,7 @@ import vault_generics.AfterLastUnderLineRule;
  * implementing class is an enumeration.
  * @author Mikko Hilpinen
  * @since 23.11.2015
+ * @deprecated See {@link ExampleTables} instead
  */
 public enum ExampleTable implements DatabaseTable
 {

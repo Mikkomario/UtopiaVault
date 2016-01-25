@@ -2,12 +2,12 @@ package vault_database;
 
 import java.util.Collection;
 
+import utopia.flow.generics.Value;
 import vault_database.CombinedCondition.CombinationOperator;
 import vault_generics.Column;
 import vault_generics.ColumnVariable;
 import vault_generics.Table.NoSuchColumnException;
 import vault_generics.TableModel;
-import flow_generics.Value;
 
 /**
  * This condition compares a column with a value or two columns with each other
@@ -103,20 +103,12 @@ public class ComparisonCondition extends SingleCondition
 	 * @param model A model
 	 * @param operator The operator used in the comparison
 	 * @return A condition
-	 * @throws ConditionParseException If the model's table doesn't have a primary key
+	 * @throws NoSuchColumnException If the model's table doesn't have a primary key
 	 */
 	public static ComparisonCondition createIndexCondition(TableModel model, 
-			Operator operator) throws ConditionParseException
+			Operator operator)
 	{
-		try
-		{
-			return new ComparisonCondition(model.getIndexAttribute(), operator);
-		}
-		catch (NoSuchColumnException e)
-		{
-			throw new ConditionParseException(
-					"The provided model's table doesn't have a primary key", e);
-		}
+		return new ComparisonCondition(model.getIndexAttribute(), operator);
 	}
 	
 	/**
@@ -124,10 +116,10 @@ public class ComparisonCondition extends SingleCondition
 	 * key as the model's index / equivalent
 	 * @param model A model
 	 * @return A condition
-	 * @throws ConditionParseException If the model's table doesn't have a primary key
+	 * @throws NoSuchColumnException If the model's table doesn't have a primary key
 	 */
 	public static ComparisonCondition createIndexEqualsCondition(TableModel model) 
-			throws ConditionParseException
+			throws NoSuchColumnException
 	{
 		return createIndexCondition(model, Operator.EQUALS);
 	}
@@ -198,6 +190,14 @@ public class ComparisonCondition extends SingleCondition
 	@Override
 	protected String getSQLWithPlaceholders() throws ConditionParseException
 	{
+		// Checks if some columns were null
+		for (int i = 0; i < this.columns.length; i++)
+		{
+			Column column = this.columns[i];
+			if (column == null)
+				throw new ConditionParseException("Unknown / null column used at index " + i);
+		}
+		
 		// Specifies the desired data type
 		specifyValueDataType(this.columns[0].getSqlType());
 		// Makes sure the values are accepted by the operator
@@ -226,14 +226,22 @@ public class ComparisonCondition extends SingleCondition
 	{
 		// TODO: If table names don't work in all conditions, add a special attribute to 
 		// determine whether they should be added or not
-		sql.append(this.columns[0].getColumnNameWithTable());
+		appendColumn(sql, this.columns[0]);
 		
 		sql.append(this.operator);
 		
 		if (this.columns.length < 2)
 			sql.append("?");
 		else
-			sql.append(this.columns[1].getColumnNameWithTable());
+			appendColumn(sql, this.columns[1]);
+	}
+	
+	private static void appendColumn(StringBuilder sql, Column column)
+	{
+		if (column == null)
+			sql.append("null");
+		else
+			sql.append(column.getColumnNameWithTable());
 	}
 
 	

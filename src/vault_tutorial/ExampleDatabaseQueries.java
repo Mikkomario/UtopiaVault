@@ -5,17 +5,14 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 
-import vault_database_old.Attribute;
-import vault_database_old.DatabaseAccessor;
-import vault_database_old.DatabaseException;
+import utopia.flow.generics.Value;
+import vault_database.Condition;
+import vault_database.Database;
+import vault_database.DatabaseException;
 import vault_database_old.DatabaseUnavailableException;
-import vault_database_old.DatabaseValue;
-import vault_database_old.EqualsWhereCondition;
-import vault_database_old.Attribute.AttributeDescription;
-import vault_database_old.AttributeNameMapping.NoAttributeForColumnException;
-import vault_database_old.AttributeNameMapping.NoColumnForAttributeException;
-import vault_database_old.CombinedWhereCondition.CombinationOperator;
-import vault_database_old.EqualsWhereCondition.Operator;
+import vault_generics.Column;
+import vault_generics.ColumnVariable;
+import vault_generics.Table;
 
 /**
  * This is a static collection of example methods that perform different database queries 
@@ -49,7 +46,7 @@ public class ExampleDatabaseQueries
 		ExampleUserModel user = new ExampleUserModel();
 		// The method finds the first row with the given index and reads the data into the 
 		// user model. If the operation was a success, the model is returned
-		if (DatabaseAccessor.readObjectAttributesFromDatabase(user, DatabaseValue.Integer(userId)))
+		if (Database.readModelAttributes(user.toDatabaseModel(), Value.Integer(userId)))
 			return user;
 		// It is often better to return null than an empty model
 		return null;
@@ -63,9 +60,10 @@ public class ExampleDatabaseQueries
 	 */
 	public static List<ExampleUserModel> findUsers() throws DatabaseException, DatabaseUnavailableException
 	{
-		// SelectAll should be used when constructing entire models
-		// This way all the attributes are read. Plus, it's easy to use
-		List<List<Attribute>> results = DatabaseAccessor.selectAll(ExampleTable.USERS);
+		// One can construct models with partial selects, but select all (null parameter) 
+		// is often the best option
+		List<List<ColumnVariable>> results = Database.select(null, ExampleTables.USERS, null, 
+				null, null, -1, null);
 		
 		// The users are parsed in a separate method to avoid repeating code
 		return parseUsers(results);
@@ -83,10 +81,8 @@ public class ExampleDatabaseQueries
 			DatabaseUnavailableException
 	{
 		// Like previously, all data is selected. This time a where condition is used, though.
-		// The limit is set to -1, as to not limit the number of returned rows
-		List<List<Attribute>> results = DatabaseAccessor.selectAll(ExampleTable.USERS, 
-				ExampleWhereConditions.createWhereUserNameEqualsWhereCondition(userName), -1, 
-				null);
+		List<List<ColumnVariable>> results = Database.select(null, ExampleTables.USERS, null, 
+				null, ExampleConditions.createUserNameCondition(userName), -1, null);
 		
 		// The users are parsed just like previously
 		return parseUsers(results);
@@ -98,25 +94,24 @@ public class ExampleDatabaseQueries
 	 * @param userName The required user name
 	 * @param roleName The required role name
 	 * @return All users which have the required attributes
-	 * @throws NoAttributeForColumnException If attribute name mapping fails
 	 * @throws DatabaseException if the operation fails
 	 * @throws DatabaseUnavailableException If the database can't be accessed
 	 */
 	public static List<ExampleUserModel> findUsers(String userName, String roleName) throws 
-			NoAttributeForColumnException, DatabaseException, DatabaseUnavailableException
+			DatabaseException, DatabaseUnavailableException
 	{
-		// This time only the userAttributes are selected, as opposed to selectAll, which 
+		// This time only the user attributes are selected, as opposed to all, which 
 		// would select the role attributes as well (since the roles are joined)
-		// AttributeDescription offers a simple method for requesting all table attributes
-		List<AttributeDescription> selection = Attribute.getDescriptionsFrom(ExampleTable.USERS);
-		// A join condition is used. The condition needs to be wrapped into a list since 
+		List<? extends Column> selection = ExampleTables.USERS.getColumns();
+		
+		// A join condition is used. The condition needs to be wrapped into an array since 
 		// the method expects one or more conditions
 		// We can use a where condition that was specified in the ExampleWhereConditions
-		List<List<Attribute>> results = DatabaseAccessor.select(
-				selection, ExampleTable.USERS, ExampleTable.ROLES, 
-				ExampleJoinConditions.createUserRoleAttributeNameJoinCondition().wrapIntoList(), 
-				ExampleWhereConditions.createWhereUserNameAndRoleNameEqualWhereCondition(
-				userName, roleName), -1, null);
+		List<List<ColumnVariable>> results = Database.select(
+				selection, ExampleTables.USERS, new Table[] {ExampleTables.ROLES}, 
+				new Condition[] {ExampleConditions.createRoleIndexJoinCondition()}, 
+				ExampleConditions.createUserNameAndRoleNameCondition(userName, roleName), -1, 
+				null);
 		
 		// The users are parsed the same way as always
 		return parseUsers(results);
@@ -125,24 +120,22 @@ public class ExampleDatabaseQueries
 	/**
 	 * This method finds all the user names that exist in the database
 	 * @return A set containing each user name in the database
-	 * @throws NoColumnForAttributeException If attribute name mapping failed
 	 * @throws DatabaseException If the operation failed
 	 * @throws DatabaseUnavailableException If the database can't be accessed
 	 */
-	public static Set<String> findUserNames() throws NoColumnForAttributeException, 
-			DatabaseException, DatabaseUnavailableException
+	public static Set<String> findUserNames() throws DatabaseException, 
+			DatabaseUnavailableException
 	{
 		// This time only the user name is selected
-		// Attribute class offers some useful methods for attribute description parsing
-		List<AttributeDescription> selection = 
-				Attribute.getTableAttributeDescription(ExampleTable.USERS, "name").wrapIntoList();
+		List<Column> selection = ExampleTables.USERS.getVariableColumns("name");
 		// No where clause is used this time. The results come in same format as always
-		List<List<Attribute>> results = DatabaseAccessor.select(selection, ExampleTable.USERS, -1);
+		List<List<ColumnVariable>> results = Database.select(selection, ExampleTables.USERS, 
+				null, null, null, -1, null);
 		
 		Set<String> userNames = new HashSet<>();
 		// Each list in the result represents a row in the database
 		// Each row then contains a single user name
-		for (List<Attribute> row : results)
+		for (List<ColumnVariable> row : results)
 		{
 			// The user name is the first and only attribute that is returned for each row.
 			// That's why we can simply call get(0).
@@ -161,11 +154,11 @@ public class ExampleDatabaseQueries
 	 * @throws DatabaseException If the operation failed
 	 * @throws DatabaseUnavailableException If the database can't be accessed
 	 */
-	public static ExampleUserModel insertUser(String userName, int userRoleId) throws 
+	public static ExampleUserModelOld insertUser(String userName, int userRoleId) throws 
 			DatabaseException, DatabaseUnavailableException
 	{
 		// The user is simply created as a new user model
-		ExampleUserModel user = new ExampleUserModel();
+		ExampleUserModelOld user = new ExampleUserModelOld();
 		user.setName(userName);
 		user.setRoleId(userRoleId);
 		
@@ -188,13 +181,13 @@ public class ExampleDatabaseQueries
 			DatabaseException, DatabaseUnavailableException
 	{
 		// The updates can also be introduced as models
-		ExampleUserModel updateModel = new ExampleUserModel();
+		ExampleUserModelOld updateModel = new ExampleUserModelOld();
 		// Only the name attribute will be updated, so we only set the name attribute
 		updateModel.setName(newName);
 		
 		// We can use the same where condition here as well
 		DatabaseAccessor.update(updateModel, 
-				ExampleWhereConditions.createWhereUserNameEqualsWhereCondition(oldName), false);
+				ExampleConditions.createUserNameCondition(oldName), false);
 	}
 	
 	/**
@@ -211,7 +204,7 @@ public class ExampleDatabaseQueries
 		// Using delete is pretty straightforward. One must simply specify the where condition 
 		// that is used for selecting the affected rows
 		DatabaseAccessor.delete(ExampleTable.USERS, 
-				ExampleWhereConditions.createWhereUserNameAndRoleEqualCondition(userName, roleId));
+				ExampleConditions.createUserNameAndRoleCondition(userName, roleId));
 	}
 	
 	/**
@@ -231,7 +224,7 @@ public class ExampleDatabaseQueries
 		List<List<Attribute>> results = DatabaseAccessor.select(selection, 
 				ExampleTable.USERS, ExampleTable.ROLES, 
 				ExampleJoinConditions.createUserRoleAttributeNameJoinCondition().wrapIntoList(), 
-				ExampleWhereConditions.createWhereRoleNameEqualsWhereCondition(roleName), -1, 
+				ExampleConditions.createRoleNameCondition(roleName), -1, 
 				null);
 		
 		List<Attribute> indicesToBeDeleted = new ArrayList<>();
@@ -246,12 +239,12 @@ public class ExampleDatabaseQueries
 				indicesToBeDeleted, true, CombinationOperator.OR));
 	}
 	
-	private static List<ExampleUserModel> parseUsers(List<List<Attribute>> results)
+	private static List<ExampleUserModel> parseUsers(List<List<ColumnVariable>> results)
 	{
 		List<ExampleUserModel> users = new ArrayList<>();
 		// The result may contain data from multiple rows. Each row needs to be parsed 
 		// separately. Also, each row contains a single user's attribute data
-		for (List<Attribute> userAttributes : results)
+		for (List<ColumnVariable> userAttributes : results)
 		{
 			// Since we created the attribute constructor, creating a new user is a simple 
 			// matter

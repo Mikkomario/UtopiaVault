@@ -3,12 +3,14 @@ package vault_database_old;
 import java.sql.PreparedStatement;
 import java.sql.SQLException;
 
+import vault_database.SingleCondition;
 import vault_database_old.DataType.InvalidDataTypeException;
 
 /**
  * This where condition has only a single condition
  * @author Mikko Hilpinen
  * @since 1.10.2015
+ * @deprecated Replaced with {@link SingleCondition}
  */
 public abstract class SingleWhereCondition extends WhereCondition
 {

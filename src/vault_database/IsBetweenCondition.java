@@ -1,7 +1,7 @@
 package vault_database;
 
+import utopia.flow.generics.Value;
 import vault_generics.Column;
-import flow_generics.Value;
 
 /**
  * This where condition is used for checking whether values are in between each other

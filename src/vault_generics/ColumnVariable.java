@@ -3,10 +3,11 @@ package vault_generics;
 import java.sql.Date;
 import java.sql.Timestamp;
 
-import flow_generics.DataType;
-import flow_generics.DataTypeException;
-import flow_generics.Value;
-import flow_generics.Variable;
+import utopia.flow.generics.DataType;
+import utopia.flow.generics.DataTypeException;
+import utopia.flow.generics.Value;
+import utopia.flow.generics.Variable;
+import vault_generics.Table.NoSuchColumnException;
 
 /**
  * Database variables are variables that are tied to certain columns
@@ -91,9 +92,10 @@ public class ColumnVariable extends Variable
 	 * @param variableName The name of the variable
 	 * @param value The value that will be assigned to the variable
 	 * @return A new database variable
+	 * @throws NoSuchColumnException If the table doesn't contain a column for the variable
 	 */
 	public static ColumnVariable createVariable(Table table, String variableName, 
-			Value value)
+			Value value) throws NoSuchColumnException
 	{
 		Column column = table.findColumnWithVariableName(variableName);
 		return new ColumnVariable(column, value);

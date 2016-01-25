@@ -1,11 +1,13 @@
 package vault_database_old;
 
+import vault_database.ComparisonCondition;
 import vault_database_old.DatabaseTable.Column;
 
 /**
  * This where condition checks the value of a primary index attribute
  * @author Mikko Hilpinen
  * @since 2.10.2015
+ * @deprecated Replaced with {@link ComparisonCondition}
  */
 public class IndexEqualsWhereCondition extends SingleWhereCondition
 {

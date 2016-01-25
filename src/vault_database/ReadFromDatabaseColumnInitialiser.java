@@ -7,6 +7,7 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 
+import utopia.flow.generics.Value;
 import vault_database_old.DatabaseAccessor;
 import vault_database_old.DatabaseUnavailableException;
 import vault_generics.Column;
@@ -15,7 +16,6 @@ import vault_generics.Table;
 import vault_generics.SimpleSqlDataType;
 import vault_generics.SqlDataType;
 import vault_generics.VariableNameMapping.NoVariableForColumnException;
-import flow_generics.Value;
 
 /**
  * This column initialiser is able to read the column data from the database using sql queries
@@ -24,8 +24,6 @@ import flow_generics.Value;
  */
 public class ReadFromDatabaseColumnInitialiser implements ColumnInitialiser
 {
-	// TODO: Move to another package
-	
 	// ATTRIBUTES	---------------------
 	
 	private DataTypeParser parser;

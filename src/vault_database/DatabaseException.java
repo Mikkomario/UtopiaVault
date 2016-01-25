@@ -1,25 +1,24 @@
-package vault_database_old;
+package vault_database;
 
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.Map;
 
-import vault_database_old.AttributeNameMapping;
-import vault_database_old.DatabaseTable;
-import vault_database_old.WhereCondition;
-import vault_database_old.AttributeNameMapping.MappingException;
-import vault_database_old.AttributeNameMapping.NoAttributeForColumnException;
-import vault_database_old.AttributeNameMapping.NoColumnForAttributeException;
-import vault_database_old.DatabaseTable.Column;
-import vault_database_old.WhereCondition.WhereConditionParseException;
-import vault_recording.DatabaseWritable;
+import utopia.flow.generics.Variable;
+import utopia.flow.generics.VariableDeclaration;
+import vault_database.Condition.ConditionParseException;
+import vault_generics.Column;
+import vault_generics.Table;
+import vault_generics.VariableNameMapping;
+import vault_generics.VariableNameMapping.MappingException;
+import vault_generics.VariableNameMapping.NoColumnForVariableException;
+import vault_generics.VariableNameMapping.NoVariableForColumnException;
 import vault_util.DebuggableException;
 
 /**
  * This exception wraps multiple exceptions that are caused by logic errors in database use.
  * @author Mikko Hilpinen
  * @since 20.10.2015
- * @deprecated Replaced with {@link vault_database.DatabaseException}
  */
 public class DatabaseException extends DebuggableException
 {
@@ -53,7 +52,7 @@ public class DatabaseException extends DebuggableException
 	 * Creates a new exception from a where parse exception, using no special debug message
 	 * @param cause The exception that caused the operation to fail
 	 */
-	public DatabaseException(WhereConditionParseException cause)
+	public DatabaseException(ConditionParseException cause)
 	{
 		super(createMessage(cause), cause.getMessage(), cause);
 	}
@@ -61,13 +60,12 @@ public class DatabaseException extends DebuggableException
 	/**
 	 * Creates a new exception from a where parse exception. Full debug message parsed.
 	 * @param cause The exception that caused the operation to fail
-	 * @param table The table that was being used (optional)
-	 * @param where The where condition that was being used (optional)
+	 * @param condition The condition that was used
 	 */
-	public DatabaseException(WhereConditionParseException cause, 
-			DatabaseTable table, WhereCondition where)
+	public DatabaseException(ConditionParseException cause, Condition condition)
 	{
-		super(createMessage(cause), parseWhereConditionDebugMessage(cause, where, table), cause);
+		super(createMessage(cause), condition == null ? "no condition" : condition.getDebugSql(), 
+				cause);
 	}
 	
 	/**
@@ -75,7 +73,7 @@ public class DatabaseException extends DebuggableException
 	 * @param cause The exception that caused the operation to fail
 	 * @param mapping The mapping that was being used
 	 */
-	public DatabaseException(MappingException cause, AttributeNameMapping mapping)
+	public DatabaseException(MappingException cause, VariableNameMapping mapping)
 	{
 		super(createMessage(cause), mapping.getDebugString(), cause);
 	}
@@ -85,9 +83,9 @@ public class DatabaseException extends DebuggableException
 	 * @param cause The exception that caused the operation to fail
 	 * @param table The table that was being used (optional)
 	 */
-	public DatabaseException(NoAttributeForColumnException cause, DatabaseTable table)
+	public DatabaseException(NoVariableForColumnException cause, Table table)
 	{
-		super(createMessage(cause), parseNoAttributeForColumnDebugMessage(cause, table), cause);
+		super(createMessage(cause), parseNoVariableForColumnDebugMessage(cause, table), cause);
 	}
 	
 	/**
@@ -95,9 +93,9 @@ public class DatabaseException extends DebuggableException
 	 * @param cause The exception that caused the operation to fail
 	 * @param table The table that was being used (optional)
 	 */
-	public DatabaseException(NoColumnForAttributeException cause, DatabaseTable table)
+	public DatabaseException(NoColumnForVariableException cause, Table table)
 	{
-		super(createMessage(cause), parseNoColumnForAttributeDebugMessage(cause, table), cause);
+		super(createMessage(cause), parseNoColumnForVariableDebugMessage(cause, table), cause);
 	}
 	
 	/**
@@ -107,22 +105,14 @@ public class DatabaseException extends DebuggableException
 	 * @param usedTable The table that was being used
 	 * @param whereClause The where condition that was being used (optional)
 	 * @param providedValues The values that had been provided (optional)
+	 * @param selection The selected columns
 	 */
-	public DatabaseException(Throwable cause, String sqlStatement, DatabaseTable usedTable, 
-			WhereCondition whereClause, Collection<? extends Attribute> providedValues)
+	public DatabaseException(Throwable cause, String sqlStatement, Table usedTable, 
+			Condition whereClause, Collection<? extends Variable> providedValues, 
+			Collection<? extends VariableDeclaration> selection)
 	{
 		super(createMessage(cause), parseDebugMessage(sqlStatement, 
-				usedTable, whereClause, providedValues), cause);
-	}
-	
-	/**
-	 * Creates a new exception from an indexAttributeRequiredException. Full debug message parsed.
-	 * @param cause The cause of the exception
-	 * @param model The model that was missing an index attribute
-	 */
-	public DatabaseException(IndexAttributeRequiredException cause, DatabaseWritable model)
-	{
-		super(createMessage(cause), parseIndexDebugMessage(model), cause);
+				usedTable, whereClause, providedValues, selection), cause);
 	}
 
 	
@@ -141,27 +131,8 @@ public class DatabaseException extends DebuggableException
 		return className + ": '" + message + "'";
 	}
 	
-	private static String parseWhereConditionDebugMessage(Throwable cause, WhereCondition where, 
-			DatabaseTable table)
-	{
-		StringBuilder s = new StringBuilder(cause.getMessage());
-		if (table != null)
-		{
-			if (where != null && table != null)
-			{
-				s.append("\nWhere: ");
-				s.append(where.getDebugSql(table));
-			}
-			
-			s.append("\nWith table: ");
-			s.append(table);
-		}
-		
-		return s.toString();
-	}
-	
-	private static String parseNoAttributeForColumnDebugMessage(
-			NoAttributeForColumnException cause, DatabaseTable table)
+	private static String parseNoVariableForColumnDebugMessage(
+			NoVariableForColumnException cause, Table table)
 	{
 		StringBuilder s = new StringBuilder(cause.getMessage());
 		s.append("\nCasting ");
@@ -171,8 +142,7 @@ public class DatabaseException extends DebuggableException
 			s.append(" at ");
 			s.append(table);
 			
-			Column column = DatabaseTable.findColumnWithName(table.getColumnInfo(), 
-					cause.getColumnName());
+			Column column = table.findColumnWithColumnName(cause.getColumnName());
 			if (column != null)
 			{
 				s.append("\nColumn: ");
@@ -180,33 +150,34 @@ public class DatabaseException extends DebuggableException
 			}
 			
 			s.append("\nUsing mapping:\n");
-			s.append(table.getAttributeNameMapping().getDebugString());
+			s.append(table.getNameMapping().getDebugString());
 		}
 		
 		return s.toString();
 	}
 	
-	private static String parseNoColumnForAttributeDebugMessage(
-			NoColumnForAttributeException cause, DatabaseTable table)
+	private static String parseNoColumnForVariableDebugMessage(
+			NoColumnForVariableException cause, Table table)
 	{
 		StringBuilder s = new StringBuilder(cause.getMessage());
 		s.append("\nCasting ");
-		s.append(cause.getAttributeName());
+		s.append(cause.getVariableName());
 		if (table != null)
 		{
 			s.append(" to column at ");
 			s.append(table);
 			
-			AttributeNameMapping mapper = table.getAttributeNameMapping();
+			VariableNameMapping mapper = table.getNameMapping();
 			s.append("\nUsing mapping:\n");
 			s.append(mapper.getDebugString());
 			
 			try
 			{
 				Map<String, String> mappings = new HashMap<>();
-				for (Column column : table.getColumnInfo())
+				for (Column column : table.getColumns())
 				{
-					mappings.put(column.getName(), mapper.getAttributeName(column.getName()));
+					mappings.put(column.getColumnName(), 
+							mapper.getVariableName(column.getColumnName()));
 				}
 				
 				// Writes all correct mappings as well
@@ -224,7 +195,7 @@ public class DatabaseException extends DebuggableException
 					s.append(mappings.get(columnName));
 				}
 			}
-			catch (NoAttributeForColumnException e)
+			catch (NoVariableForColumnException e)
 			{
 				// Ignored. If mapping fails, it can't be written
 			}
@@ -233,34 +204,44 @@ public class DatabaseException extends DebuggableException
 		return s.toString();
 	}
 	
-	private static String parseDebugMessage(String sqlStatement, DatabaseTable table, 
-			WhereCondition where, Collection<? extends Attribute> providedValues)
+	private static String parseDebugMessage(String sqlStatement, Table table, 
+			Condition where, Collection<? extends Variable> providedValues, 
+			Collection<? extends VariableDeclaration> selection)
 	{
-		StringBuilder message = new StringBuilder("Exception message\n");
+		StringBuilder message = new StringBuilder();
 		if (sqlStatement != null)
 			message.append("SQL: " + sqlStatement);
 		if (where != null && table != null)
-			message.append("\nWhere debug message: " + 
-					where.getDebugSql(table));
+			message.append("\nWhere: " + where.getDebugSql());
 		if (table != null)
 		{
 			message.append("\nTable used: ");
 			message.append(table.getDatabaseName() + "/");
-			message.append(table.getTableName());
+			message.append(table.getName());
 		}
 		if (providedValues != null && !providedValues.isEmpty())
 		{
-			message.append("\nAttributes provided:");
-			for (Attribute attribute : providedValues)
+			message.append("\nValues provided:");
+			for (Variable var : providedValues)
 			{
 				message.append("\n");
-				message.append(attribute);
+				message.append(var);
+			}
+		}
+		if (selection != null && !selection.isEmpty())
+		{
+			message.append("\nSelection:");
+			for (VariableDeclaration dec : selection)
+			{
+				message.append("\n");
+				message.append(dec);
 			}
 		}
 		
 		return message.toString();
 	}
 	
+	/*
 	private static String parseIndexDebugMessage(DatabaseWritable model)
 	{
 		StringBuilder s = new StringBuilder("Model: ");
@@ -299,4 +280,5 @@ public class DatabaseException extends DebuggableException
 		
 		return s.toString();
 	}
+	*/
 }

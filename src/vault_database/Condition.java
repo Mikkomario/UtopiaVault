@@ -3,8 +3,6 @@ package vault_database;
 import java.sql.PreparedStatement;
 import java.sql.SQLException;
 
-import vault_generics.Table;
-
 /**
  * Conditions can be used in numerous database methods to limit the number of operated 
  * rows, joined rows, etc. in sql queries
@@ -83,11 +81,10 @@ public abstract class Condition
 	/**
 	 * Writes the condition as a where clause that includes the " WHERE" statement (including 
 	 * the first whitespace).
-	 * @param targetTable The table the condition is used in
 	 * @return The where condition as a where clause
 	 * @throws ConditionParseException If the where condition parsing failed
 	 */
-	public String toWhereClause(Table targetTable) throws ConditionParseException
+	public String toWhereClause() throws ConditionParseException
 	{
 		String sql = toSql();
 		

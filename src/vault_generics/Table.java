@@ -213,6 +213,18 @@ public class Table
 	// OTHER METHODS	----------------
 	
 	/**
+	 * @return Does the table's primary key use auto increment indexing
+	 */
+	public boolean usesAutoIncrementIndexing()
+	{
+		Column primary = findPrimaryColumn();
+		if (primary == null)
+			return false;
+		else
+			return primary.usesAutoIncrementIndexing();
+	}
+	
+	/**
 	 * @return A list containing the name of each column in the table
 	 */
 	public List<String> getColumnNames()

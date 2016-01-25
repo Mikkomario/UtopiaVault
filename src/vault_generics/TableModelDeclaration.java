@@ -2,7 +2,7 @@ package vault_generics;
 
 import java.util.Collection;
 
-import flow_generics.ModelDeclaration;
+import utopia.flow.generics.ModelDeclaration;
 
 /**
  * This is an immutable model declaration that is used primarily declaration of a set of 

@@ -5,14 +5,14 @@ import java.util.Collection;
 import java.util.List;
 import java.util.Set;
 
+import utopia.flow.generics.Model;
+import utopia.flow.generics.Model.NoSuchAttributeException;
+import utopia.flow.generics.ModelDeclaration;
+import utopia.flow.generics.SimpleModel;
+import utopia.flow.generics.Value;
+import utopia.flow.generics.Variable;
+import utopia.flow.generics.VariableDeclaration;
 import vault_generics.Table.NoSuchColumnException;
-import flow_generics.Model;
-import flow_generics.Model.NoSuchAttributeException;
-import flow_generics.ModelDeclaration;
-import flow_generics.SimpleModel;
-import flow_generics.Value;
-import flow_generics.Variable;
-import flow_generics.VariableDeclaration;
 
 /**
  * A combined model may contain both "normal" and database specific variables
@@ -60,7 +60,6 @@ public class CombinedModel
 			this.dbModel = new TableModel(table, databaseVariables);
 	}
 	
-	
 	// IMPLEMENTED METHODS	----------
 	
 	@Override
@@ -78,7 +77,7 @@ public class CombinedModel
 		}
 		
 		s.append("\nOther attributes:");
-		for (Variable var : getGenericAttributes())
+		for (Variable var : getGeneralAttributes())
 		{
 			s.append("\n");
 			s.append(var);
@@ -122,7 +121,7 @@ public class CombinedModel
 	/**
 	 * @return The model attributes which aren't database attributes
 	 */
-	public Set<Variable> getGenericAttributes()
+	public Set<Variable> getGeneralAttributes()
 	{
 		return this.baseModel.getAttributes();
 	}
@@ -140,7 +139,7 @@ public class CombinedModel
 	 */
 	public Set<Variable> getAttributes()
 	{
-		Set<Variable> attributes = getGenericAttributes();
+		Set<Variable> attributes = getGeneralAttributes();
 		attributes.addAll(getDatabaseAttributes());
 		return attributes;
 	}
@@ -174,12 +173,43 @@ public class CombinedModel
 	}
 	
 	/**
+	 * Finds the value of a single attribute in the model. Short for calling 
+	 * getAttribute(String).getValue().
+	 * @param attributeName The name of the attribute
+	 * @return The value of the attribute
+	 * @throws NoSuchColumnException If the model doesn't contain such an attribute and 
+	 * neither does the model's table
+	 */
+	public Value getAttributeValue(String attributeName) throws NoSuchColumnException
+	{
+		return getAttribute(attributeName).getValue();
+	}
+	
+	/**
 	 * @return The model's index attribute (the one associated with the table's primary key)
 	 * @throws NoSuchColumnException If the model's table doesn't have a primary key
 	 */
 	public ColumnVariable getIndexAttribute() throws NoSuchColumnException
 	{
 		return this.dbModel.getIndexAttribute();
+	}
+	
+	/**
+	 * The model's index attribute's value. Short for using getIndexAttribute().getValue()
+	 * @return The model's index
+	 */
+	public Value getIndex()
+	{
+		return this.dbModel.getIndex();
+	}
+	
+	/**
+	 * Changes the value of the model's index attribute
+	 * @param index The new index for the model
+	 */
+	public void setIndex(Value index)
+	{
+		this.dbModel.setIndex(index);
 	}
 	
 	/**
@@ -190,7 +220,7 @@ public class CombinedModel
 	 * @throws NoSuchAttributeException If the table doesn't contain the attribute and it 
 	 * hasn't been declared as a generic attribute either
 	 */
-	public void setAttribute(String attributeName, Value value) throws NoSuchAttributeException
+	public void setAttributeValue(String attributeName, Value value) throws NoSuchAttributeException
 	{
 		Variable var = this.baseModel.findAttribute(attributeName);
 		if (var == null)
@@ -212,6 +242,16 @@ public class CombinedModel
 	public void addGeneralAttribute(Variable attribute)
 	{
 		this.baseModel.addAttribute(attribute, true);
+	}
+	
+	/**
+	 * This metod adds multiple new general attributes to the model. If the model already 
+	 * contains some of the attributes, the previous attributes get overwritten
+	 * @param attributes The attributes that are added to the model
+	 */
+	public void addGeneralAttributes(Collection<? extends Variable> attributes)
+	{
+		this.baseModel.addAttributes(attributes, true);
 	}
 	
 	/**

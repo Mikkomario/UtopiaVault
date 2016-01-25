@@ -7,6 +7,7 @@ import vault_database_old.DatabaseAccessor.JoinCondition;
  * This is a static collection that contains example methods for creating join conditions.
  * @author Mikko Hilpinen
  * @since 24.11.2015
+ * @deprecated Please user {@link ExampleConditions#createRoleIndexJoinCondition()} instead
  */
 public class ExampleJoinConditions
 {

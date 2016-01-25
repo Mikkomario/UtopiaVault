@@ -7,7 +7,7 @@ import vault_database_old.DatabaseException;
 import vault_database_old.DatabaseSettings;
 import vault_database_old.DatabaseUnavailableException;
 import vault_database_old.AttributeNameMapping.MappingException;
-import vault_tutorial.ExampleUserModel.ExampleRoleModel;
+import vault_tutorial.ExampleUserModelOld.ExampleRoleModel;
 
 /**
  * This class tests some of the example functions in this package
@@ -118,9 +118,9 @@ public class TutorialTest
 	
 	// OTHER METHODS	------------------
 	
-	private static void printUsers(Collection<? extends ExampleUserModel> users)
+	private static void printUsers(Collection<? extends ExampleUserModelOld> users)
 	{
-		for (ExampleUserModel user : users)
+		for (ExampleUserModelOld user : users)
 		{
 			// Printing the role from hard-coded values is not the best practice but servers 
 			// in the context of this test

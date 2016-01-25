@@ -4,6 +4,7 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 
+import vault_database.ComparisonCondition;
 import vault_database_old.CombinedWhereCondition.CombinationOperator;
 import vault_database_old.DatabaseTable.Column;
 import vault_recording.DatabaseWritable;
@@ -12,6 +13,7 @@ import vault_recording.DatabaseWritable;
  * This condition is true when two values equal or are both null
  * @author Mikko Hilpinen
  * @since 2.10.2010
+ * @deprecated Replaced with {@link ComparisonCondition}
  */
 public class EqualsWhereCondition extends SingleWhereCondition
 {
