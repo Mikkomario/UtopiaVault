@@ -1,4 +1,4 @@
-package vault_database_old;
+package vault_database;
 
 /**
  * These exceptions are thrown when the desired database can't be accessed

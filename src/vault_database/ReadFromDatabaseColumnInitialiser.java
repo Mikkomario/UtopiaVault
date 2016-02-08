@@ -8,12 +8,10 @@ import java.util.Collection;
 import java.util.List;
 
 import utopia.flow.generics.Value;
-import vault_database_old.DatabaseAccessor;
-import vault_database_old.DatabaseUnavailableException;
 import vault_generics.Column;
 import vault_generics.ColumnInitialiser;
 import vault_generics.Table;
-import vault_generics.SimpleSqlDataType;
+import vault_generics.BasicSqlDataType;
 import vault_generics.SqlDataType;
 import vault_generics.VariableNameMapping.NoVariableForColumnException;
 
@@ -36,7 +34,7 @@ public class ReadFromDatabaseColumnInitialiser implements ColumnInitialiser
 	 * @param typeParser The parser that interprets the data types for the initialiser. 
 	 * If this is left to null, the initialiser will use the simple sql data types introduced 
 	 * in this project
-	 * @see SimpleSqlDataType#parseSqlType(String)
+	 * @see BasicSqlDataType#parseSqlType(String)
 	 */
 	public ReadFromDatabaseColumnInitialiser(DataTypeParser typeParser)
 	{
@@ -51,7 +49,7 @@ public class ReadFromDatabaseColumnInitialiser implements ColumnInitialiser
 	public Collection<? extends Column> generateColumns(Table table) throws 
 			DatabaseTableInitialisationException
 	{
-		DatabaseAccessor accessor = new DatabaseAccessor(table.getDatabaseName());
+		Database accessor = new Database(table);
 		PreparedStatement statement = null;
 		ResultSet result = null;
 		List<Column> columns = new ArrayList<>();
@@ -72,7 +70,7 @@ public class ReadFromDatabaseColumnInitialiser implements ColumnInitialiser
 				String typeString = result.getString("Type");
 				SqlDataType type;
 				if (this.parser == null)
-					type = SimpleSqlDataType.parseSqlType(typeString);
+					type = BasicSqlDataType.parseSqlType(typeString);
 				else
 					type = this.parser.parseType(typeString);
 				
@@ -102,8 +100,8 @@ public class ReadFromDatabaseColumnInitialiser implements ColumnInitialiser
 		finally
 		{
 			// Closes the connections
-			DatabaseAccessor.closeResults(result);
-			DatabaseAccessor.closeStatement(statement);
+			Database.closeResults(result);
+			Database.closeStatement(statement);
 			accessor.closeConnection();
 		}
 		

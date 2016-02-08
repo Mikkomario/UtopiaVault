@@ -14,7 +14,6 @@ import utopia.flow.generics.Value;
 import vault_database.ComparisonCondition.Operator;
 import vault_database.Condition.ConditionParseException;
 import vault_database.DatabaseSettings.UninitializedSettingsException;
-import vault_database_old.DatabaseUnavailableException;
 import vault_generics.Column;
 import vault_generics.ColumnVariable;
 import vault_generics.Table;
@@ -52,6 +51,18 @@ public class Database
 	public Database(Table table)
 	{
 		this.name = table.getDatabaseName();
+	}
+	
+	/**
+	 * Creates a new database interface. The interface is not connected to any single database. 
+	 * The database needs to be specified before the object can be used. This constructor 
+	 * can be used with the static utility methods since they specify the database before 
+	 * connecting.
+	 * @see #switchTo(String)
+	 */
+	public Database()
+	{
+		this.name = null;
 	}
 	
 	
@@ -240,6 +251,33 @@ public class Database
 	}
 	
 	/**
+	 * Changes the database that is currently being used
+	 * 
+	 * @param newDatabaseName The name of the new database to be used
+	 * @return The name of the database used after the call of this method
+	 * @throws DatabaseUnavailableException If the database can't be accessed
+	 * @throws SQLException If an sql exception occurred
+	 */
+	public String switchTo(String newDatabaseName) throws SQLException, 
+			DatabaseUnavailableException
+	{
+		if (this.name == null || !this.name.equals(newDatabaseName))
+		{
+			// The change is simple when a connection is closed
+			if (this.connection == null || this.connection.isClosed())
+				this.name = newDatabaseName;
+			// When a connection is open, informs the server
+			else
+			{
+				executeStatement("USE " + newDatabaseName + ";");
+				this.name = newDatabaseName;	
+			}
+		}
+		
+		return this.name;
+	}
+	
+	/**
 	 * Closes a currently open statement
 	 * @param statement The statement that will be closed
 	 */
@@ -279,7 +317,7 @@ public class Database
 	 * Performs a select query, selecting certain column value(s) from certain row(s) in certain 
 	 * table(s)
 	 * @param select The column values that are selected from each row. Null if the whole row 
-	 * should be selected.
+	 * should be selected. Use an empty list if no variables should be selected.
 	 * @param from The table the selection is made on
 	 * @param join The tables that are joined to the selection (optional)
 	 * @param on The conditions on which the tables are joined (optional). There should be 
@@ -289,6 +327,8 @@ public class Database
 	 * @param limit The limit on how many rows should be selected at maximum. < 0 if no limit 
 	 * should be set
 	 * @param orderBy The column the values should be ordered by
+	 * @param connection A database connection that should be used in the query. Null if a 
+	 * temporary connection should be used. Only temporary connections are closed in this method.
 	 * @return A list containing each selected row. Each row contains the selected column 
 	 * values.
 	 * @throws DatabaseUnavailableException If the database couldn't be accessed
@@ -297,7 +337,7 @@ public class Database
 	@SuppressWarnings("resource")
 	public static List<List<ColumnVariable>> select(Collection<? extends Column> select, 
 			Table from, Table[] join, Condition[] on, Condition where, int limit, 
-			Column orderBy) throws DatabaseUnavailableException, DatabaseException
+			Column orderBy, Database connection) throws DatabaseUnavailableException, DatabaseException
 	{
 		List<List<ColumnVariable>> rows = new ArrayList<>();
 		
@@ -327,11 +367,13 @@ public class Database
 			sql.append(" LIMIT " + limit);
 		
 		// Executes the query
-		Database db = new Database(from);
+		Database db = null;
 		PreparedStatement statement = null;
 		ResultSet results = null;
 		try
 		{
+			db = openIfTemporary(from, connection);
+			
 			// Prepares the statement
 			statement = db.getPreparedStatement(sql.toString());
 			int index = 1;
@@ -345,7 +387,23 @@ public class Database
 			while (results.next())
 			{
 				List<ColumnVariable> row = new ArrayList<>();
-				for (Column column : select)
+				// If it was select *, all rows from all tables are read
+				List<Column> readColumns = new ArrayList<Column>();;
+				if (select == null)
+				{
+					readColumns.addAll(from.getColumns());
+					if (join != null)
+					{
+						for (Table joined : join)
+						{
+							readColumns.addAll(joined.getColumns());
+						}
+					}
+				}
+				else
+					readColumns.addAll(select);
+				
+				for (Column column : readColumns)
 				{
 					row.add(column.assignValue(results.getObject(column.getColumnName())));
 				}
@@ -360,10 +418,35 @@ public class Database
 		{
 			closeResults(results);
 			closeStatement(statement);
-			db.closeConnection();
+			closeIfTemporary(db, connection);
 		}
 		
 		return rows;
+	}
+	
+	/**
+	 * Performs a select query, selecting certain column value(s) from certain row(s) in certain 
+	 * table(s)
+	 * @param select The column values that are selected from each row. Null if the whole row 
+	 * should be selected. Use an empty list if no variables should be selected.
+	 * @param from The table the selection is made on
+	 * @param where The condition that specifies which rows are selected. Null if each row 
+	 * should be selected.
+	 * @param limit The limit on how many rows should be selected at maximum. < 0 if no limit 
+	 * should be set
+	 * @param orderBy The column the values should be ordered by
+	 * @param connection A database connection that should be used in the query. Null if a 
+	 * temporary connection should be used. Only temporary connections are closed in this method.
+	 * @return A list containing each selected row. Each row contains the selected column 
+	 * values.
+	 * @throws DatabaseUnavailableException If the database couldn't be accessed
+	 * @throws DatabaseException If the query failed
+	 */
+	public static List<List<ColumnVariable>> select(Collection<? extends Column> select, 
+			Table from, Condition where, int limit, Column orderBy, Database connection) 
+			throws DatabaseUnavailableException, DatabaseException
+	{
+		return select(select, from, null, null, where, limit, orderBy, connection);
 	}
 	
 	/**
@@ -371,16 +454,18 @@ public class Database
 	 * @param model The model who's attributes are updated
 	 * @param where The condition with which the model is found. Notice that only the first 
 	 * result will be read
+	 * @param connection A database connection that should be used in the query. Null if a 
+	 * temporary connection should be used. Only temporary connections are closed in this method.
 	 * @return Was any data read
 	 * @throws DatabaseException If the process failed
 	 * @throws DatabaseUnavailableException If the database couldn't be accessed
 	 */
-	public static boolean readModelAttributes(TableModel model, Condition where) throws 
-			DatabaseException, DatabaseUnavailableException
+	public static boolean readModelAttributes(TableModel model, Condition where, 
+			Database connection) throws DatabaseException, DatabaseUnavailableException
 	{
 		// The index value is used as a where condition
 		List<List<ColumnVariable>> result = select(null, model.getTable(), null, null, 
-				where, 1, null);
+				where, 1, null, connection);
 		if (result.isEmpty())
 			return false;
 		else
@@ -394,12 +479,14 @@ public class Database
 	 * Updates a model's attributes based on a database query
 	 * @param model The model who's attributes are updated
 	 * @param index The index with which the model is found from the database
+	 * @param connection A database connection that should be used in the query. Null if a 
+	 * temporary connection should be used. Only temporary connections are closed in this method.
 	 * @return Was any data read
 	 * @throws DatabaseException If the process failed
 	 * @throws DatabaseUnavailableException If the database couldn't be accessed
 	 * @throws NoSuchColumnException If the model's table doesn't have a primary key
 	 */
-	public static boolean readModelAttributes(TableModel model, Value index) throws 
+	public static boolean readModelAttributes(TableModel model, Value index, Database connection) throws 
 			DatabaseException, DatabaseUnavailableException, NoSuchColumnException
 	{
 		if (model == null || index == null)
@@ -408,7 +495,7 @@ public class Database
 		// The index value is used as a where condition
 		Condition where = ComparisonCondition.createIndexCondition(model, Operator.EQUALS);
 		List<List<ColumnVariable>> result = select(null, model.getTable(), null, null, 
-				where, 1, null);
+				where, 1, null, connection);
 		if (result.isEmpty())
 			return false;
 		else
@@ -422,12 +509,15 @@ public class Database
 	 * Inserts new data into a database table
 	 * @param insert The data that is inserted into the table
 	 * @param into The table the data is inserted into
+	 * @param connection A database connection that should be used in the query. Null if a 
+	 * temporary connection should be used. Only temporary connections are closed in this method.
 	 * @return An auto-generated index, if there was one, -1 otherwise.
 	 * @throws DatabaseUnavailableException If the database can't be accessed
 	 * @throws DatabaseException If the operation failed / was misused
 	 */
 	@SuppressWarnings("resource")
-	public static int insert(Collection<? extends ColumnVariable> insert, Table into) throws 
+	public static int insert(Collection<? extends ColumnVariable> insert, Table into, 
+			Database connection) throws 
 			DatabaseUnavailableException, DatabaseException
 	{
 		// If there are no values to insert or no table, does nothing
@@ -447,11 +537,12 @@ public class Database
 		sql.append(") VALUES ");
 		appendValueSetString(sql, actualInsert.size());
 		
-		Database db = new Database(into);
+		Database db = null;
 		PreparedStatement statement = null;
 		ResultSet results = null;
 		try
 		{
+			db = openIfTemporary(into, connection);
 			statement = db.getPreparedStatement(sql.toString(), 
 					into.usesAutoIncrementIndexing());
 			
@@ -477,10 +568,62 @@ public class Database
 		{
 			closeResults(results);
 			closeStatement(statement);
-			db.closeConnection();
+			closeIfTemporary(db, connection);
 		}
 		
 		return -1;
+	}
+	
+	/**
+	 * Inserts a model into the database. The model should either have an existing index 
+	 * attribute, or use a table with auto-increment indexing
+	 * @param model A model
+	 * @param connection A database connection that should be used in the query. Null if a 
+	 * temporary connection should be used. Only temporary connections are closed in this method.
+	 * @throws DatabaseException If the operation failed
+	 * @throws DatabaseUnavailableException If the database couldn't be accessed
+	 */
+	public static void insert(TableModel model, Database connection) throws DatabaseException, 
+	DatabaseUnavailableException
+	{
+		if (model != null)
+		{
+			int index = insert(model.getAttributes(), model.getTable(), connection);
+			
+			if (index >= 0)
+				model.setIndex(Value.Integer(index));
+		}
+	}
+	
+	/**
+	 * Inserts a model into the database, if the model already exists in the database, updates 
+	 * it instead
+	 * @param model a model
+	 * @param skipNullUpdates Should null updates be skipped
+	 * @param connection A database connection that should be used in the query. Null if a 
+	 * temporary connection should be used. Only temporary connections are closed in this method.
+	 * @throws DatabaseException If the query failed
+	 * @throws NoSuchColumnException If the model's table doesn't have a primary key
+	 * @throws DatabaseUnavailableException If the database couldn't be accessed
+	 */
+	public static void insertOrUpdate(TableModel model, boolean skipNullUpdates, 
+			Database connection) throws 
+			DatabaseException, NoSuchColumnException, DatabaseUnavailableException
+	{
+		// Uses a single connection for all operations
+		Database db = null;
+		try
+		{
+			db = openIfTemporary(model.getTable(), connection);
+			if (modelExists(model, db))
+				update(model, skipNullUpdates, db);
+			else
+				insert(model, db);
+		}
+		finally
+		{
+			closeIfTemporary(db, connection);
+		}
 	}
 	
 	/**
@@ -490,15 +633,29 @@ public class Database
 	 * @param on The conditions on which the tables are joined. One condition should be 
 	 * presented for each joined table.
 	 * @param where The condition which determines, which rows are deleted
+	 * @param deleteFromJoined Should the joined rows be deleted as well
+	 * @param connection A database connection that should be used in the query. Null if a 
+	 * temporary connection should be used. Only temporary connections are closed in this method.
 	 * @throws DatabaseUnavailableException If the database couldn't be accessed
 	 * @throws DatabaseException If the query failed / was misused
 	 */
 	@SuppressWarnings("resource")
-	public static void delete(Table from, Table[] join, Condition[] on, Condition where) 
-			throws DatabaseUnavailableException, DatabaseException
+	public static void delete(Table from, Table[] join, Condition[] on, Condition where, 
+			boolean deleteFromJoined, Database connection) throws DatabaseUnavailableException, 
+			DatabaseException
 	{
-		StringBuilder sql = new StringBuilder("DELETE ");// FROM ");
+		StringBuilder sql = new StringBuilder("DELETE ");
+		// By default, only target table rows are deleted, joined rows can be included though
 		sql.append(from.getName());
+		if (deleteFromJoined && join != null)
+		{
+			for (Table joined : join)
+			{
+				sql.append(", ");
+				sql.append(joined.getName());
+			}
+		}
+		
 		sql.append(" FROM ");
 		sql.append(from.getName());
 		
@@ -517,10 +674,11 @@ public class Database
 			}
 		}
 		
-		Database db = new Database(from);
+		Database db = null;
 		PreparedStatement statement = null;
 		try
 		{
+			db = openIfTemporary(from, connection);
 			// Prepares the statement
 			statement = db.getPreparedStatement(sql.toString());
 			int index = 1;
@@ -539,22 +697,40 @@ public class Database
 		finally
 		{
 			closeStatement(statement);
-			db.closeConnection();
+			closeIfTemporary(db, connection);
 		}
+	}
+	
+	/**
+	 * Deletes row(s) from a database table
+	 * @param from The table the row(s) are deleted from
+	 * @param where The condition which determines, which rows are deleted
+	 * @param connection A database connection that should be used in the query. Null if a 
+	 * temporary connection should be used. Only temporary connections are closed in this method.
+	 * @throws DatabaseUnavailableException If the database couldn't be accessed
+	 * @throws DatabaseException If the query failed / was misused
+	 */
+	public static void delete(Table from, Condition where, Database connection) 
+			throws DatabaseUnavailableException, DatabaseException
+	{
+		delete(from, null, null, where, false, connection);
 	}
 	
 	/**
 	 * Updates certain row(s) in the provided table
 	 * @param table The table that is updated
 	 * @param set The variable values that are set
-	 * @param where
-	 * @param skipNullUpdates
-	 * @throws DatabaseException
-	 * @throws DatabaseUnavailableException
+	 * @param where The condition which determines which rows are updated
+	 * @param skipNullUpdates Should null updates be skipped
+	 * @param connection A database connection that should be used in the query. Null if a 
+	 * temporary connection should be used. Only temporary connections are closed in this method.
+	 * @throws DatabaseException If the operation failed
+	 * @throws DatabaseUnavailableException If the database couldn't be accessed
 	 */
 	@SuppressWarnings("resource")
 	public static void update(Table table, Collection<? extends ColumnVariable> set, 
-			Condition where, boolean skipNullUpdates) throws DatabaseException, DatabaseUnavailableException
+			Condition where, boolean skipNullUpdates, Database connection) throws 
+			DatabaseException, DatabaseUnavailableException
 	{
 		// TODO: Add support for join when necessary
 		// UPDATE table1, table2 SET ... WHERE ...
@@ -588,10 +764,11 @@ public class Database
 		}
 		
 		// Prepares the query
-		Database db = new Database(table);
+		Database db = null;
 		PreparedStatement statement = null;
 		try
 		{
+			db = openIfTemporary(table, connection);
 			statement = db.getPreparedStatement(sql.toString());
 			
 			// Prepares the values
@@ -609,7 +786,7 @@ public class Database
 		finally
 		{
 			closeStatement(statement);
-			db.closeConnection();
+			closeIfTemporary(db, connection);
 		}
 	}
 	
@@ -618,13 +795,16 @@ public class Database
 	 * @param model The model who's attributes are written into the database
 	 * @param where The condition with which the updated rows are selected
 	 * @param skipNullUpdates Should null value attributes be skipped
+	 * @param connection A database connection that should be used in the query. Null if a 
+	 * temporary connection should be used. Only temporary connections are closed in this method.
 	 * @throws DatabaseException If the process failed
 	 * @throws DatabaseUnavailableException If the database couldn't be accessed
 	 */
-	public static void update(TableModel model, Condition where, boolean skipNullUpdates) throws 
+	public static void update(TableModel model, Condition where, boolean skipNullUpdates, 
+			Database connection) throws 
 			DatabaseException, DatabaseUnavailableException
 	{
-		update(model.getTable(), model.getAttributes(), where, skipNullUpdates);
+		update(model.getTable(), model.getAttributes(), where, skipNullUpdates, connection);
 	}
 	
 	/**
@@ -632,15 +812,18 @@ public class Database
 	 * @param model The model who's attributes are written into the database
 	 * @param index The index of the row that is updated
 	 * @param skipNullUpdates Should null value attributes be skipped
+	 * @param connection A database connection that should be used in the query. Null if a 
+	 * temporary connection should be used. Only temporary connections are closed in this method.
 	 * @throws DatabaseException If the process failed
 	 * @throws NoSuchColumnException If the model's table doesn't have a primary key
 	 * @throws DatabaseUnavailableException If the database couldn't be accessed
 	 */
-	public static void update(TableModel model, Value index, boolean skipNullUpdates) throws 
-			DatabaseException, NoSuchColumnException, DatabaseUnavailableException
+	public static void update(TableModel model, Value index, boolean skipNullUpdates, 
+			Database connection) throws DatabaseException, NoSuchColumnException, 
+			DatabaseUnavailableException
 	{
 		update(model, new ComparisonCondition(model.getTable().getPrimaryColumn(), index), 
-				skipNullUpdates);
+				skipNullUpdates, connection);
 	}
 	
 	/**
@@ -648,15 +831,86 @@ public class Database
 	 * index
 	 * @param model The model who's attributes are written into the database
 	 * @param skipNullUpdates Should null value attributes be skipped
+	 * @param connection A database connection that should be used in the query. Null if a 
+	 * temporary connection should be used. Only temporary connections are closed in this method.
 	 * @throws DatabaseException If the process failed
 	 * @throws NoSuchColumnException If the model's table doesn't have a primary key
 	 * @throws DatabaseUnavailableException If the database couldn't be accessed
 	 */
-	public static void update(TableModel model, boolean skipNullUpdates) throws DatabaseException, 
-			DatabaseUnavailableException, NoSuchColumnException
+	public static void update(TableModel model, boolean skipNullUpdates, Database connection) 
+			throws DatabaseException, DatabaseUnavailableException, NoSuchColumnException
 	{
 		update(model, ComparisonCondition.createIndexEqualsCondition(model), 
-				skipNullUpdates);
+				skipNullUpdates, connection);
+	}
+	
+	/**
+	 * Checks whether the provided index exists in the table
+	 * @param table A table
+	 * @param index An index
+	 * @param connection A database connection that should be used in the query. Null if a 
+	 * temporary connection should be used. Only temporary connections are closed in this method.
+	 * @return Does the index already exist in the table
+	 * @throws DatabaseException If the query failed
+	 * @throws NoSuchColumnException If the table doesn't have a primary column
+	 * @throws DatabaseUnavailableException If the database couldn't be accessed
+	 */
+	public static boolean indexExists(Table table, Value index, Database connection) throws 
+			DatabaseException, NoSuchColumnException, DatabaseUnavailableException
+	{
+		List<List<ColumnVariable>> results = select(new ArrayList<>(), table, null, null, 
+				new ComparisonCondition(table.getPrimaryColumn(), index), 1, null, connection);
+		
+		return !results.isEmpty();
+	}
+	
+	/**
+	 * Checks whether a model exists in the database
+	 * @param model A model
+	 * @param connection A database connection that should be used in the query. Null if a 
+	 * temporary connection should be used. Only temporary connections are closed in this method.
+	 * @return does the model have a specified row in the database. Models with no index can't 
+	 * exist in the database. Always returns false for tables with no primary key.
+	 * @throws DatabaseException If the query failed.
+	 * @throws DatabaseUnavailableException If the database couldn't be accessed.
+	 */
+	public static boolean modelExists(TableModel model, Database connection) throws DatabaseException, 
+			DatabaseUnavailableException
+	{
+		// If the model doesn't have an index attribute, it doesn't exist in the table yet
+		if (!model.hasIndex())
+			return false;
+		
+		// Otherwise checks whether the model's index exists in the table
+		return indexExists(model.getTable(), model.getIndex(), connection);
+	}
+	
+	// 
+	private static Database openIfTemporary(Table targetTable, Database providedConnection) throws 
+			DatabaseUnavailableException
+	{
+		// If no connection was provided, a new temporary connection is used
+		if (providedConnection == null)
+			return new Database(targetTable);
+		else
+		{
+			try
+			{
+				providedConnection.switchTo(targetTable.getDatabaseName());
+			}
+			catch (SQLException e)
+			{
+				throw new DatabaseUnavailableException(e);
+			}
+			return providedConnection;
+		}
+	}
+	
+	private static void closeIfTemporary(Database usedConnection, Database providedConnection)
+	{
+		// The connection is only closed if it was temporary (= not provided)
+		if (providedConnection == null)
+			usedConnection.closeConnection();
 	}
 	
 	private static void appendSelect(StringBuilder sql, Collection<? extends Column> selection)
@@ -664,6 +918,8 @@ public class Database
 		sql.append("SELECT ");
 		if (selection == null)
 			sql.append("*");
+		else if (selection.isEmpty())
+			sql.append("NULL");
 		else
 			appendColumnNames(sql, selection);
 	}
@@ -671,7 +927,7 @@ public class Database
 	private static void appendSet(StringBuilder sql, Collection<? extends ColumnVariable> set)
 	{
 		sql.append(" SET ");
-		boolean first = false;
+		boolean first = true;
 		for (ColumnVariable var : set)
 		{
 			if (!first)
@@ -684,7 +940,7 @@ public class Database
 	
 	private static void appendColumnNames(StringBuilder sql, Collection<? extends Column> columns)
 	{
-		boolean first = false;
+		boolean first = true;
 		for (Column column : columns)
 		{
 			if (!first)

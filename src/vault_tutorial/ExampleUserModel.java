@@ -9,7 +9,7 @@ import utopia.flow.generics.Value;
 import utopia.flow.generics.Variable;
 import vault_database.Database;
 import vault_database.DatabaseException;
-import vault_database_old.DatabaseUnavailableException;
+import vault_database.DatabaseUnavailableException;
 import vault_generics.ColumnVariable;
 import vault_generics.CombinedModel;
 
@@ -115,17 +115,20 @@ public class ExampleUserModel extends CombinedModel
 	
 	/**
 	 * Reads the user's role from the database
+	 * @param connection A database connection that should be used in the query. Null if a 
+	 * temporary connection should be used. Only temporary connections are closed in this method.
 	 * @return The user's role
 	 * @throws DatabaseException If the query failed
 	 * @throws DatabaseUnavailableException If the database couldn't be accessed
 	 */
-	public ExampleRoleModel getRole() throws DatabaseException, DatabaseUnavailableException
+	public ExampleRoleModel getRole(Database connection) throws DatabaseException, 
+			DatabaseUnavailableException
 	{
 		Value roleId = getAttributeValue("roleId");
 		if (!roleId.isNull())
 		{
 			ExampleRoleModel role = new ExampleRoleModel();
-			if (Database.readModelAttributes(role, roleId))
+			if (Database.readModelAttributes(role, roleId, connection))
 				return role;
 		}
 		

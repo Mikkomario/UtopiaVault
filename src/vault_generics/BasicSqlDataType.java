@@ -4,19 +4,21 @@ import java.sql.Date;
 import java.sql.Timestamp;
 import java.sql.Types;
 
+import utopia.flow.generics.BasicDataType;
 import utopia.flow.generics.DataType;
+import utopia.flow.generics.DataTypeTreeNode;
 import utopia.flow.generics.DataTypes;
 import utopia.flow.generics.Value;
 
 /**
- * These are the data types used in the sql operations
+ * These are the data types used in the sql operations. Remember to initialise the data types 
+ * before use
  * @author Mikko Hilpinen
  * @since 9.1.2015
+ * @see #initialise()
  */
-public enum SimpleSqlDataType implements SqlDataType
+public enum BasicSqlDataType implements SqlDataType
 {
-	// TODO: Add initialisation and a parser
-	
 	/**
 	 * Varchar is the sql version of a string, and those two are interchangeable
 	 */
@@ -54,12 +56,13 @@ public enum SimpleSqlDataType implements SqlDataType
 	
 	// ATTRIBUTES	-------------------
 	
+	private static boolean initialised = false;
 	private final int sqlType;
 	
 	
 	// CONSTRUCTOR	-------------------
 	
-	private SimpleSqlDataType(int type)
+	private BasicSqlDataType(int type)
 	{
 		this.sqlType = type;
 	}
@@ -100,6 +103,77 @@ public enum SimpleSqlDataType implements SqlDataType
 	public static Timestamp valueToTimeStamp(Value value)
 	{
 		return (Timestamp) value.parseTo(TIMESTAMP);
+	}
+	
+	/**
+	 * Parses a value into sql time format and returns the object value
+	 * @param value a value
+	 * @return The value's object value casted to time
+	 */
+	public static java.sql.Time valueToTime(Value value)
+	{
+		return (java.sql.Time) value.parseTo(TIME);
+	}
+	
+	/**
+	 * Wraps a date into a value
+	 * @param date sql date
+	 * @return The date wrapped to value
+	 */
+	public static Value Date(Date date)
+	{
+		return new Value(date, DATE);
+	}
+	
+	/**
+	 * Wraps a sql time into a value
+	 * @param time sql time
+	 * @return Time wrapped to value
+	 */
+	public static Value Time(java.sql.Time time)
+	{
+		return new Value(time, TIME);
+	}
+	
+	/**
+	 * Wraps a timestamp to value
+	 * @param timestamp a sql timestamp
+	 * @return The timestamp wrapped to value
+	 */
+	public static Value Timestamp(Timestamp timestamp)
+	{
+		return new Value(timestamp, TIMESTAMP);
+	}
+	
+	/**
+	 * Initialises the sql data types so that they are recognised by parsing operations. This 
+	 * method is automatically called when DatabaseSettings are initialised, but can be called 
+	 * separately if necessary
+	 */
+	public static void initialise()
+	{
+		if (!initialised)
+		{
+			// Introduces the data types
+			DataTypes types = DataTypes.getInstance();
+			// Int, bigint and double go under the number, the others go under any
+			DataTypeTreeNode number = types.get(BasicDataType.NUMBER);
+			types.add(new DataTypeTreeNode(INT, number));
+			types.add(new DataTypeTreeNode(BIGINT, number));
+			types.add(new DataTypeTreeNode(DOUBLE, number));
+			
+			DataTypeTreeNode object = types.get(BasicDataType.OBJECT);
+			types.add(new DataTypeTreeNode(VARCHAR, object));
+			types.add(new DataTypeTreeNode(DATE, object));
+			types.add(new DataTypeTreeNode(TIME, object));
+			types.add(new DataTypeTreeNode(TIMESTAMP, object));
+			types.add(new DataTypeTreeNode(BOOLEAN, object));
+			
+			// Adds the parser
+			types.addParser(SqlValueParser.getInstance());
+			
+			initialised = true;
+		}
 	}
 	
 	/**

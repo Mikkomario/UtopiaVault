@@ -120,7 +120,7 @@ public class ColumnVariable extends Variable
 	 */
 	public Date getSqlDateValue()
 	{
-		return SimpleSqlDataType.valueToDate(getValue());
+		return BasicSqlDataType.valueToDate(getValue());
 	}
 	
 	/**
@@ -128,6 +128,6 @@ public class ColumnVariable extends Variable
 	 */
 	public Timestamp getTimestampValue()
 	{
-		return SimpleSqlDataType.valueToTimeStamp(getValue());
+		return BasicSqlDataType.valueToTimeStamp(getValue());
 	}
 }

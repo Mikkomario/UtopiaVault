@@ -36,15 +36,15 @@ public interface SqlDataType extends DataType
 		else
 		{
 			if (type.equals(BasicDataType.STRING))
-				return SimpleSqlDataType.VARCHAR;
+				return BasicSqlDataType.VARCHAR;
 			else if (type.equals(BasicDataType.BOOLEAN))
-				return SimpleSqlDataType.BOOLEAN;
+				return BasicSqlDataType.BOOLEAN;
 			else if (type.equals(BasicDataType.INTEGER))
-				return SimpleSqlDataType.INT;
+				return BasicSqlDataType.INT;
 			else if (type.equals(BasicDataType.LONG))
-				return SimpleSqlDataType.BIGINT;
+				return BasicSqlDataType.BIGINT;
 			else if (type.equals(BasicDataType.DOUBLE))
-				return SimpleSqlDataType.DOUBLE;
+				return BasicSqlDataType.DOUBLE;
 			
 			return null;
 		}

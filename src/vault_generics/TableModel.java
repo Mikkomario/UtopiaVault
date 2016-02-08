@@ -122,6 +122,16 @@ public class TableModel extends Model<ColumnVariable, Column>
 	}
 	
 	/**
+	 * Checks whether the model contains an attribute for the provided column
+	 * @param column A column
+	 * @return Does the model contain an attribute for the provided column
+	 */
+	public boolean containsAttribute(Column column)
+	{
+		return containsAttribute(column.getName());
+	}
+	
+	/**
 	 * @return The index attribute of this model
 	 * @throws NoSuchColumnException If the model's table doesn't have an index attribute
 	 */
@@ -148,5 +158,17 @@ public class TableModel extends Model<ColumnVariable, Column>
 	public Value getIndex() throws NoSuchColumnException
 	{
 		return getIndexAttribute().getValue();
+	}
+	
+	/**
+	 * Checks whether the model has a specified index attribute
+	 * @return Does the model have a specified index attribute
+	 */
+	public boolean hasIndex()
+	{
+		if (getTable().findPrimaryColumn() == null)
+			return false;
+		else
+			return containsAttribute(getTable().findPrimaryColumn());
 	}
 }

@@ -1,5 +1,7 @@
 package vault_database;
 
+import vault_generics.BasicSqlDataType;
+
 /**
  * DatabaseSettings is a static collection of variables that are used in 
  * database accessing and handling. Most of the variables are protected so they can only be 
@@ -127,9 +129,8 @@ public class DatabaseSettings
 	// OTHER METHODS	--------------------------------
 	
 	/**
-	 * Initializes the databaseSettings to the given values. 
-	 * Use the file provided in the data folder to create the multitable database
-	 * 
+	 * Initializes the databaseSettings to the given values. The sql data types are initialised 
+	 * as well.
 	 * @param connectionTarget The MariaDB server to be used. Should not include 
 	 * the name of the database. Null means "jdbc:mysql://localhost:3306/"
 	 * @param user The userName used when connecting to the server. Null means "root"
@@ -149,6 +150,9 @@ public class DatabaseSettings
 		setUser(user);
 		setPassword(password);
 		setDriver(driver);
+		
+		// Initialises the sql data types as well
+		BasicSqlDataType.initialise();
 	}
 	
 	
