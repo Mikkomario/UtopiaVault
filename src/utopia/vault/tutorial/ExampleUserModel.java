@@ -68,7 +68,7 @@ public class ExampleUserModel extends CombinedModel
 	 */
 	public int getRoleIndex()
 	{
-		Value index = getAttributeValue("role");
+		Value index = getAttributeValue("roleId");
 		if (index.isNull())
 			return 0;
 		else
@@ -81,7 +81,7 @@ public class ExampleUserModel extends CombinedModel
 	 */
 	public void setRoleIndex(int roleIndex)
 	{
-		setAttributeValue("role", Value.Integer(roleIndex));
+		setAttributeValue("roleId", Value.Integer(roleIndex));
 	}
 	
 	/**

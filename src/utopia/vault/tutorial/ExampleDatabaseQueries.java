@@ -1,18 +1,17 @@
 package utopia.vault.tutorial;
 
 import java.util.ArrayList;
-import java.util.HashSet;
 import java.util.List;
-import java.util.Set;
 
 import utopia.flow.generics.Value;
 import utopia.vault.database.Condition;
 import utopia.vault.database.Database;
 import utopia.vault.database.DatabaseException;
 import utopia.vault.database.DatabaseUnavailableException;
+import utopia.vault.database.Join;
+import utopia.vault.database.OrderBy;
 import utopia.vault.generics.Column;
 import utopia.vault.generics.ColumnVariable;
-import utopia.vault.generics.Table;
 import utopia.vault.generics.Table.NoSuchColumnException;
 
 /**
@@ -75,12 +74,12 @@ public class ExampleDatabaseQueries
 	}
 	
 	/**
-	 * This method finds and parses all users stored in the database that have the provided 
-	 * name.
-	 * @param userName The required user name
+	 * This method finds and parses all users stored in the database that have username that 
+	 * starts with the provided string
+	 * @param userName a string the user names should start with
 	 * @param connection A database connection that should be used in the query. Null if a 
 	 * temporary connection should be used. Only temporary connections are closed in this method.
-	 * @return All users in the database that have the provided name
+	 * @return All users in the database that have a name that starts with the provided string
 	 * @throws DatabaseUnavailableException If the database can't be accessed
 	 * @throws DatabaseException If the operation failed
 	 */
@@ -89,7 +88,9 @@ public class ExampleDatabaseQueries
 	{
 		// Like previously, all data is selected. This time a where condition is used, though.
 		List<List<ColumnVariable>> results = Database.select(null, ExampleTables.USERS, 
-				ExampleConditions.createUserNameCondition(userName), -1, null, connection);
+				ExampleConditions.createUserNameStartsWithCondition(userName)
+				/*ExampleConditions.createUserNameCondition(userName)*/, -1, null, 
+				connection);
 		
 		// The users are parsed just like previously
 		return parseUsers(results);
@@ -117,8 +118,8 @@ public class ExampleDatabaseQueries
 		// the method expects one or more conditions
 		// We can use a where condition that was specified in the ExampleWhereConditions
 		List<List<ColumnVariable>> results = Database.select(
-				selection, ExampleTables.USERS, new Table[] {ExampleTables.ROLES}, 
-				new Condition[] {ExampleConditions.createRoleIndexJoinCondition()}, 
+				selection, ExampleTables.USERS, 
+				new Join[] {ExampleConditions.createRoleIndexJoin()}, 
 				ExampleConditions.createUserNameAndRoleNameCondition(userName, roleName), -1, 
 				null, connection);
 		
@@ -134,16 +135,18 @@ public class ExampleDatabaseQueries
 	 * @throws DatabaseException If the operation failed
 	 * @throws DatabaseUnavailableException If the database can't be accessed
 	 */
-	public static Set<String> findUserNames(Database connection) throws DatabaseException, 
+	public static List<String> findUserNames(Database connection) throws DatabaseException, 
 			DatabaseUnavailableException
 	{
 		// This time only the user name is selected
 		List<Column> selection = ExampleTables.USERS.getVariableColumns("name");
 		// No where clause is used this time. The results come in same format as always
+		OrderBy order = new OrderBy(selection.get(0), false);
+		//System.out.println(order.toSql());
 		List<List<ColumnVariable>> results = Database.select(selection, ExampleTables.USERS, 
-				null, -1, null, connection);
+				null, -1, order, connection);
 		
-		Set<String> userNames = new HashSet<>();
+		List<String> userNames = new ArrayList<>();
 		// Each list in the result represents a row in the database
 		// Each row then contains a single user name
 		for (List<ColumnVariable> row : results)
@@ -263,8 +266,8 @@ public class ExampleDatabaseQueries
 		Condition roleNameCondition = ExampleConditions.createRoleNameCondition(roleName);
 		
 		// Deletes the users and roles which have the specified role name. A join condition is used.
-		Database.delete(ExampleTables.USERS, new Table[] {ExampleTables.ROLES}, 
-				new Condition[] {ExampleConditions.createRoleIndexJoinCondition()}, 
+		Database.delete(ExampleTables.USERS, 
+				new Join[] {ExampleConditions.createRoleIndexJoin()}, 
 				roleNameCondition, true, connection);
 	}
 	

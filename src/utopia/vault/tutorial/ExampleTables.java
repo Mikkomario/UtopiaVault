@@ -1,8 +1,8 @@
 package utopia.vault.tutorial;
 
 import utopia.vault.database.ReadFromDatabaseColumnInitialiser;
-import utopia.vault.generics.AfterLastUnderLineRule;
 import utopia.vault.generics.Table;
+import utopia.vault.generics.UnderlinesToCamelCaseRule;
 import utopia.vault.generics.VariableNameMapping;
 
 /**
@@ -31,7 +31,7 @@ public class ExampleTables
 	{
 		// Creates the name mapping first
 		VariableNameMapping mapping = new VariableNameMapping();
-		mapping.addRule(AfterLastUnderLineRule.getInstance());
+		mapping.addRule(UnderlinesToCamelCaseRule.getInstance());
 		
 		return new Table("test_db", name, mapping, 
 				new ReadFromDatabaseColumnInitialiser(null));

@@ -2,6 +2,8 @@ package utopia.vault.tutorial;
 
 import utopia.vault.database.ComparisonCondition;
 import utopia.vault.database.Condition;
+import utopia.vault.database.Join;
+import utopia.vault.database.LikeCondition;
 import utopia.vault.generics.Column;
 
 /**
@@ -78,6 +80,18 @@ public class ExampleConditions
 	}
 	
 	/**
+	 * This method creates a condition that selects user rows that have a name that starts 
+	 * with the provided string
+	 * @param nameStart The string the name should start with
+	 * @return a condition
+	 */
+	public static Condition createUserNameStartsWithCondition(String nameStart)
+	{
+		return LikeCondition.startsWith(ExampleTables.USERS.findColumnWithVariableName(
+				"name"), nameStart);
+	}
+	
+	/**
 	 * This method generates a condition that selects rows that have the provided 
 	 * user name and the provided role name. This where condition only works in join queries 
 	 * where users and roles are joined.
@@ -94,15 +108,15 @@ public class ExampleConditions
 	}
 	
 	/**
-	 * This method creates a condition that can be used for joining users table with the 
+	 * This method creates a join that connects users table with the 
 	 * role table based on the user's role index attribute
-	 * @return A condition the joins users and roles tables
+	 * @return A join for users and roles tables
 	 */
-	public static Condition createRoleIndexJoinCondition()
+	public static Join createRoleIndexJoin()
 	{
-		Column userRoleColumn = ExampleTables.USERS.findColumnWithVariableName("role");
+		Column userRoleColumn = ExampleTables.USERS.findColumnWithVariableName("roleId");
 		Column roleIndexColumn = ExampleTables.ROLES.getPrimaryColumn();
 		
-		return new ComparisonCondition(userRoleColumn, roleIndexColumn);
+		return new Join(userRoleColumn, roleIndexColumn);
 	}
 }

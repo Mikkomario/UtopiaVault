@@ -319,14 +319,12 @@ public class Database
 	 * @param select The column values that are selected from each row. Null if the whole row 
 	 * should be selected. Use an empty list if no variables should be selected.
 	 * @param from The table the selection is made on
-	 * @param join The tables that are joined to the selection (optional)
-	 * @param on The conditions on which the tables are joined (optional). There should be 
-	 * a condition for each joined table.
+	 * @param joins The joins that are inserted to the query (optional)
 	 * @param where The condition that specifies which rows are selected. Null if each row 
 	 * should be selected.
 	 * @param limit The limit on how many rows should be selected at maximum. < 0 if no limit 
 	 * should be set
-	 * @param orderBy The column the values should be ordered by
+	 * @param orderBy The method the returned rows are sorted with (optional)
 	 * @param connection A database connection that should be used in the query. Null if a 
 	 * temporary connection should be used. Only temporary connections are closed in this method.
 	 * @return A list containing each selected row. Each row contains the selected column 
@@ -336,8 +334,8 @@ public class Database
 	 */
 	@SuppressWarnings("resource")
 	public static List<List<ColumnVariable>> select(Collection<? extends Column> select, 
-			Table from, Table[] join, Condition[] on, Condition where, int limit, 
-			Column orderBy, Database connection) throws DatabaseUnavailableException, DatabaseException
+			Table from, Join[] joins, Condition where, int limit, 
+			OrderBy orderBy, Database connection) throws DatabaseUnavailableException, DatabaseException
 	{
 		List<List<ColumnVariable>> rows = new ArrayList<>();
 		
@@ -345,8 +343,8 @@ public class Database
 		appendSelect(sql, select);
 		sql.append(" FROM ");
 		sql.append(from.getName());
-		if (join != null)
-			appendJoin(sql, join, on);
+		if (joins != null)
+			appendJoin(sql, joins);
 		if (where != null)
 		{
 			try
@@ -359,10 +357,7 @@ public class Database
 			}
 		}
 		if (orderBy != null)
-		{
-			sql.append(" ORDER BY ");
-			sql.append(orderBy.getColumnNameWithTable());
-		}
+			sql.append(orderBy.toSql());
 		if (limit >= 0)
 			sql.append(" LIMIT " + limit);
 		
@@ -377,8 +372,8 @@ public class Database
 			// Prepares the statement
 			statement = db.getPreparedStatement(sql.toString());
 			int index = 1;
-			if (on != null)
-				index = setConditionValues(statement, index, on);
+			if (joins != null)
+				index = setConditionValues(statement, index, joins);
 			if (where != null)
 				index = setConditionValues(statement, index, where);
 			
@@ -392,11 +387,11 @@ public class Database
 				if (select == null)
 				{
 					readColumns.addAll(from.getColumns());
-					if (join != null)
+					if (joins != null)
 					{
-						for (Table joined : join)
+						for (Join join : joins)
 						{
-							readColumns.addAll(joined.getColumns());
+							readColumns.addAll(join.getJoinedTable().getColumns());
 						}
 					}
 				}
@@ -434,7 +429,7 @@ public class Database
 	 * should be selected.
 	 * @param limit The limit on how many rows should be selected at maximum. < 0 if no limit 
 	 * should be set
-	 * @param orderBy The column the values should be ordered by
+	 * @param orderBy The method the returned rows are sorted with (optional)
 	 * @param connection A database connection that should be used in the query. Null if a 
 	 * temporary connection should be used. Only temporary connections are closed in this method.
 	 * @return A list containing each selected row. Each row contains the selected column 
@@ -443,10 +438,10 @@ public class Database
 	 * @throws DatabaseException If the query failed
 	 */
 	public static List<List<ColumnVariable>> select(Collection<? extends Column> select, 
-			Table from, Condition where, int limit, Column orderBy, Database connection) 
+			Table from, Condition where, int limit, OrderBy orderBy, Database connection) 
 			throws DatabaseUnavailableException, DatabaseException
 	{
-		return select(select, from, null, null, where, limit, orderBy, connection);
+		return select(select, from, null, where, limit, orderBy, connection);
 	}
 	
 	/**
@@ -464,7 +459,7 @@ public class Database
 			Database connection) throws DatabaseException, DatabaseUnavailableException
 	{
 		// The index value is used as a where condition
-		List<List<ColumnVariable>> result = select(null, model.getTable(), null, null, 
+		List<List<ColumnVariable>> result = select(null, model.getTable(), null, 
 				where, 1, null, connection);
 		if (result.isEmpty())
 			return false;
@@ -494,7 +489,7 @@ public class Database
 		
 		// The index value is used as a where condition
 		Condition where = ComparisonCondition.createIndexCondition(model, Operator.EQUALS);
-		List<List<ColumnVariable>> result = select(null, model.getTable(), null, null, 
+		List<List<ColumnVariable>> result = select(null, model.getTable(), null, 
 				where, 1, null, connection);
 		if (result.isEmpty())
 			return false;
@@ -629,9 +624,7 @@ public class Database
 	/**
 	 * Deletes row(s) from a database table
 	 * @param from The table the row(s) are deleted from
-	 * @param join The tables that are joined into the query
-	 * @param on The conditions on which the tables are joined. One condition should be 
-	 * presented for each joined table.
+	 * @param joins The joins that are performed in the query (optional)
 	 * @param where The condition which determines, which rows are deleted
 	 * @param deleteFromJoined Should the joined rows be deleted as well
 	 * @param connection A database connection that should be used in the query. Null if a 
@@ -640,27 +633,27 @@ public class Database
 	 * @throws DatabaseException If the query failed / was misused
 	 */
 	@SuppressWarnings("resource")
-	public static void delete(Table from, Table[] join, Condition[] on, Condition where, 
+	public static void delete(Table from, Join[] joins, Condition where, 
 			boolean deleteFromJoined, Database connection) throws DatabaseUnavailableException, 
 			DatabaseException
 	{
 		StringBuilder sql = new StringBuilder("DELETE ");
 		// By default, only target table rows are deleted, joined rows can be included though
 		sql.append(from.getName());
-		if (deleteFromJoined && join != null)
+		if (deleteFromJoined && joins != null)
 		{
-			for (Table joined : join)
+			for (Join join : joins)
 			{
 				sql.append(", ");
-				sql.append(joined.getName());
+				sql.append(join.getJoinedTable().getName());
 			}
 		}
 		
 		sql.append(" FROM ");
 		sql.append(from.getName());
 		
-		if (join != null)
-			appendJoin(sql, join, on);
+		if (joins != null)
+			appendJoin(sql, joins);
 		
 		if (where != null)
 		{
@@ -682,8 +675,8 @@ public class Database
 			// Prepares the statement
 			statement = db.getPreparedStatement(sql.toString());
 			int index = 1;
-			if (on != null)
-				index = setConditionValues(statement, index, on);
+			if (joins != null)
+				index = setConditionValues(statement, index, joins);
 			if (where != null)
 				index = setConditionValues(statement, index, where);
 			
@@ -713,7 +706,7 @@ public class Database
 	public static void delete(Table from, Condition where, Database connection) 
 			throws DatabaseUnavailableException, DatabaseException
 	{
-		delete(from, null, null, where, false, connection);
+		delete(from, null, where, false, connection);
 	}
 	
 	/**
@@ -858,7 +851,7 @@ public class Database
 	public static boolean indexExists(Table table, Value index, Database connection) throws 
 			DatabaseException, NoSuchColumnException, DatabaseUnavailableException
 	{
-		List<List<ColumnVariable>> results = select(new ArrayList<>(), table, null, null, 
+		List<List<ColumnVariable>> results = select(new ArrayList<>(), table, null, 
 				new ComparisonCondition(table.getPrimaryColumn(), index), 1, null, connection);
 		
 		return !results.isEmpty();
@@ -963,24 +956,17 @@ public class Database
 		sql.append(")");
 	}
 	
-	private static void appendJoin(StringBuilder sql, Table[] join, Condition[] on) throws 
-			DatabaseException
+	private static void appendJoin(StringBuilder sql, Join[] joins) throws DatabaseException
 	{
-		for (int i = 0; i < join.length; i++)
+		for (Join join : joins)
 		{
-			sql.append(" JOIN ");
-			sql.append(join[i]);
-			if (on != null && i < on.length)
+			try
 			{
-				sql.append(" ON ");
-				try
-				{
-					sql.append(on[i].toSql());
-				}
-				catch (ConditionParseException e)
-				{
-					throw new DatabaseException(e, on[i]);
-				}
+				sql.append(join.toSql());
+			}
+			catch (ConditionParseException e)
+			{
+				throw new DatabaseException(e, join.getJoinCondition());
 			}
 		}
 	}
@@ -1001,6 +987,19 @@ public class Database
 			}
 		}
 		return index;
+	}
+	
+
+	private static int setConditionValues(PreparedStatement statement, int startIndex, 
+			Join[] joins) throws DatabaseException, SQLException
+	{
+		Condition[] conditions = new Condition[joins.length];
+		for (int i = 0; i < joins.length; i++)
+		{
+			conditions[i] = joins[i].getJoinCondition();
+		}
+		
+		return setConditionValues(statement, startIndex, conditions);
 	}
 	
 	private static List<ColumnVariable> getNonNullVariables(

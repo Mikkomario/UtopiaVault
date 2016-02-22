@@ -318,6 +318,25 @@ public class Table
 		return false;
 	}
 	
+	/**
+	 * @return a textual description of the table's columns
+	 */
+	public String getDebugDescription()
+	{
+		StringBuilder s = new StringBuilder();
+		s.append(getDatabaseName());
+		s.append(".");
+		s.append(getName());
+		
+		for (Column column : getColumns())
+		{
+			s.append("\n");
+			s.append(column);
+		}
+		
+		return s.toString();
+	}
+	
 	
 	// NESTED CLASSES	----------------------
 	

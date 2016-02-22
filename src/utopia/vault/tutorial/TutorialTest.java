@@ -56,6 +56,12 @@ public class TutorialTest
 			// Initialises the database settings
 			DatabaseSettings.initialize(connection, user, password, null);
 			
+			// Prints the table's current state
+			/*
+			System.out.println("Tables:");
+			System.out.println(ExampleTables.USERS.getDebugDescription());
+			System.out.println(ExampleTables.ROLES.getDebugDescription());
+			*/
 			// Inserts some new roles
 			ExampleDatabaseQueries.insertRole(0, "client", db);
 			ExampleDatabaseQueries.insertRole(1, "admin", db);
@@ -72,9 +78,15 @@ public class TutorialTest
 			System.out.println("All users");
 			printUsers(ExampleDatabaseQueries.findUsers(db));
 			
+			System.out.println("All user names");
+			for (String userName : ExampleDatabaseQueries.findUserNames(db))
+			{
+				System.out.println(userName);
+			}
+			
 			// Tests some other queries
-			System.out.println("All users with name 'Matti'");
-			printUsers(ExampleDatabaseQueries.findUsers("Matti", db));
+			System.out.println("All users with name 'Ma...'");
+			printUsers(ExampleDatabaseQueries.findUsers("Ma", db));
 			System.out.println("All users with name 'Matti' and role 'admin'");
 			printUsers(ExampleDatabaseQueries.findUsers("Matti", "admin", db));
 			
@@ -97,8 +109,8 @@ public class TutorialTest
 			printUsers(ExampleDatabaseQueries.findUsers(db));
 			
 			System.out.println("Deleting remaining test data");
-			Database.delete(ExampleTables.ROLES, null, null, null, false, db);
-			Database.delete(ExampleTables.USERS, null, null, null, false, db);
+			Database.delete(ExampleTables.ROLES, null, null, false, db);
+			Database.delete(ExampleTables.USERS, null, null, false, db);
 		}
 		catch (DatabaseException e)
 		{
