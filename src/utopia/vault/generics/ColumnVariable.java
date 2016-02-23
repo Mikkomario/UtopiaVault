@@ -20,8 +20,6 @@ public class ColumnVariable extends Variable
 	
 	private Column column;
 	
-	// TODO: Add handling for default value
-	
 	
 	// CONSTRUCTOR	-----------------
 	
@@ -49,6 +47,9 @@ public class ColumnVariable extends Variable
 			this.column = ((ColumnVariable) other).getColumn();
 		else
 			this.column = table.findColumnWithVariableName(getName());
+		
+		// Checks for nulls
+		setValue(getValue());
 	}
 
 	/**
@@ -58,7 +59,7 @@ public class ColumnVariable extends Variable
 	 */
 	public ColumnVariable(Column column, Value value)
 	{
-		super(column.getName(), column.getType(), value);
+		super(column.getName(), column.getType(), handleNotNull(column, value));
 		this.column = column;
 	}
 
@@ -82,7 +83,8 @@ public class ColumnVariable extends Variable
 	 */
 	public ColumnVariable(Column column, Object value, DataType valueType) throws DataTypeException
 	{
-		super(column.getName(), column.getType(), value, valueType);
+		super(column.getName(), column.getType(), handleNotNull(column, 
+				new Value(value, valueType)));
 		this.column = column;
 	}
 	
@@ -99,6 +101,20 @@ public class ColumnVariable extends Variable
 	{
 		Column column = table.findColumnWithVariableName(variableName);
 		return new ColumnVariable(column, value);
+	}
+	
+	
+	// IMPLEMENTED METHODS	---------
+	
+	/**
+	 * Changes the variable's value. If the assigned value is null and the column doesn't allow 
+	 * null values, the default value is used. If no suitable default value is found, the 
+	 * process fails.
+	 */
+	@Override
+	public void setValue(Value value) throws NullNotAllowedException
+	{
+		super.setValue(handleNotNull(getColumn(), value));
 	}
 
 	
@@ -129,5 +145,34 @@ public class ColumnVariable extends Variable
 	public Timestamp getTimestampValue()
 	{
 		return BasicSqlDataType.valueToTimeStamp(getValue());
+	}
+	
+	private static Value handleNotNull(Column column, Value value)
+	{
+		if (column.nullAllowed())
+			return value;
+		else if (value.isNull())
+		{
+			Value defaultValue = column.getDefaultValue();
+			if (defaultValue == null || defaultValue.isNull())
+				throw new NullNotAllowedException(column);
+			else
+				return defaultValue;
+		}
+		else
+			return value;
+	}
+	
+	
+	// NESTED CLASSES	-------------------
+	
+	private static class NullNotAllowedException extends RuntimeException
+	{
+		private static final long serialVersionUID = -4316410740660035059L;
+
+		public NullNotAllowedException(Column column)
+		{
+			super("Column " + column.getColumnName() + " doesn't allow null values");
+		}
 	}
 }

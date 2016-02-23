@@ -3,6 +3,8 @@ package utopia.vault.generics;
 import java.sql.Date;
 import java.sql.Time;
 import java.sql.Timestamp;
+import java.time.LocalDateTime;
+import java.time.format.DateTimeParseException;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
@@ -54,6 +56,8 @@ public class SqlValueParser implements ValueParser
 				ConversionReliability.PERFECT));
 		this.conversions.add(new Conversion(BasicSqlDataType.TIMESTAMP, BasicDataType.DATETIME, 
 				ConversionReliability.PERFECT));
+		this.conversions.add(new Conversion(BasicDataType.STRING, BasicSqlDataType.TIMESTAMP, 
+				ConversionReliability.DANGEROUS));
 		
 		for (Pair<DataType, DataType> wrap : this.wrapable)
 		{
@@ -127,10 +131,29 @@ public class SqlValueParser implements ValueParser
 			if (from.equals(BasicSqlDataType.TIMESTAMP))
 				return Value.DateTime(BasicSqlDataType.valueToTimeStamp(value).toLocalDateTime());
 		}
+		// Timestamps can also be parsed from strings
 		else if (to.equals(BasicSqlDataType.TIMESTAMP))
 		{
 			if (from.equals(BasicDataType.DATETIME))
 				return BasicSqlDataType.Timestamp(Timestamp.valueOf(value.toLocalDateTime()));
+			else if (from.equals(BasicDataType.STRING))
+			{
+				String stringVal = value.toString();
+				if (stringVal.equalsIgnoreCase("CURRENT_TIMESTAMP"))
+					return new CurrentTimestamp();
+				else
+				{
+					try
+					{
+						return BasicSqlDataType.Timestamp(Timestamp.valueOf(LocalDateTime.parse(
+								stringVal)));
+					}
+					catch (DateTimeParseException e)
+					{
+						throw new ValueParseException(value, from, to, e);
+					}
+				}
+			}
 		}
 		
 		throw new ValueParseException(value, to);

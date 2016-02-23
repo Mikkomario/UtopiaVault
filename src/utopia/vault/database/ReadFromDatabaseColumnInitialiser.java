@@ -11,6 +11,7 @@ import utopia.flow.generics.Value;
 import utopia.vault.generics.BasicSqlDataType;
 import utopia.vault.generics.Column;
 import utopia.vault.generics.ColumnInitialiser;
+import utopia.vault.generics.CurrentTimestamp;
 import utopia.vault.generics.SqlDataType;
 import utopia.vault.generics.Table;
 import utopia.vault.generics.VariableNameMapping.NoVariableForColumnException;
@@ -80,8 +81,11 @@ public class ReadFromDatabaseColumnInitialiser implements ColumnInitialiser
 				
 				boolean nullAllowed = "YES".equalsIgnoreCase(result.getString("Null"));
 				Value defaultValue = null;
-				if ("NULL".equalsIgnoreCase(result.getString("Default")))
+				String defaultString = result.getString("Default");
+				if ("NULL".equalsIgnoreCase(defaultString))
 					defaultValue = Value.NullValue(type);
+				else if ("CURRENT_TIMESTAMP".equalsIgnoreCase(defaultString))
+					defaultValue = new CurrentTimestamp();
 				else
 				{
 					Value stringValue = Value.String(result.getString("Default"));
