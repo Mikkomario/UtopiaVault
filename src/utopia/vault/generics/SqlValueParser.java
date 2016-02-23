@@ -58,6 +58,8 @@ public class SqlValueParser implements ValueParser
 				ConversionReliability.PERFECT));
 		this.conversions.add(new Conversion(BasicDataType.STRING, BasicSqlDataType.TIMESTAMP, 
 				ConversionReliability.DANGEROUS));
+		this.conversions.add(new Conversion(BasicDataType.STRING, BasicDataType.DATETIME, 
+				ConversionReliability.DANGEROUS));
 		
 		for (Pair<DataType, DataType> wrap : this.wrapable)
 		{
@@ -126,10 +128,30 @@ public class SqlValueParser implements ValueParser
 			if (from.equals(BasicDataType.TIME))
 				return BasicSqlDataType.Time(Time.valueOf(value.toLocalTime()));
 		}
+		// Datetimes may be parsed from strings through timestamp if the default format fails
 		else if (to.equals(BasicDataType.DATETIME))
 		{
 			if (from.equals(BasicSqlDataType.TIMESTAMP))
 				return Value.DateTime(BasicSqlDataType.valueToTimeStamp(value).toLocalDateTime());
+			else if (from.equals(BasicDataType.STRING))
+			{
+				String stringVal = value.toString();
+				try
+				{
+					return Value.DateTime(LocalDateTime.parse(stringVal));
+				}
+				catch (DateTimeParseException e)
+				{
+					try
+					{
+						return Value.DateTime(Timestamp.valueOf(stringVal).toLocalDateTime());
+					}
+					catch (IllegalArgumentException e1)
+					{
+						throw new ValueParseException(value, from, to, e);
+					}
+				}
+			}
 		}
 		// Timestamps can also be parsed from strings
 		else if (to.equals(BasicSqlDataType.TIMESTAMP))
@@ -145,12 +167,20 @@ public class SqlValueParser implements ValueParser
 				{
 					try
 					{
-						return BasicSqlDataType.Timestamp(Timestamp.valueOf(LocalDateTime.parse(
-								stringVal)));
+						return BasicSqlDataType.Timestamp(Timestamp.valueOf(stringVal));
+						
 					}
-					catch (DateTimeParseException e)
+					catch (IllegalArgumentException e)
 					{
-						throw new ValueParseException(value, from, to, e);
+						try
+						{
+							return BasicSqlDataType.Timestamp(Timestamp.valueOf(LocalDateTime.parse(
+									stringVal)));
+						}
+						catch (DateTimeParseException e2)
+						{
+							throw new ValueParseException(value, from, to, e);
+						}
 					}
 				}
 			}
