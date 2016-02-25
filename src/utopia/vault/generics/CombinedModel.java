@@ -157,6 +157,16 @@ public class CombinedModel
 	}
 	
 	/**
+	 * Finds one of the model's database attributes
+	 * @param column The column associated with the attribute
+	 * @return The model's attribute associated with the column
+	 */
+	public ColumnVariable getDatabaseAttribute(Column column)
+	{
+		return this.dbModel.getAttribute(column);
+	}
+	
+	/**
 	 * Finds one of the models attributes. The attribute may be a generic attribute or a 
 	 * database attribute
 	 * @param attributeName The name of the attribute

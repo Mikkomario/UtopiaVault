@@ -11,7 +11,6 @@ import java.util.Collection;
 import java.util.List;
 
 import utopia.flow.generics.Value;
-import utopia.vault.database.ComparisonCondition.Operator;
 import utopia.vault.database.Condition.ConditionParseException;
 import utopia.vault.database.DatabaseSettings.UninitializedSettingsException;
 import utopia.vault.generics.Column;
@@ -488,7 +487,7 @@ public class Database
 			return false;
 		
 		// The index value is used as a where condition
-		Condition where = ComparisonCondition.createIndexCondition(model, Operator.EQUALS);
+		Condition where = new ComparisonCondition(model.getTable().getPrimaryColumn(), index);
 		List<List<ColumnVariable>> result = select(null, model.getTable(), null, 
 				where, 1, null, connection);
 		if (result.isEmpty())

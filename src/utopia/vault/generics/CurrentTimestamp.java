@@ -33,4 +33,10 @@ public class CurrentTimestamp extends Value
 	{
 		return Timestamp.valueOf(LocalDateTime.now());
 	}
+	
+	@Override
+	public String toString()
+	{
+		return "CURRENT_TIMESTAMP";
+	}
 }

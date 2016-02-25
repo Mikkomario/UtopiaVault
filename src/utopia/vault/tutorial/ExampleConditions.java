@@ -42,7 +42,8 @@ public class ExampleConditions
 		// This model can then be used for generating a Condition
 		// In the case of user model, the database model part must be separated from the 
 		// combined model
-		return ComparisonCondition.createModelEqualsCondition(whereModel.toDatabaseModel());
+		return ComparisonCondition.createModelEqualsCondition(
+				whereModel.toDatabaseModel(), false);
 	}
 	
 	/**
@@ -63,7 +64,8 @@ public class ExampleConditions
 		
 		// The returned where condition is actually a CombinedWhereCondition where the two 
 		// conditions are combined with AND
-		return ComparisonCondition.createModelEqualsCondition(whereModel.toDatabaseModel());
+		return ComparisonCondition.createModelEqualsCondition(
+				whereModel.toDatabaseModel(), false);
 	}
 	
 	/**
@@ -76,7 +78,7 @@ public class ExampleConditions
 	{
 		ExampleRoleModel whereRoleModel = new ExampleRoleModel();
 		whereRoleModel.setName(roleName);
-		return ComparisonCondition.createModelEqualsCondition(whereRoleModel);
+		return ComparisonCondition.createModelEqualsCondition(whereRoleModel, false);
 	}
 	
 	/**

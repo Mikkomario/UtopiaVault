@@ -189,7 +189,6 @@ public enum BasicSqlDataType implements SqlDataType
 		
 		switch (lower)
 		{
-			case "bigint":	return BIGINT;
 			case "string":
 			case "char":	return VARCHAR;
 			case "long":	return BIGINT;
@@ -203,6 +202,11 @@ public enum BasicSqlDataType implements SqlDataType
 			case "date": 	return DATE;
 			case "time":	return TIME;
 		}
+		
+		if (lower.startsWith("bigint"))
+			return BIGINT;
+		else if (lower.startsWith("tinyint"))
+			return BOOLEAN;
 		
 		String modified;
 		if (s.startsWith("tiny"))

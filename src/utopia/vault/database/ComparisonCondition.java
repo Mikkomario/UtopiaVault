@@ -1,6 +1,8 @@
 package utopia.vault.database;
 
+import java.util.ArrayList;
 import java.util.Collection;
+import java.util.List;
 
 import utopia.flow.generics.Value;
 import utopia.vault.database.CombinedCondition.CombinationOperator;
@@ -129,21 +131,53 @@ public class ComparisonCondition extends SingleCondition
 	 * {@link Operator#EQUALS} comparison.
 	 * @param variables The variables that are checked
 	 * @param combinationOperator The operator used for combining the conditions
+	 * @param skipNullVariables Should null variables be skipped entirely
 	 * @return A combined condition based on the variables and the provided operator
 	 * @throws ConditionParseException If XOR was used with more than 2 variables
 	 */
 	public static Condition createVariableSetEqualsCondition(
 			Collection<? extends ColumnVariable> variables, 
-			CombinationOperator combinationOperator) throws ConditionParseException
+			CombinationOperator combinationOperator, boolean skipNullVariables) throws 
+			ConditionParseException
 	{
-		if (variables.isEmpty())
+		return createVariableSetCondition(variables, combinationOperator, Operator.EQUALS, 
+				skipNullVariables);
+	}
+	
+	/**
+	 * Creates a new condition that compares multiple variable values.
+	 * @param variables The variables that are checked
+	 * @param combinationOperator The operator used for combining the conditions
+	 * @param comparisonOperator The operation that is performed for each variable
+	 * @param skipNullVariables Should null attributes be skipped entirely
+	 * @return A combined condition based on the variables and the provided operator
+	 * @throws ConditionParseException If XOR was used with more than 2 variables
+	 */
+	public static Condition createVariableSetCondition(
+			Collection<? extends ColumnVariable> variables, 
+			CombinationOperator combinationOperator, Operator comparisonOperator, 
+			boolean skipNullVariables) throws ConditionParseException
+	{
+		List<ColumnVariable> targetVariables = new ArrayList<>();
+		if (skipNullVariables)
+		{
+			for (ColumnVariable var : variables)
+			{
+				if (!var.isNull())
+					targetVariables.add(var);
+			}
+		}
+		else
+			targetVariables.addAll(variables);
+		
+		if (targetVariables.isEmpty())
 			return null;
 		
-		Condition[] conditions = new Condition[variables.size()];
+		Condition[] conditions = new Condition[targetVariables.size()];
 		int i = 0;
-		for (ColumnVariable variable : variables)
+		for (ColumnVariable variable : targetVariables)
 		{
-			conditions[i] = new ComparisonCondition(variable);
+			conditions[i] = new ComparisonCondition(variable, comparisonOperator);
 			i ++;
 		}
 		
@@ -155,14 +189,16 @@ public class ComparisonCondition extends SingleCondition
 	 * {@link Operator#EQUALS} comparison. Each of the variables must match the row's 
 	 * equivalents for the row to be selected.
 	 * @param variables The variables that are checked
+	 * @param skipNullVariables Should null variables be skipped entirely
 	 * @return A combined condition based on the variables
 	 */
 	public static Condition createVariableSetEqualsCondition(
-			Collection<? extends ColumnVariable> variables)
+			Collection<? extends ColumnVariable> variables, boolean skipNullVariables)
 	{
 		try
 		{
-			return createVariableSetEqualsCondition(variables, CombinationOperator.AND);
+			return createVariableSetEqualsCondition(variables, CombinationOperator.AND, 
+					skipNullVariables);
 		}
 		catch (ConditionParseException e)
 		{
@@ -177,11 +213,13 @@ public class ComparisonCondition extends SingleCondition
 	 * Creates a condition that only selects rows that have state identical to the model's 
 	 * declared attributes
 	 * @param model a model
+	 * @param skipNullVariables Should model's null attributes be skipped
 	 * @return a condition
 	 */
-	public static Condition createModelEqualsCondition(TableModel model)
+	public static Condition createModelEqualsCondition(TableModel model, 
+			boolean skipNullVariables)
 	{
-		return createVariableSetEqualsCondition(model.getAttributes());
+		return createVariableSetEqualsCondition(model.getAttributes(), skipNullVariables);
 	}
 	
 	
