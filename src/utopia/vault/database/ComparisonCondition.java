@@ -8,6 +8,7 @@ import utopia.flow.generics.Value;
 import utopia.vault.database.CombinedCondition.CombinationOperator;
 import utopia.vault.generics.Column;
 import utopia.vault.generics.ColumnVariable;
+import utopia.vault.generics.Table;
 import utopia.vault.generics.TableModel;
 import utopia.vault.generics.Table.NoSuchColumnException;
 
@@ -124,6 +125,19 @@ public class ComparisonCondition extends SingleCondition
 			throws NoSuchColumnException
 	{
 		return createIndexCondition(model, Operator.EQUALS);
+	}
+	
+	/**
+	 * Creates a new condition for a table's primary key
+	 * @param table The table used
+	 * @param index The primary key searched
+	 * @return a condition that only selects the row with the provided primary key
+	 * @throws NoSuchColumnException If the table doesn't have a primary key
+	 */
+	public static ComparisonCondition createIndexEqualsCondition(Table table, Value index) 
+			throws NoSuchColumnException
+	{
+		return new ComparisonCondition(table.getPrimaryColumn(), index);
 	}
 	
 	/**

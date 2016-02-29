@@ -26,3 +26,15 @@ WHERE REFERENCED_TABLE_NAME = 'roles' AND REFERENCED_TABLE_SCHEMA = 'test_db';
 */
 -- TODO: ASC ja DESC orderByhyn
 -- TODO: Like / starts with condition
+
+SELECT arrival_flight.af_rowId FROM arrival_flight WHERE 
+(arrival_flight.af_scheduledArrivalTime BETWEEN '2016-02-28 17:25:00' AND '2016-02-29 05:25:00')
+
+
+SELECT arrival_flight.af_rowId FROM arrival_flight WHERE 
+(arrival_flight.af_registration <=> 'CSTNP' AND 
+arrival_flight.af_scheduledArrivalTime IS BETWEEN '2016-02-28 17:25:00' AND '2016-02-29 05:25:00') ORDER BY af_scheduledArrivalTime DESC LIMIT 1
+
+
+You have an error in your SQL syntax; check the manual that corresponds to your MariaDB 
+server version for the right syntax to use near 'BETWEEN '2016-02-28 17:25:00' AND '2016-02-29 05:25:00') ORDER BY af_scheduledAr' at line 1

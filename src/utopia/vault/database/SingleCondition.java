@@ -105,7 +105,7 @@ public abstract class SingleCondition extends Condition
 					targetType = SqlDataType.castToSqlDataType(castValue.getType());
 				}
 				
-				statement.setObject(startIndex, castValue.getObjectValue(), targetType.getSqlType());
+				statement.setObject(index, castValue.getObjectValue(), targetType.getSqlType());
 				index ++;
 			}
 			catch (DataTypeException e)
@@ -132,7 +132,7 @@ public abstract class SingleCondition extends Condition
 				else
 					valueString = "'" + valueString + "'";
 				
-				sql.replaceFirst("\\?", valueString);
+				sql = sql.replaceFirst("\\?", valueString);
 			}
 			
 			return sql;

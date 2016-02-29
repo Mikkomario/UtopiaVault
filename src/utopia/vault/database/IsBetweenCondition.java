@@ -12,7 +12,7 @@ public class IsBetweenCondition extends SingleCondition
 {
 	// ATTRIBUTES	---------------
 	
-	private Column[] parts; // [0] iS BETWEEN [1] AND [2]
+	private Column[] parts; // [0] BETWEEN [1] AND [2]
 	
 	
 	// CONSTRUCTOR	---------------
@@ -100,7 +100,7 @@ public class IsBetweenCondition extends SingleCondition
 		StringBuilder sql = new StringBuilder();
 		appendPart(sql, 0);
 		
-		sql.append(" IS BETWEEN ");
+		sql.append(" BETWEEN ");
 		
 		appendPart(sql, 1);
 		sql.append(" AND ");
