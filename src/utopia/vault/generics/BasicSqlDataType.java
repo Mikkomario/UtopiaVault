@@ -71,6 +71,12 @@ public enum BasicSqlDataType implements SqlDataType
 	// IMPLEMENTED METHODS	-----------
 
 	@Override
+	public String toString()
+	{
+		return "SQL_" + super.toString();
+	}
+	
+	@Override
 	public String getName()
 	{
 		return toString();
