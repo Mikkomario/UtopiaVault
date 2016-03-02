@@ -15,12 +15,13 @@ public class Join
 	
 	private Condition condition;
 	private Table table;
+	private JoinType type;
 	
 	
 	// CONSTRUCTOR	---------------------
 	
 	/**
-	 * Creates a new join
+	 * Creates a new left join
 	 * @param joinedTable the table that is joined
 	 * @param joinCondition The condition on which the table is joined
 	 */
@@ -28,10 +29,11 @@ public class Join
 	{
 		this.table = joinedTable;
 		this.condition = joinCondition;
+		this.type = JoinType.LEFT;
 	}
 	
 	/**
-	 * Creates a new join by linking two columns
+	 * Creates a new left join by linking two columns
 	 * @param tableColumn The column in the original table
 	 * @param joinedColumn The associated column in the joined table
 	 */
@@ -39,6 +41,33 @@ public class Join
 	{
 		this.table = joinedColumn.getTable();
 		this.condition = new ComparisonCondition(tableColumn, joinedColumn);
+		this.type = JoinType.LEFT;
+	}
+	
+	/**
+	 * Creates a new join
+	 * @param joinedTable the table that is joined
+	 * @param joinCondition The condition on which the table is joined
+	 * @param type The type of the join
+	 */
+	public Join(Table joinedTable, Condition joinCondition, JoinType type)
+	{
+		this.table = joinedTable;
+		this.condition = joinCondition;
+		this.type = type;
+	}
+	
+	/**
+	 * Creates a new join by linking two columns
+	 * @param tableColumn The column in the original table
+	 * @param joinedColumn The associated column in the joined table
+	 * @param type The type of the join
+	 */
+	public Join(Column tableColumn, Column joinedColumn, JoinType type)
+	{
+		this.table = joinedColumn.getTable();
+		this.condition = new ComparisonCondition(tableColumn, joinedColumn);
+		this.type = type;
 	}
 	
 	
@@ -72,11 +101,73 @@ public class Join
 	public String toSql() throws ConditionParseException
 	{
 		StringBuilder sql = new StringBuilder();
-		sql.append(" JOIN ");
+		sql.append(this.type.toSql());
 		sql.append(getJoinedTable().getName());
 		sql.append(" ON ");
 		sql.append(getJoinCondition().toSql());
 		
 		return sql.toString();
+	}
+	
+	
+	// ENUMERATIONS		-----------------
+	
+	/**
+	 * These are the different methods for joining two tables together
+	 * @author Mikko Hilpinen
+	 * @since 2.3.2016
+	 */
+	public static enum JoinType
+	{
+		/**
+		 * Includes all rows from the primary table + connected rows from the joined table
+		 */
+		LEFT(" LEFT JOIN "),
+		/**
+		 * Includes all rows from the joined table + connected rows from the primary table
+		 */
+		RIGHT(" RIGHT JOIN "),
+		/**
+		 * Includes only connected rows from both tables
+		 */
+		INNER(" INNER JOIN "),
+		/**
+		 * Includes all rows from both tables
+		 */
+		FULL_OUTER(" FULL OUTER JOIN ");
+		
+		
+		// ATTRIBUTES	----------------
+		
+		private final String sql;
+		
+		
+		// CONSTRUCTOR	----------------
+		
+		private JoinType(String sql)
+		{
+			this.sql = sql;
+		}
+		
+		
+		// IMPLEMENTED METHODS	---------
+		
+		@Override
+		public String toString()
+		{
+			return toSql();
+		}
+		
+		
+		// OTHER METHODS	--------------
+		
+		/**
+		 * @return The sql syntax for this join. Includes white spaces around the sql. For 
+		 * example: " LEFT JOIN "
+		 */
+		public String toSql()
+		{
+			return this.sql;
+		}
 	}
 }

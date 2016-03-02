@@ -212,7 +212,14 @@ public enum BasicSqlDataType implements SqlDataType
 		if (lower.startsWith("bigint"))
 			return BIGINT;
 		else if (lower.startsWith("tinyint"))
-			return BOOLEAN;
+		{
+			// tinyint(1) is considered a boolean, a larger tinyint will be considered an 
+			// integer
+			if (lower.equals("tinyint(1)"))
+				return BOOLEAN;
+			else
+				return INT;
+		}
 		
 		String modified;
 		if (s.startsWith("tiny"))
