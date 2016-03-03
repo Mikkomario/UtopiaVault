@@ -161,6 +161,21 @@ public class TableModel extends Model<ColumnVariable, Column>
 	}
 	
 	/**
+	 * Finds the model's index value. If there is no index assigned, the provided value is 
+	 * returned instead
+	 * @param defaultValue The value that should be returned when the model doesn't have an 
+	 * index
+	 * @return The model's index value or the provided value if the model doesn't have an index
+	 */
+	public Value getIndex(Value defaultValue)
+	{
+		if (hasIndex())
+			return getIndex();
+		else
+			return defaultValue;
+	}
+	
+	/**
 	 * Checks whether the model has a specified index attribute
 	 * @return Does the model have a specified index attribute
 	 */

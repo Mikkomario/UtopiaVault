@@ -205,12 +205,24 @@ public class CombinedModel
 	}
 	
 	/**
-	 * The model's index attribute's value. Short for using getIndexAttribute().getValue()
+	 * Retrieves the model's index attribute's value. Short for using getIndexAttribute().getValue()
 	 * @return The model's index
 	 */
 	public Value getIndex()
 	{
 		return this.dbModel.getIndex();
+	}
+	
+	/**
+	 * Retrieves the model's index attribute's value. If the model doesn't have an index 
+	 * value, the provided default value will be returned instead.
+	 * @param defaultValue The default value that will be returned when the model doesn't 
+	 * have an index
+	 * @return The model's index attirbute's value or, if that's not available, the default value
+	 */
+	public Value getIndex(Value defaultValue)
+	{
+		return this.dbModel.getIndex(defaultValue);
 	}
 	
 	/**
