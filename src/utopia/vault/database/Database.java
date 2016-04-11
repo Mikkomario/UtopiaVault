@@ -987,7 +987,6 @@ public class Database
 		}
 		return index;
 	}
-	
 
 	private static int setConditionValues(PreparedStatement statement, int startIndex, 
 			Join[] joins) throws DatabaseException, SQLException

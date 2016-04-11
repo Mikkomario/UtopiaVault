@@ -42,7 +42,7 @@ public class IsNullCondition extends Condition
 			throws SQLException, ConditionParseException
 	{
 		// No object values are used in this condition
-		return 0;
+		return startIndex;
 	}
 
 	@Override
