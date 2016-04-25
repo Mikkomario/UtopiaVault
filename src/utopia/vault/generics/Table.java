@@ -319,6 +319,24 @@ public class Table
 	}
 	
 	/**
+	 * Finds all variables in a collection that are associated with this table
+	 * @param variables A collection of variables
+	 * @return A subset of the provided variables so that the subset contains only variables 
+	 * based on this table
+	 */
+	public List<ColumnVariable> filterTableVariables(Collection<? extends ColumnVariable> variables)
+	{
+		List<ColumnVariable> tableVars = new ArrayList<>();
+		for (ColumnVariable variable : variables)
+		{
+			if (this.equals(variable.getColumn().getTable()))
+				tableVars.add(variable);
+		}
+		
+		return tableVars;
+	}
+	
+	/**
 	 * @return a textual description of the table's columns
 	 */
 	public String getDebugDescription()

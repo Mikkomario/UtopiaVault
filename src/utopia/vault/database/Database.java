@@ -519,8 +519,8 @@ public class Database
 			return -1;
 			
 		// Only inserts non-null values that fit into the table and don't use auto-increment
-		Collection<ColumnVariable> actualInsert = getManualVariables(getTableVariables(
-				getNonNullVariables(insert), into));
+		Collection<ColumnVariable> actualInsert = getManualVariables(into.filterTableVariables(
+				getNonNullVariables(insert)));
 		if (actualInsert.isEmpty())
 			return -1;
 		
@@ -729,7 +729,7 @@ public class Database
 		
 		// Only updates attributes that belong to the target table and don't use auto-increment 
 		// indexing
-		List<ColumnVariable> actualSet = getManualVariables(getTableVariables(set, table));
+		List<ColumnVariable> actualSet = getManualVariables(table.filterTableVariables(set));
 		// Null updates may also be skipped
 		if (skipNullUpdates)
 			actualSet = getNonNullVariables(actualSet);
@@ -1011,19 +1011,6 @@ public class Database
 		}
 		
 		return nonNull;
-	}
-	
-	private static List<ColumnVariable> getTableVariables(
-			Collection<? extends ColumnVariable> variables, Table table)
-	{
-		List<ColumnVariable> tableVars = new ArrayList<>();
-		for (ColumnVariable variable : variables)
-		{
-			if (variable.getColumn().getTable().equals(table))
-				tableVars.add(variable);
-		}
-		
-		return tableVars;
 	}
 	
 	private static List<ColumnVariable> getManualVariables(
