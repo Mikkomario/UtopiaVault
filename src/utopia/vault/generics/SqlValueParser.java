@@ -86,6 +86,7 @@ public class SqlValueParser implements ValueParser
 	@Override
 	public Value cast(Value value, DataType to) throws ValueParseException
 	{
+		// TODO: These checks are done in the datatypes interface as well
 		if (value == null)
 			return null;
 		else if (to == null)

@@ -399,6 +399,7 @@ public class Database
 				
 				for (Column column : readColumns)
 				{
+					// TODO: May cause problems when joining tables with non-null columns
 					row.add(column.assignValue(results.getObject(column.getColumnName())));
 				}
 				rows.add(row);
@@ -511,8 +512,7 @@ public class Database
 	 */
 	@SuppressWarnings("resource")
 	public static int insert(Collection<? extends ColumnVariable> insert, Table into, 
-			Database connection) throws 
-			DatabaseUnavailableException, DatabaseException
+			Database connection) throws DatabaseUnavailableException, DatabaseException
 	{
 		// If there are no values to insert or no table, does nothing
 		if (into == null || insert == null)
@@ -523,6 +523,26 @@ public class Database
 				getNonNullVariables(insert)));
 		if (actualInsert.isEmpty())
 			return -1;
+		
+		// Makes sure all necessary columns are included
+		for (Column column : into.getColumns())
+		{
+			if (column.requiredInInsert())
+			{
+				boolean columnIncluded = false;
+				for (ColumnVariable var : actualInsert)
+				{
+					if (column.equals(var.getColumn()))
+					{
+						columnIncluded = true;
+						break;
+					}
+				}
+				
+				if (!columnIncluded)
+					throw new DatabaseException(column, insert);
+			}
+		}
 		
 		StringBuilder sql = new StringBuilder("INSERT INTO ");
 		sql.append(into.getName());

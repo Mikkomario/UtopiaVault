@@ -8,6 +8,7 @@ import utopia.flow.generics.Variable;
 import utopia.flow.generics.VariableDeclaration;
 import utopia.vault.database.Condition.ConditionParseException;
 import utopia.vault.generics.Column;
+import utopia.vault.generics.ColumnVariable;
 import utopia.vault.generics.Table;
 import utopia.vault.generics.VariableNameMapping;
 import utopia.vault.generics.VariableNameMapping.MappingException;
@@ -113,6 +114,17 @@ public class DatabaseException extends DebuggableException
 	{
 		super(createMessage(cause), parseDebugMessage(sqlStatement, 
 				usedTable, whereClause, providedValues, selection), cause);
+	}
+	
+	/**
+	 * Creates a new exception to be used in incomplete inserts
+	 * @param missingColumn The column that was missing from the insert
+	 * @param insert The inserted values
+	 */
+	public DatabaseException(Column missingColumn, Collection<? extends ColumnVariable> insert)
+	{
+		super("Column " + missingColumn + " is missing from an insert", 
+				parseDebugMessage(null, missingColumn.getTable(), null, insert, null));
 	}
 
 	

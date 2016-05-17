@@ -156,6 +156,16 @@ public class Column extends VariableDeclaration
 	// OTHER METHODS	----------
 	
 	/**
+	 * @return When performing an insert to the column's table, does this column need to be 
+	 * included. The column is optional if it allows nulls, has a default value other than 
+	 * null or uses auto-increment indexing
+	 */
+	public boolean requiredInInsert()
+	{
+		return !nullAllowed() && getDefaultValue().isNull() && !usesAutoIncrementIndexing();
+	}
+	
+	/**
 	 * Collects all the columns used in the provided collection of column variables
 	 * @param variables A collection of variables
 	 * @return The columns used by the variables
