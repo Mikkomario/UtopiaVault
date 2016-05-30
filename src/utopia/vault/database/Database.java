@@ -739,17 +739,33 @@ public class Database
 	 * @throws DatabaseException If the operation failed
 	 * @throws DatabaseUnavailableException If the database couldn't be accessed
 	 */
-	@SuppressWarnings("resource")
 	public static void update(Table table, Collection<? extends ColumnVariable> set, 
 			Condition where, boolean skipNullUpdates, Database connection) throws 
 			DatabaseException, DatabaseUnavailableException
 	{
-		// TODO: Add support for join when necessary
-		// UPDATE table1, table2 SET ... WHERE ...
-		
-		// Only updates attributes that belong to the target table and don't use auto-increment 
+		update(table, null, set, where, skipNullUpdates, connection);
+	}
+	
+	/**
+	 * Updates certain row(s) in the provided table
+	 * @param table The table that is updated
+	 * @param joins The joins used in this query
+	 * @param set The variable values that are set
+	 * @param where The condition which determines which rows are updated
+	 * @param skipNullUpdates Should null updates be skipped
+	 * @param connection A database connection that should be used in the query. Null if a 
+	 * temporary connection should be used. Only temporary connections are closed in this method.
+	 * @throws DatabaseException If the operation failed
+	 * @throws DatabaseUnavailableException If the database couldn't be accessed
+	 */
+	@SuppressWarnings("resource")
+	public static void update(Table table, Join[] joins, Collection<? extends ColumnVariable> set, 
+			Condition where, boolean skipNullUpdates, Database connection) throws 
+			DatabaseException, DatabaseUnavailableException
+	{
+		// Only updates attributes that belong to the target table(s) and don't use auto-increment 
 		// indexing
-		List<ColumnVariable> actualSet = getManualVariables(table.filterTableVariables(set));
+		List<ColumnVariable> actualSet = getManualVariables(filterTableVariables(set, table, joins));
 		// Null updates may also be skipped
 		if (skipNullUpdates)
 			actualSet = getNonNullVariables(actualSet);
@@ -761,6 +777,8 @@ public class Database
 		StringBuilder sql = new StringBuilder("UPDATE ");
 		sql.append(table.getName());
 		
+		if (joins != null)
+			appendJoin(sql, joins);
 		appendSet(sql, actualSet);
 		
 		if (where != null)
@@ -805,6 +823,24 @@ public class Database
 	/**
 	 * Updates a models data into the database
 	 * @param model The model who's attributes are written into the database
+	 * @param joins The joins used in this query
+	 * @param where The condition with which the updated rows are selected
+	 * @param skipNullUpdates Should null value attributes be skipped
+	 * @param connection A database connection that should be used in the query. Null if a 
+	 * temporary connection should be used. Only temporary connections are closed in this method.
+	 * @throws DatabaseException If the process failed
+	 * @throws DatabaseUnavailableException If the database couldn't be accessed
+	 */
+	public static void update(TableModel model, Join[] joins, Condition where, boolean skipNullUpdates, 
+			Database connection) throws 
+			DatabaseException, DatabaseUnavailableException
+	{
+		update(model.getTable(), joins, model.getAttributes(), where, skipNullUpdates, connection);
+	}
+	
+	/**
+	 * Updates a models data into the database
+	 * @param model The model who's attributes are written into the database
 	 * @param where The condition with which the updated rows are selected
 	 * @param skipNullUpdates Should null value attributes be skipped
 	 * @param connection A database connection that should be used in the query. Null if a 
@@ -816,7 +852,7 @@ public class Database
 			Database connection) throws 
 			DatabaseException, DatabaseUnavailableException
 	{
-		update(model.getTable(), model.getAttributes(), where, skipNullUpdates, connection);
+		update(model, null, where, skipNullUpdates, connection);
 	}
 	
 	/**
@@ -1058,5 +1094,33 @@ public class Database
 		}
 		
 		return index;
+	}
+	
+	private static List<ColumnVariable> filterTableVariables(
+			Collection<? extends ColumnVariable> variables, Table table, Join[] joins)
+	{
+		if (joins == null || joins.length == 0)
+			return table.filterTableVariables(variables);
+		
+		List<ColumnVariable> filtered = new ArrayList<>();
+		
+		for (ColumnVariable var : variables)
+		{
+			if (var.getColumn().getTable().equals(table))
+				filtered.add(var);
+			else
+			{
+				for (Join join : joins)
+				{
+					if (var.getColumn().getTable().equals(join.getJoinedTable()))
+					{
+						filtered.add(var);
+						break;
+					}
+				}
+			}
+		}
+		
+		return filtered;
 	}
 }
