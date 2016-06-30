@@ -4,6 +4,8 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 
+import utopia.flow.generics.ModelDeclaration;
+
 /**
  * A database table represents a table in a database and contains the necessary column 
  * information
@@ -20,6 +22,7 @@ public class Table
 	
 	private List<Column> columns = null;
 	private Column primaryColumn = null;
+	private ModelDeclaration declaration = null;
 	
 	// TODO: Add fuzzy logic for column search
 	
@@ -207,6 +210,16 @@ public class Table
 		}
 		
 		return this.primaryColumn;
+	}
+	
+	/**
+	 * @return The model declaration representation of this table
+	 */
+	public ModelDeclaration toModelDeclaration()
+	{
+		if (this.declaration == null)
+			this.declaration = new ModelDeclaration(getColumns());
+		return this.declaration;
 	}
 	
 	

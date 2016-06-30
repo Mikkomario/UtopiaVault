@@ -4,17 +4,20 @@ import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
+import java.sql.ResultSetMetaData;
 import java.sql.SQLException;
 import java.sql.Statement;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 
+import utopia.flow.generics.DataType;
 import utopia.flow.generics.Value;
 import utopia.vault.database.Condition.ConditionParseException;
 import utopia.vault.database.DatabaseSettings.UninitializedSettingsException;
 import utopia.vault.generics.Column;
 import utopia.vault.generics.ColumnVariable;
+import utopia.vault.generics.SqlDataType;
 import utopia.vault.generics.Table;
 import utopia.vault.generics.TableModel;
 import utopia.vault.generics.Table.NoSuchColumnException;
@@ -378,29 +381,59 @@ public class Database
 			
 			// Parses the results
 			results = statement.executeQuery();
-			while (results.next())
+			ResultSetMetaData meta = results.getMetaData();
+			
+			// Determines which columns are read
+			// If it was select *, all rows from all tables are read
+			List<Column> readColumns = new ArrayList<>();
+			if (select == null)
 			{
-				List<ColumnVariable> row = new ArrayList<>();
-				// If it was select *, all rows from all tables are read
-				List<Column> readColumns = new ArrayList<Column>();;
-				if (select == null)
+				readColumns.addAll(from.getColumns());
+				if (joins != null)
 				{
-					readColumns.addAll(from.getColumns());
-					if (joins != null)
+					for (Join join : joins)
 					{
-						for (Join join : joins)
+						readColumns.addAll(join.getJoinedTable().getColumns());
+					}
+				}
+			}
+			// Otherwise only selected rows are read
+			else
+				readColumns.addAll(select);
+			
+			// Matches the columns to the result indices. Also reads the data types
+			Column[] rowColumns = new Column[meta.getColumnCount()];
+			DataType[] columnTypes = new DataType[rowColumns.length];
+			for (int i = 0; i < rowColumns.length; i++)
+			{
+				columnTypes[i] = SqlDataType.getDataType(meta.getColumnType(i));
+				
+				String columnName = meta.getColumnName(i);
+				for (Column column : readColumns)
+				{
+					if (column.getColumnName().equalsIgnoreCase(columnName))
+					{
+						// Makes sure the correct table column is used, in case there are 
+						// columns with similar names in a join
+						if (column.getTable().getName().equalsIgnoreCase(meta.getTableName(i)))
 						{
-							readColumns.addAll(join.getJoinedTable().getColumns());
+							rowColumns[i] = column;
+							if (columnTypes[i] == null)
+								columnTypes[i] = column.getType();
+							break;
 						}
 					}
 				}
-				else
-					readColumns.addAll(select);
-				
-				for (Column column : readColumns)
+			}
+			
+			// Reads the data
+			while (results.next())
+			{
+				// Assigns column values to each row
+				List<ColumnVariable> row = new ArrayList<>();
+				for (int i = 0; i < rowColumns.length; i++)
 				{
-					// TODO: May cause problems when joining tables with non-null columns
-					row.add(column.assignValue(results.getObject(column.getColumnName())));
+					row.add(rowColumns[i].assignValue(new Value(results.getObject(i), columnTypes[i])));
 				}
 				rows.add(row);
 			}

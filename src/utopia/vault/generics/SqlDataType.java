@@ -72,6 +72,30 @@ public interface SqlDataType extends DataType
 	 */
 	public static Value castToSqlType(Value value)
 	{
-		return DataTypes.getInstance().cast(value, getSqlTypes());
+		if (value.getType() instanceof SqlDataType)
+			return value;
+		else
+			return DataTypes.getInstance().cast(value, getSqlTypes());
+	}
+	
+	/**
+	 * Finds the sql data type corresponding to the provided type value
+	 * @param sqlType The sql type value of {@link Types}
+	 * @return The data type represented by the type. Null if the type isn't represented by 
+	 * an introduced data type
+	 */
+	public static SqlDataType getDataType(int sqlType)
+	{
+		for (DataType type : DataTypes.getInstance().getIntroducedDataTypes())
+		{
+			if (type instanceof SqlDataType)
+			{
+				SqlDataType sqlDataType = (SqlDataType) type;
+				if (sqlDataType.getSqlType() == sqlType)
+					return sqlDataType;
+			}
+		}
+		
+		return null;
 	}
 }

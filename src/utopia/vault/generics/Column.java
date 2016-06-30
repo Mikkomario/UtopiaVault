@@ -20,7 +20,6 @@ public class Column extends VariableDeclaration
 	private String columnName;
 	private Table table;
 	private boolean autoIncrement, primary, nullAllowed;
-	private Value defaultValue;
 	private SqlDataType type;
 	
 	
@@ -42,7 +41,8 @@ public class Column extends VariableDeclaration
 	public Column(Table table, String columnName, SqlDataType type, boolean nullAllowed, 
 			boolean primary, boolean autoIncrement, Value defaultValue) throws NoVariableForColumnException
 	{
-		super(table.getNameMapping().getVariableName(columnName), type);
+		super(table.getNameMapping().getVariableName(columnName), 
+				defaultValue == null ? Value.NullValue(type) : defaultValue.castTo(type));
 		
 		this.type = type;
 		this.table = table;
@@ -50,7 +50,6 @@ public class Column extends VariableDeclaration
 		this.primary = primary;
 		this.autoIncrement = autoIncrement;
 		this.nullAllowed = nullAllowed;
-		this.defaultValue = defaultValue.castTo(type);
 	}
 	
 	
@@ -70,12 +69,6 @@ public class Column extends VariableDeclaration
 			s.append(" default = " + getDefaultValue().toString());
 		
 		return s.toString();
-	}
-	
-	@Override
-	public ColumnVariable assignValue(Object value)
-	{
-		return new ColumnVariable(this, new Value(value, getType()));
 	}
 	
 	@Override
@@ -134,14 +127,6 @@ public class Column extends VariableDeclaration
 	public boolean nullAllowed()
 	{
 		return this.nullAllowed;
-	}
-	
-	/**
-	 * @return The default value used for this column (default = null)
-	 */
-	public Value getDefaultValue()
-	{
-		return this.defaultValue;
 	}
 	
 	/**

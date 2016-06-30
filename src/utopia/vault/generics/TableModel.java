@@ -4,6 +4,7 @@ import java.util.Collection;
 
 import utopia.flow.generics.Model;
 import utopia.flow.generics.Value;
+import utopia.flow.generics.VariableDeclaration;
 import utopia.vault.generics.Table.NoSuchColumnException;
 
 /**
@@ -12,7 +13,7 @@ import utopia.vault.generics.Table.NoSuchColumnException;
  * @author Mikko Hilpinen
  * @since 9.1.2016
  */
-public class TableModel extends Model<ColumnVariable, Column>
+public class TableModel extends Model<ColumnVariable>
 {
 	// ATTRIBUTES	---------------
 	
@@ -27,6 +28,7 @@ public class TableModel extends Model<ColumnVariable, Column>
 	 */
 	public TableModel(Table table)
 	{
+		super(new ColumnVariableParser(table));
 		this.table = table;
 	}
 
@@ -37,7 +39,7 @@ public class TableModel extends Model<ColumnVariable, Column>
 	 */
 	public TableModel(Table table, Collection<? extends ColumnVariable> variables)
 	{
-		super(variables);
+		super(new ColumnVariableParser(table), variables);
 		this.table = table;
 	}
 
@@ -49,39 +51,6 @@ public class TableModel extends Model<ColumnVariable, Column>
 	{
 		super(other);
 		this.table = other.table;
-	}
-	
-	
-	// IMPLEMENTED METHODS	--------------
-
-	@Override
-	protected ColumnVariable generateAttribute(ColumnVariable attribute)
-	{
-		return new ColumnVariable(attribute);
-	}
-
-	@Override
-	protected ColumnVariable generateAttribute(String attributeName,
-			Value value) throws NoSuchColumnException
-	{
-		return ColumnVariable.createVariable(getTable(), attributeName, value);
-	}
-	
-	@Override
-	public ColumnVariable getAttribute(String attributeName) throws NoSuchColumnException
-	{
-		// Tries to find the correct attribute
-		ColumnVariable var = findAttribute(attributeName);
-		
-		// If the attribute couldn't be found, generates a new one with the columns default 
-		// value
-		if (var == null)
-		{
-			return getAttribute(attributeName, 
-					getTable().findColumnWithVariableName(attributeName).getDefaultValue());
-		}
-		else
-			return var;
 	}
 	
 	
@@ -99,36 +68,13 @@ public class TableModel extends Model<ColumnVariable, Column>
 	// OTHER METHODS	--------------
 	
 	/**
-	 * Assigns a new value for a model's attribute. If the attribute didn't exist in the 
-	 * model previously, it is added
-	 * @param attributeName The name of the attribute
-	 * @param value The value assigned to the attribute
-	 * @throws NoSuchColumnException If the model's table doesn't contain a column for the 
-	 * attribute
-	 */
-	public void setAttributeValue(String attributeName, Value value) throws NoSuchColumnException
-	{
-		setAttributeValue(attributeName, value, true);
-	}
-	
-	/**
 	 * Finds an attribute for a specific column
 	 * @param column The column for which an attribute is requested
 	 * @return An attribute used for the provided column
 	 */
-	public ColumnVariable getAttribute(Column column)
+	public ColumnVariable getAttribute(VariableDeclaration column)
 	{
 		return getAttribute(column.getName());
-	}
-	
-	/**
-	 * Checks whether the model contains an attribute for the provided column
-	 * @param column A column
-	 * @return Does the model contain an attribute for the provided column
-	 */
-	public boolean containsAttribute(Column column)
-	{
-		return containsAttribute(column.getName());
 	}
 	
 	/**
@@ -184,6 +130,6 @@ public class TableModel extends Model<ColumnVariable, Column>
 		if (getTable().findPrimaryColumn() == null)
 			return false;
 		else
-			return containsAttribute(getTable().findPrimaryColumn());
+			return containsAttribute(getTable().findPrimaryColumn()).toBoolean();
 	}
 }

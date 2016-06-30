@@ -5,11 +5,12 @@ import java.util.Collection;
 import java.util.List;
 import java.util.Set;
 
+import utopia.flow.generics.BasicVariableParser;
+import utopia.flow.generics.DeclarationVariableParser;
 import utopia.flow.generics.Model;
 import utopia.flow.generics.Model.NoSuchAttributeException;
 import utopia.vault.generics.Table.NoSuchColumnException;
 import utopia.flow.generics.ModelDeclaration;
-import utopia.flow.generics.SimpleModel;
 import utopia.flow.generics.Value;
 import utopia.flow.generics.Variable;
 import utopia.flow.generics.VariableDeclaration;
@@ -23,7 +24,7 @@ public class CombinedModel
 {
 	// ATTRIBUTES	----------------
 	
-	private SimpleModel baseModel;
+	private Model<Variable> baseModel;
 	private TableModel dbModel;
 	
 	
@@ -35,7 +36,7 @@ public class CombinedModel
 	 */
 	public CombinedModel(Table table)
 	{
-		this.baseModel = new SimpleModel();
+		this.baseModel = Model.createBasicModel();
 		this.dbModel = new TableModel(table);
 	}
 	
@@ -50,9 +51,9 @@ public class CombinedModel
 			Collection<? extends Variable> otherVariables)
 	{
 		if (otherVariables == null)
-			this.baseModel = new SimpleModel();
+			this.baseModel = Model.createBasicModel();
 		else
-			this.baseModel = new SimpleModel(otherVariables);
+			this.baseModel = new Model<>(new BasicVariableParser(), otherVariables);
 		
 		if (databaseVariables == null)
 			this.dbModel = new TableModel(table);
@@ -100,11 +101,13 @@ public class CombinedModel
 	
 	/**
 	 * @return A generic model based on this model. The model will contain all attributes 
-	 * introduced in this model, and modifying those attributes will also affect this model.
+	 * introduced in this model, and modifying those attributes will also affect this model. 
+	 * The returned model is able to generate new variables based on this model's table.
 	 */
-	public SimpleModel toSimpleModel()
+	public Model<Variable> toModel()
 	{
-		return new SimpleModel(getAttributes());
+		return new Model<>(new DeclarationVariableParser<>(getTable().toModelDeclaration(), 
+				false, new BasicVariableParser()), getAttributes());
 	}
 	
 	
@@ -196,6 +199,15 @@ public class CombinedModel
 	}
 	
 	/**
+	 * @return Whether the model has an attribute corresponding to the table's index / primary 
+	 * column
+	 */
+	public boolean hasIndex()
+	{
+		return toDatabaseModel().hasIndex();
+	}
+	
+	/**
 	 * @return The model's index attribute (the one associated with the table's primary key)
 	 * @throws NoSuchColumnException If the model's table doesn't have a primary key
 	 */
@@ -240,7 +252,7 @@ public class CombinedModel
 	 * @param attributeName The name of the attribute
 	 * @param value The new value assigned to the attribute
 	 * @throws NoSuchAttributeException If the table doesn't contain the attribute and it 
-	 * hasn't been declared as a generic attribute either
+	 * couldn't be generated either
 	 */
 	public void setAttributeValue(String attributeName, Value value) throws NoSuchAttributeException
 	{
@@ -248,9 +260,9 @@ public class CombinedModel
 		if (var == null)
 		{
 			if (getTable().containsColumnForVariable(attributeName))
-				this.dbModel.setAttributeValue(attributeName, value, true);
+				this.dbModel.setAttributeValue(attributeName, value);
 			else
-				throw new Model.NoSuchAttributeException(attributeName, this.baseModel);
+				this.baseModel.setAttributeValue(attributeName, value);
 		}
 		else
 			var.setValue(value);
@@ -277,25 +289,10 @@ public class CombinedModel
 	}
 	
 	/**
-	 * @return A declaration for the database model part of this model. This declaration 
-	 * will contain each column used in the model
-	 */
-	public TableModelDeclaration getColumnDeclaration()
-	{
-		List<Column> columns = new ArrayList<>();
-		for (ColumnVariable var : getDatabaseAttributes())
-		{
-			columns.add(var.getColumn());
-		}
-		
-		return new TableModelDeclaration(columns);
-	}
-	
-	/**
 	 * @return A model declaration of this model. The declaration contains declarations for 
 	 * all attributes used by this model.
 	 */
-	public ModelDeclaration<VariableDeclaration> getModelDeclaration()
+	public ModelDeclaration getModelDeclaration()
 	{
 		List<VariableDeclaration> declarations = new ArrayList<>();
 		for (Variable var : getAttributes())
@@ -303,6 +300,6 @@ public class CombinedModel
 			declarations.add(var.getDeclaration());
 		}
 		
-		return new ModelDeclaration<>(declarations);
+		return new ModelDeclaration(declarations);
 	}
 }
