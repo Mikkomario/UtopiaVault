@@ -29,7 +29,7 @@ public class Join
 	{
 		this.table = joinedTable;
 		this.condition = joinCondition;
-		this.type = JoinType.LEFT;
+		this.type = JoinType.INNER;
 	}
 	
 	/**
@@ -41,7 +41,7 @@ public class Join
 	{
 		this.table = joinedColumn.getTable();
 		this.condition = new ComparisonCondition(tableColumn, joinedColumn);
-		this.type = JoinType.LEFT;
+		this.type = JoinType.INNER;
 	}
 	
 	/**
@@ -130,11 +130,7 @@ public class Join
 		/**
 		 * Includes only connected rows from both tables
 		 */
-		INNER(" INNER JOIN "),
-		/**
-		 * Includes all rows from both tables
-		 */
-		FULL_OUTER(" FULL OUTER JOIN ");
+		INNER(" INNER JOIN ");
 		
 		
 		// ATTRIBUTES	----------------

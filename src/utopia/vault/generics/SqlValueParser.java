@@ -42,6 +42,7 @@ public class SqlValueParser implements ValueParser
 		addWrap(BasicDataType.INTEGER, BasicSqlDataType.INT);
 		addWrap(BasicDataType.LONG, BasicSqlDataType.BIGINT);
 		addWrap(BasicDataType.DOUBLE, BasicSqlDataType.DOUBLE);
+		addWrap(BasicDataType.FLOAT, BasicSqlDataType.FLOAT);
 		
 		// Creates the conversions
 		this.conversions.add(new Conversion(BasicDataType.DATE, BasicSqlDataType.DATE, 
@@ -86,12 +87,6 @@ public class SqlValueParser implements ValueParser
 	@Override
 	public Value cast(Value value, DataType to) throws ValueParseException
 	{
-		// TODO: These checks are done in the datatypes interface as well
-		if (value == null)
-			return null;
-		else if (to == null)
-			throw new ValueParseException(value, to);
-		
 		DataType from = value.getType();
 		
 		if (from.equals(to))

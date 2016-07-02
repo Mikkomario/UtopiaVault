@@ -51,7 +51,11 @@ public enum BasicSqlDataType implements SqlDataType
 	/**
 	 * A double type similar to that of the basic data types
 	 */
-	DOUBLE(Types.DOUBLE);
+	DOUBLE(Types.DOUBLE),
+	/**
+	 * A float type similar to that of the basic data types
+	 */
+	FLOAT(Types.FLOAT);
 	
 	
 	// ATTRIBUTES	-------------------
@@ -162,11 +166,12 @@ public enum BasicSqlDataType implements SqlDataType
 		{
 			// Introduces the data types
 			DataTypes types = DataTypes.getInstance();
-			// Int, bigint and double go under the number, the others go under any
+			// Int, bigint, float and double go under the number, the others go under any
 			DataTypeTreeNode number = types.get(BasicDataType.NUMBER);
 			types.add(new DataTypeTreeNode(INT, number));
 			types.add(new DataTypeTreeNode(BIGINT, number));
 			types.add(new DataTypeTreeNode(DOUBLE, number));
+			types.add(new DataTypeTreeNode(FLOAT, number));
 			
 			DataTypeTreeNode object = types.get(BasicDataType.OBJECT);
 			types.add(new DataTypeTreeNode(VARCHAR, object));
@@ -200,9 +205,9 @@ public enum BasicSqlDataType implements SqlDataType
 			case "long":	return BIGINT;
 			case "integer": return INT;
 			case "boolean": return BOOLEAN;
-			case "float":
 			case "decimal":
 			case "double":	return DOUBLE;
+			case "float":	return FLOAT;
 			case "timestamp":
 			case "datetime": return TIMESTAMP;
 			case "date": 	return DATE;

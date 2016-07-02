@@ -108,11 +108,10 @@ public class ColumnVariable extends Variable
 	
 	/**
 	 * Changes the variable's value. If the assigned value is null and the column doesn't allow 
-	 * null values, the default value is used. If no suitable default value is found, the 
-	 * process fails.
+	 * null values and it has a specified default value, the default value is used.
 	 */
 	@Override
-	public void setValue(Value value) throws NullNotAllowedException
+	public void setValue(Value value)
 	{
 		super.setValue(handleNotNull(getColumn(), value));
 	}
@@ -149,13 +148,15 @@ public class ColumnVariable extends Variable
 	
 	private static Value handleNotNull(Column column, Value value)
 	{
+		// Null values are replaced with default values where the column wouldn't otherwise 
+		// allow null
 		if (column.nullAllowed())
 			return value;
 		else if (value.isNull())
 		{
 			Value defaultValue = column.getDefaultValue();
 			if (defaultValue == null || defaultValue.isNull())
-				throw new NullNotAllowedException(column);
+				return value;//throw new NullNotAllowedException(column);
 			else
 				return defaultValue;
 		}
@@ -166,6 +167,7 @@ public class ColumnVariable extends Variable
 	
 	// NESTED CLASSES	-------------------
 	
+	/*
 	private static class NullNotAllowedException extends RuntimeException
 	{
 		private static final long serialVersionUID = -4316410740660035059L;
@@ -174,5 +176,5 @@ public class ColumnVariable extends Variable
 		{
 			super("Column " + column.getColumnName() + " doesn't allow null values");
 		}
-	}
+	}*/
 }

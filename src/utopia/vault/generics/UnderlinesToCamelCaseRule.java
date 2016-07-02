@@ -8,8 +8,6 @@ package utopia.vault.generics;
  */
 public class UnderlinesToCamelCaseRule implements NameMappingRule
 {
-	// TODO: TEST
-	
 	// ATTRIBUTES	-------------------
 	
 	private static UnderlinesToCamelCaseRule instance = null;
