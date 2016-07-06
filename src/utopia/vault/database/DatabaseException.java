@@ -6,7 +6,6 @@ import java.util.Map;
 
 import utopia.flow.generics.Variable;
 import utopia.flow.generics.VariableDeclaration;
-import utopia.vault.database.Condition.ConditionParseException;
 import utopia.vault.generics.Column;
 import utopia.vault.generics.ColumnVariable;
 import utopia.vault.generics.Table;
@@ -53,7 +52,7 @@ public class DatabaseException extends DebuggableException
 	 * Creates a new exception from a where parse exception, using no special debug message
 	 * @param cause The exception that caused the operation to fail
 	 */
-	public DatabaseException(ConditionParseException cause)
+	public DatabaseException(StatementParseException cause)
 	{
 		super(createMessage(cause), cause.getMessage(), cause);
 	}
@@ -63,7 +62,7 @@ public class DatabaseException extends DebuggableException
 	 * @param cause The exception that caused the operation to fail
 	 * @param condition The condition that was used
 	 */
-	public DatabaseException(ConditionParseException cause, Condition condition)
+	public DatabaseException(StatementParseException cause, Condition condition)
 	{
 		super(createMessage(cause), condition == null ? "no condition" : condition.getDebugSql(), 
 				cause);

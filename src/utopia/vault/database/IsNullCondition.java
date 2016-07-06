@@ -32,14 +32,14 @@ public class IsNullCondition extends Condition
 	// IMPLEMENTED METHODS	--------
 
 	@Override
-	protected String toSql() throws ConditionParseException
+	protected String toSql() throws StatementParseException
 	{
 		return this.column.getColumnName() + " IS NULL";
 	}
 
 	@Override
 	public int setObjectValues(PreparedStatement statement, int startIndex)
-			throws SQLException, ConditionParseException
+			throws SQLException, StatementParseException
 	{
 		// No object values are used in this condition
 		return startIndex;

@@ -1,15 +1,12 @@
 package utopia.vault.database;
 
-import java.sql.PreparedStatement;
-import java.sql.SQLException;
-
 /**
  * Conditions can be used in numerous database methods to limit the number of operated 
  * rows, joined rows, etc. in sql queries
  * @author Mikko Hilpinen
  * @since 2.10.2015
  */
-public abstract class Condition
+public abstract class Condition implements PreparedSQLClause
 {
 	// ABSTRACT METHODS	-------------------
 	
@@ -18,9 +15,10 @@ public abstract class Condition
 	 * with '?' for future preparation. This sql statement doesn't include the first "WHERE", 
 	 * only the condition (Eg. "columnName <=> ? AND another > ?)"
 	 * @return A logical sql condition like 'NOT (columName = ?)'
-	 * @throws ConditionParseException If the where condition can't be parsed into sql
+	 * @throws StatementParseException If the where condition can't be parsed into sql
 	 */
-	protected abstract String toSql() throws ConditionParseException;
+	@Override
+	public abstract String toSql() throws StatementParseException;
 	
 	/**
 	 * Sets condition values to the prepared sql statement
@@ -28,11 +26,11 @@ public abstract class Condition
 	 * @param startIndex The index where the first value of this condition occurs.
 	 * @return The index of the next value insert
 	 * @throws SQLException If the operation failed due to an sql error
-	 * @throws ConditionParseException If the where condition couldn't be parsed 
+	 * @throws StatementParseException If the where condition couldn't be parsed 
 	 * to a desirable state
 	 */
-	public abstract int setObjectValues(PreparedStatement statement, int startIndex) throws 
-			SQLException, ConditionParseException;
+	//public abstract int setObjectValues(PreparedStatement statement, int startIndex) throws 
+	//		SQLException, StatementParseException;
 	
 	/**
 	 * Returns a debug string that mimics the final sql statement created from this condition
@@ -82,9 +80,9 @@ public abstract class Condition
 	 * Writes the condition as a where clause that includes the " WHERE" statement (including 
 	 * the first whitespace).
 	 * @return The where condition as a where clause
-	 * @throws ConditionParseException If the where condition parsing failed
+	 * @throws StatementParseException If the where condition parsing failed
 	 */
-	public String toWhereClause() throws ConditionParseException
+	public String toWhereClause() throws StatementParseException
 	{
 		String sql = toSql();
 		
@@ -92,39 +90,5 @@ public abstract class Condition
 			return sql;
 		else
 			return " WHERE " + sql;
-	}
-	
-	
-	// SUBCLASSES	------------------------
-	
-	/**
-	 * These exceptions are thrown when conditions can't be parsed / used
-	 * @author Mikko Hilpinen
-	 * @since 2.10.2015
-	 */
-	public static class ConditionParseException extends Exception
-	{
-		private static final long serialVersionUID = -7800912556657335734L;
-		
-		// CONSTRUCTOR	--------------------
-
-		/**
-		 * Creates a new exception
-		 * @param message The message sent along with the exception
-		 * @param source The source of the exception
-		 */
-		public ConditionParseException(String message, Throwable source)
-		{
-			super(message, source);
-		}
-		
-		/**
-		 * Creates a new exception
-		 * @param message The message sent along with the exception
-		 */
-		public ConditionParseException(String message)
-		{
-			super(message);
-		}
 	}
 }

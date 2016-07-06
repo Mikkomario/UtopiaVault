@@ -1,6 +1,5 @@
 package utopia.vault.database;
 
-import utopia.vault.database.Condition.ConditionParseException;
 import utopia.vault.generics.Column;
 import utopia.vault.generics.Table;
 
@@ -96,9 +95,9 @@ public class Join
 	 * Parses the join into an sql clause like " JOIN table ON condition". The first whitespace 
 	 * is included.
 	 * @return The join parsed into sql
-	 * @throws ConditionParseException If the join condition couldn't be parsed
+	 * @throws StatementParseException If the join condition couldn't be parsed
 	 */
-	public String toSql() throws ConditionParseException
+	public String toSql() throws StatementParseException
 	{
 		StringBuilder sql = new StringBuilder();
 		sql.append(this.type.toSql());

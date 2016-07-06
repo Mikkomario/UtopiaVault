@@ -109,15 +109,15 @@ public class LikeCondition extends SingleCondition
 	// IMPLEMENTED METHODS	---------
 
 	@Override
-	protected String getSQLWithPlaceholders() throws ConditionParseException
+	protected String getSQLWithPlaceholders() throws StatementParseException
 	{
 		// Checks that the provided values are acceptable
 		if (this.column == null)
-			throw new ConditionParseException("Compared column can't be null");
+			throw new StatementParseException("Compared column can't be null");
 		for (Value value : getValues())
 		{
 			if (value == null || value.isNull())
-				throw new ConditionParseException("Compared value can't be null");
+				throw new StatementParseException("Compared value can't be null");
 		}
 		
 		return getSql();

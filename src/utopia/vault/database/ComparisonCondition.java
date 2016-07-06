@@ -147,12 +147,12 @@ public class ComparisonCondition extends SingleCondition
 	 * @param combinationOperator The operator used for combining the conditions
 	 * @param skipNullVariables Should null variables be skipped entirely
 	 * @return A combined condition based on the variables and the provided operator
-	 * @throws ConditionParseException If XOR was used with more than 2 variables
+	 * @throws StatementParseException If XOR was used with more than 2 variables
 	 */
 	public static Condition createVariableSetEqualsCondition(
 			Collection<? extends ColumnVariable> variables, 
 			CombinationOperator combinationOperator, boolean skipNullVariables) throws 
-			ConditionParseException
+			StatementParseException
 	{
 		return createVariableSetCondition(variables, combinationOperator, Operator.EQUALS, 
 				skipNullVariables);
@@ -165,12 +165,12 @@ public class ComparisonCondition extends SingleCondition
 	 * @param comparisonOperator The operation that is performed for each variable
 	 * @param skipNullVariables Should null attributes be skipped entirely
 	 * @return A combined condition based on the variables and the provided operator
-	 * @throws ConditionParseException If XOR was used with more than 2 variables
+	 * @throws StatementParseException If XOR was used with more than 2 variables
 	 */
 	public static Condition createVariableSetCondition(
 			Collection<? extends ColumnVariable> variables, 
 			CombinationOperator combinationOperator, Operator comparisonOperator, 
-			boolean skipNullVariables) throws ConditionParseException
+			boolean skipNullVariables) throws StatementParseException
 	{
 		List<ColumnVariable> targetVariables = new ArrayList<>();
 		if (skipNullVariables)
@@ -214,7 +214,7 @@ public class ComparisonCondition extends SingleCondition
 			return createVariableSetEqualsCondition(variables, CombinationOperator.AND, 
 					skipNullVariables);
 		}
-		catch (ConditionParseException e)
+		catch (StatementParseException e)
 		{
 			// This exception is only thrown when using XOR, this time AND is used so 
 			// this block shouldn't be reached
@@ -240,21 +240,21 @@ public class ComparisonCondition extends SingleCondition
 	// IMPLEMENTED METHODS	---------
 
 	@Override
-	protected String getSQLWithPlaceholders() throws ConditionParseException
+	protected String getSQLWithPlaceholders() throws StatementParseException
 	{
 		// Checks if some columns were null
 		for (int i = 0; i < this.columns.length; i++)
 		{
 			Column column = this.columns[i];
 			if (column == null)
-				throw new ConditionParseException("Unknown / null column used at index " + i);
+				throw new StatementParseException("Unknown / null column used at index " + i);
 		}
 		
 		// Specifies the desired data type
 		specifyValueDataType(this.columns[0].getSqlType());
 		// Makes sure the values are accepted by the operator
 		if (!this.operator.acceptsValues(getValues()))
-			throw new ConditionParseException("Operator" + this.operator + 
+			throw new StatementParseException("Operator" + this.operator + 
 					"doesn't accept null values");
 		
 		StringBuilder sql = new StringBuilder();

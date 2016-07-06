@@ -1,9 +1,5 @@
 package utopia.vault.database;
 
-import java.sql.PreparedStatement;
-import java.sql.SQLException;
-
-import utopia.flow.generics.DataTypeException;
 import utopia.flow.generics.Value;
 import utopia.vault.generics.SqlDataType;
 
@@ -16,7 +12,7 @@ public abstract class SingleCondition extends Condition
 {
 	// ATTRIBUTES	------------------
 	
-	private boolean inverted;
+	private boolean inverted; // TODO: Move the invertion into a separate condition class
 	private Value[] values;
 	private SqlDataType targetType = null;
 	
@@ -52,10 +48,10 @@ public abstract class SingleCondition extends Condition
 	 * in sql format. The place holders for values should be marked with '?'
 	 * @return A logical sql condition with a boolean return value and '?' as place holders 
 	 * for the values
-	 * @throws ConditionParseException If the parsing fails
+	 * @throws StatementParseException If the parsing fails
 	 */
 	protected abstract String getSQLWithPlaceholders() throws 
-			ConditionParseException;
+			StatementParseException;
 	
 	/**
 	 * This method is used when creating a debug message for a where condition that couldn't 
@@ -67,8 +63,30 @@ public abstract class SingleCondition extends Condition
 	
 	// IMPLEMENTED METHODS	--------
 	
+	/**
+	 * @return The value(s) used in the condition. The returned array is a copy and changes 
+	 * made to it won't affect the condition.
+	 */
 	@Override
-	public String toSql() throws ConditionParseException
+	public Value[] getValues()
+	{
+		// If a specific data type has been specified, the values are casted first
+		if (this.targetType == null)
+			return this.values.clone();
+		else
+		{
+			Value[] castValues = new Value[this.values.length];
+			for (int i = 0; i < castValues.length; i++)
+			{
+				castValues[i] = this.values[i].castTo(this.targetType);
+			}
+			
+			return castValues;
+		}
+	}
+	
+	@Override
+	public String toSql() throws StatementParseException
 	{
 		if (!this.inverted)
 			return getSQLWithPlaceholders();
@@ -80,9 +98,10 @@ public abstract class SingleCondition extends Condition
 		return sql.toString();
 	}
 	
+	/*
 	@Override
 	public int setObjectValues(PreparedStatement statement, int startIndex) throws 
-			SQLException, ConditionParseException
+			SQLException, StatementParseException
 	{
 		// If there is no value, there is no insert
 		int index = startIndex;
@@ -110,13 +129,14 @@ public abstract class SingleCondition extends Condition
 			}
 			catch (DataTypeException e)
 			{
-				throw new ConditionParseException("Failed to cast " + 
+				throw new StatementParseException("Failed to cast " + 
 						value.getDescription() + " to a compatible data type", e);
 			}
 		}
 		
 		return index;
 	}
+	*/
 	
 	@Override
 	public String getDebugSql()
@@ -137,7 +157,7 @@ public abstract class SingleCondition extends Condition
 			
 			return sql;
 		}
-		catch (ConditionParseException e)
+		catch (StatementParseException e)
 		{
 			StringBuilder s = new StringBuilder();
 			if (this.inverted)
@@ -165,22 +185,11 @@ public abstract class SingleCondition extends Condition
 	}
 	
 	
-	// ACCESSORS	-----------------
-	
-	/**
-	 * @return The value(s) used in the condition
-	 */
-	protected Value[] getValues()
-	{
-		return this.values;
-	}
-	
-	
 	// OTHER METHODS	--------------
 	
 	/**
-	 * Specifies the data type used with the provided value
-	 * @param type The data type used for the condition's value
+	 * Specifies the data type used with the provided value(s)
+	 * @param type The data type used for the condition's value(s)
 	 */
 	protected void specifyValueDataType(SqlDataType type)
 	{

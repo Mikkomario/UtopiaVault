@@ -13,7 +13,6 @@ import java.util.List;
 
 import utopia.flow.generics.DataType;
 import utopia.flow.generics.Value;
-import utopia.vault.database.Condition.ConditionParseException;
 import utopia.vault.database.DatabaseSettings.UninitializedSettingsException;
 import utopia.vault.generics.Column;
 import utopia.vault.generics.ColumnVariable;
@@ -353,7 +352,7 @@ public class Database
 			{
 				sql.append(where.toWhereClause());
 			}
-			catch (ConditionParseException e)
+			catch (StatementParseException e)
 			{
 				throw new DatabaseException(e, where);
 			}
@@ -713,7 +712,7 @@ public class Database
 			{
 				sql.append(where.toWhereClause());
 			}
-			catch (ConditionParseException e)
+			catch (StatementParseException e)
 			{
 				throw new DatabaseException(e, where);
 			}
@@ -820,7 +819,7 @@ public class Database
 			{
 				sql.append(where.toWhereClause());
 			}
-			catch (ConditionParseException e)
+			catch (StatementParseException e)
 			{
 				throw new DatabaseException(e, where);
 			}
@@ -1052,7 +1051,7 @@ public class Database
 			{
 				sql.append(join.toSql());
 			}
-			catch (ConditionParseException e)
+			catch (StatementParseException e)
 			{
 				throw new DatabaseException(e, join.getJoinCondition());
 			}
@@ -1069,7 +1068,7 @@ public class Database
 			{
 				index = condition.setObjectValues(statement, index);
 			}
-			catch (ConditionParseException e)
+			catch (StatementParseException e)
 			{
 				throw new DatabaseException(e, condition);
 			}

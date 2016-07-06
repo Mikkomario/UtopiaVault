@@ -22,13 +22,13 @@ public class CombinedCondition extends Condition
 	// CONSTRUCTOR	-----------------
 
 	private CombinedCondition(CombinationOperator operator, 
-			Condition... conditions) throws ConditionParseException
+			Condition... conditions) throws StatementParseException
 	{
 		this.operator = operator;
 		
 		// Checks that enough conditions were provided
 		if (conditions.length < 2 || (this.operator == CombinationOperator.XOR && conditions.length > 2))
-			throw new ConditionParseException("Operator " + operator + 
+			throw new StatementParseException("Operator " + operator + 
 					" doesn't work with " + conditions.length + " operands");
 		
 		this.conditions = new ArrayList<>();
@@ -59,11 +59,11 @@ public class CombinedCondition extends Condition
 	 * @param conditions The conditions that are combined (0 or more)
 	 * @return Null if no conditions were provided, a single condition if only one 
 	 * condition was provided, a combined condition if multiple conditions were provided
-	 * @throws ConditionParseException If {@link CombinationOperator#XOR} was used with 
+	 * @throws StatementParseException If {@link CombinationOperator#XOR} was used with 
 	 * more than 2 operands
 	 */
 	public static Condition combineConditions(CombinationOperator operator, 
-			Condition... conditions) throws ConditionParseException
+			Condition... conditions) throws StatementParseException
 	{
 		if (conditions.length == 0)
 			return null;
@@ -121,7 +121,7 @@ public class CombinedCondition extends Condition
 	// OTHER METHODS	--------------
 	
 	@Override
-	public String toSql() throws ConditionParseException
+	public String toSql() throws StatementParseException
 	{
 		StringBuilder sql = new StringBuilder("(");
 		
@@ -140,7 +140,7 @@ public class CombinedCondition extends Condition
 	
 	@Override
 	public int setObjectValues(PreparedStatement statement, int startIndex) throws 
-			SQLException, ConditionParseException
+			SQLException, StatementParseException
 	{
 		int i = startIndex;
 		for (Condition condition : this.conditions)
