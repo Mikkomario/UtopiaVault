@@ -4,10 +4,8 @@ import java.util.Collection;
 import java.util.HashMap;
 import java.util.Map;
 
-import utopia.flow.generics.Variable;
 import utopia.flow.generics.VariableDeclaration;
 import utopia.vault.generics.Column;
-import utopia.vault.generics.ColumnVariable;
 import utopia.vault.generics.Table;
 import utopia.vault.generics.VariableNameMapping;
 import utopia.vault.generics.VariableNameMapping.MappingException;
@@ -104,15 +102,15 @@ public class DatabaseException extends DebuggableException
 	 * @param sqlStatement The sql statement that was being used
 	 * @param usedTable The table that was being used
 	 * @param whereClause The where condition that was being used (optional)
-	 * @param providedValues The values that had been provided (optional)
+	 * @param assignedValues The values that were being assigned
 	 * @param selection The selected columns
 	 */
 	public DatabaseException(Throwable cause, String sqlStatement, Table usedTable, 
-			Condition whereClause, Collection<? extends Variable> providedValues, 
+			Condition whereClause, ValueAssignment assignedValues, 
 			Collection<? extends VariableDeclaration> selection)
 	{
 		super(createMessage(cause), parseDebugMessage(sqlStatement, 
-				usedTable, whereClause, providedValues, selection), cause);
+				usedTable, whereClause, assignedValues, selection), cause);
 	}
 	
 	/**
@@ -120,10 +118,30 @@ public class DatabaseException extends DebuggableException
 	 * @param missingColumn The column that was missing from the insert
 	 * @param insert The inserted values
 	 */
-	public DatabaseException(Column missingColumn, Collection<? extends ColumnVariable> insert)
+	public DatabaseException(Column missingColumn, ValueAssignment insert)
 	{
 		super("Column " + missingColumn + " is missing from an insert", 
 				parseDebugMessage(null, missingColumn.getTable(), null, insert, null));
+	}
+	
+	/**
+	 * Creates a new exception for incomplete insert
+	 * @param into The target table
+	 * @param insert The inserted values
+	 */
+	public DatabaseException(Table into, ValueAssignment insert)
+	{
+		super("Incomplete insert", parseDebugMessage(null, into, null, insert, null));
+	}
+	
+	/**
+	 * Creates a new database exception
+	 * @param debugmessage The debug message sent with the exception
+	 * @param cause The cause of the exception
+	 */
+	public DatabaseException(String debugmessage, Throwable cause)
+	{
+		super(createMessage(cause), debugmessage, cause);
 	}
 
 	
@@ -216,7 +234,7 @@ public class DatabaseException extends DebuggableException
 	}
 	
 	private static String parseDebugMessage(String sqlStatement, Table table, 
-			Condition where, Collection<? extends Variable> providedValues, 
+			Condition where, ValueAssignment providedValues, 
 			Collection<? extends VariableDeclaration> selection)
 	{
 		StringBuilder message = new StringBuilder();
@@ -232,12 +250,8 @@ public class DatabaseException extends DebuggableException
 		}
 		if (providedValues != null && !providedValues.isEmpty())
 		{
-			message.append("\nValues provided:");
-			for (Variable var : providedValues)
-			{
-				message.append("\n");
-				message.append(var);
-			}
+			message.append("\nValues provided: ");
+			message.append(providedValues.getDebugDescription());
 		}
 		if (selection != null && !selection.isEmpty())
 		{

@@ -1,5 +1,6 @@
 package utopia.vault.database;
 
+import utopia.flow.generics.Value;
 import utopia.vault.generics.Column;
 import utopia.vault.generics.Table;
 
@@ -8,7 +9,7 @@ import utopia.vault.generics.Table;
  * @author Mikko Hilpinen
  * @since 22.2.2016
  */
-public class Join
+public class Join implements PreparedSQLClause
 {
 	// ATTRIBUTES	---------------------
 	
@@ -70,6 +71,33 @@ public class Join
 	}
 	
 	
+	// IMPLEMENTED METHODS	------------
+	
+	@Override
+	public Value[] getValues()
+	{
+		return this.condition.getValues();
+	}
+	
+	/**
+	 * Parses the join into an sql clause like " JOIN table ON condition". The first whitespace 
+	 * is included.
+	 * @return The join parsed into sql
+	 * @throws StatementParseException If the join condition couldn't be parsed
+	 */
+	@Override
+	public String toSql() throws StatementParseException
+	{
+		StringBuilder sql = new StringBuilder();
+		sql.append(this.type.toSql());
+		sql.append(getJoinedTable().getName());
+		sql.append(" ON ");
+		sql.append(getJoinCondition().toSql());
+		
+		return sql.toString();
+	}
+	
+	
 	// ACCESSORS	--------------------
 	
 	/**
@@ -86,26 +114,6 @@ public class Join
 	public Condition getJoinCondition()
 	{
 		return this.condition;
-	}
-	
-	
-	// OTHER METHODS	------------------
-	
-	/**
-	 * Parses the join into an sql clause like " JOIN table ON condition". The first whitespace 
-	 * is included.
-	 * @return The join parsed into sql
-	 * @throws StatementParseException If the join condition couldn't be parsed
-	 */
-	public String toSql() throws StatementParseException
-	{
-		StringBuilder sql = new StringBuilder();
-		sql.append(this.type.toSql());
-		sql.append(getJoinedTable().getName());
-		sql.append(" ON ");
-		sql.append(getJoinCondition().toSql());
-		
-		return sql.toString();
 	}
 	
 	

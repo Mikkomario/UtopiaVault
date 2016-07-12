@@ -1,9 +1,9 @@
 package utopia.vault.database;
 
-import java.sql.PreparedStatement;
-import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.List;
+
+import utopia.flow.generics.Value;
 
 /**
  * A combined condition is a set of conditions that must be met. The clause can be used in 
@@ -139,6 +139,23 @@ public class CombinedCondition extends Condition
 	}
 	
 	@Override
+	public Value[] getValues()
+	{
+		// Collects the values from each condition
+		List<Value> values = new ArrayList<>();
+		for (Condition condition : this.conditions)
+		{
+			 for (Value value : condition.getValues())
+			 {
+				 values.add(value);
+			 }
+		}
+		
+		return values.toArray(new Value[0]);
+	}
+	
+	/*
+	@Override
 	public int setObjectValues(PreparedStatement statement, int startIndex) throws 
 			SQLException, StatementParseException
 	{
@@ -149,7 +166,7 @@ public class CombinedCondition extends Condition
 		}
 		
 		return i;
-	}
+	}*/
 
 	@Override
 	public String getDebugSql()

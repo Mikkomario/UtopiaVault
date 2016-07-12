@@ -12,6 +12,8 @@ import java.util.Collection;
 import java.util.List;
 
 import utopia.flow.generics.DataType;
+import utopia.flow.generics.DataTypeException;
+import utopia.flow.generics.SubTypeSet;
 import utopia.flow.generics.Value;
 import utopia.vault.database.DatabaseSettings.UninitializedSettingsException;
 import utopia.vault.generics.Column;
@@ -372,11 +374,7 @@ public class Database
 			
 			// Prepares the statement
 			statement = db.getPreparedStatement(sql.toString());
-			int index = 1;
-			if (joins != null)
-				index = setConditionValues(statement, index, joins);
-			if (where != null)
-				index = setConditionValues(statement, index, where);
+			setStatementValues(statement, joins, where);
 			
 			// Parses the results
 			results = statement.executeQuery();
@@ -543,45 +541,24 @@ public class Database
 	 * @throws DatabaseException If the operation failed / was misused
 	 */
 	@SuppressWarnings("resource")
-	public static int insert(Collection<? extends ColumnVariable> insert, Table into, 
-			Database connection) throws DatabaseUnavailableException, DatabaseException
+	public static int insert(ValueAssignment insert, Table into, Database connection) throws 
+			DatabaseUnavailableException, DatabaseException
 	{
 		// If there are no values to insert or no table, does nothing
 		if (into == null || insert == null)
 			return -1;
 			
-		// Only inserts non-null values that fit into the table and don't use auto-increment
-		Collection<ColumnVariable> actualInsert = getManualVariables(into.filterTableVariables(
-				getNonNullVariables(insert)));
+		// Only table values are inserted. Auto-increment keys are removed
+		ValueAssignment actualInsert = insert.filterToTable(into, true);
 		if (actualInsert.isEmpty())
 			return -1;
 		
-		// Makes sure all necessary columns are included
-		for (Column column : into.getColumns())
-		{
-			if (column.requiredInInsert())
-			{
-				boolean columnIncluded = false;
-				for (ColumnVariable var : actualInsert)
-				{
-					if (column.equals(var.getColumn()))
-					{
-						columnIncluded = true;
-						break;
-					}
-				}
-				
-				if (!columnIncluded)
-					throw new DatabaseException(column, insert);
-			}
-		}
+		// Makes sure all necessary columns are included (in update mode only primary key is required)
+		if (!actualInsert.containsRequiredColumns(into))
+			throw new DatabaseException(into, actualInsert);
 		
-		StringBuilder sql = new StringBuilder("INSERT INTO ");
-		sql.append(into.getName());
-		sql.append(" (");
-		appendColumnNames(sql, Column.getColumnsFrom(actualInsert));
-		sql.append(") VALUES ");
-		appendValueSetString(sql, actualInsert.size());
+		// Parses the sql
+		String sql = insert.toInsertClause(into);
 		
 		Database db = null;
 		PreparedStatement statement = null;
@@ -589,11 +566,12 @@ public class Database
 		try
 		{
 			db = openIfTemporary(into, connection);
-			statement = db.getPreparedStatement(sql.toString(), 
-					into.usesAutoIncrementIndexing());
+			statement = db.getPreparedStatement(sql, into.usesAutoIncrementIndexing());
 			
 			// Inserts the values executes statement
-			setVariableValues(statement, actualInsert, 1);
+			setStatementValues(statement, insert);
+			
+			// Performs the query
 			boolean resultsFound = statement.execute();
 			
 			// Finds the generated indices, if necessary
@@ -630,11 +608,12 @@ public class Database
 	 * @throws DatabaseUnavailableException If the database couldn't be accessed
 	 */
 	public static void insert(TableModel model, Database connection) throws DatabaseException, 
-	DatabaseUnavailableException
+			DatabaseUnavailableException
 	{
 		if (model != null)
 		{
-			int index = insert(model.getAttributes(), model.getTable(), connection);
+			int index = insert(new ValueAssignment(true, model.getAttributes()), 
+					model.getTable(), connection);
 			
 			if (index >= 0)
 				model.setIndex(Value.Integer(index));
@@ -725,11 +704,7 @@ public class Database
 			db = openIfTemporary(from, connection);
 			// Prepares the statement
 			statement = db.getPreparedStatement(sql.toString());
-			int index = 1;
-			if (joins != null)
-				index = setConditionValues(statement, index, joins);
-			if (where != null)
-				index = setConditionValues(statement, index, where);
+			setStatementValues(statement, joins, where);
 			
 			// Executes
 			statement.executeUpdate();
@@ -765,17 +740,15 @@ public class Database
 	 * @param table The table that is updated
 	 * @param set The variable values that are set
 	 * @param where The condition which determines which rows are updated
-	 * @param skipNullUpdates Should null updates be skipped
 	 * @param connection A database connection that should be used in the query. Null if a 
 	 * temporary connection should be used. Only temporary connections are closed in this method.
 	 * @throws DatabaseException If the operation failed
 	 * @throws DatabaseUnavailableException If the database couldn't be accessed
 	 */
-	public static void update(Table table, Collection<? extends ColumnVariable> set, 
-			Condition where, boolean skipNullUpdates, Database connection) throws 
-			DatabaseException, DatabaseUnavailableException
+	public static void update(Table table, ValueAssignment set, Condition where, 
+			Database connection) throws DatabaseException, DatabaseUnavailableException
 	{
-		update(table, null, set, where, skipNullUpdates, connection);
+		update(table, null, set, where, connection);
 	}
 	
 	/**
@@ -784,23 +757,18 @@ public class Database
 	 * @param joins The joins used in this query
 	 * @param set The variable values that are set
 	 * @param where The condition which determines which rows are updated
-	 * @param skipNullUpdates Should null updates be skipped
 	 * @param connection A database connection that should be used in the query. Null if a 
 	 * temporary connection should be used. Only temporary connections are closed in this method.
 	 * @throws DatabaseException If the operation failed
 	 * @throws DatabaseUnavailableException If the database couldn't be accessed
 	 */
 	@SuppressWarnings("resource")
-	public static void update(Table table, Join[] joins, Collection<? extends ColumnVariable> set, 
-			Condition where, boolean skipNullUpdates, Database connection) throws 
-			DatabaseException, DatabaseUnavailableException
+	public static void update(Table table, Join[] joins, ValueAssignment set, 
+			Condition where, Database connection) throws DatabaseException, DatabaseUnavailableException
 	{
 		// Only updates attributes that belong to the target table(s) and don't use auto-increment 
 		// indexing
-		List<ColumnVariable> actualSet = getManualVariables(filterTableVariables(set, table, joins));
-		// Null updates may also be skipped
-		if (skipNullUpdates)
-			actualSet = getNonNullVariables(actualSet);
+		ValueAssignment actualSet = set.filterToTables(table, joins, true);
 		
 		if (actualSet.isEmpty())
 			return;
@@ -811,7 +779,7 @@ public class Database
 		
 		if (joins != null)
 			appendJoin(sql, joins);
-		appendSet(sql, actualSet);
+		sql.append(actualSet.toSetClause());
 		
 		if (where != null)
 		{
@@ -834,9 +802,7 @@ public class Database
 			statement = db.getPreparedStatement(sql.toString());
 			
 			// Prepares the values
-			int index = setVariableValues(statement, actualSet, 1);
-			if (where != null)
-				index = setConditionValues(statement, index, where);
+			setStatementValues(statement, joins, set, where);
 			
 			// Executes the update
 			statement.executeUpdate();
@@ -863,11 +829,12 @@ public class Database
 	 * @throws DatabaseException If the process failed
 	 * @throws DatabaseUnavailableException If the database couldn't be accessed
 	 */
-	public static void update(TableModel model, Join[] joins, Condition where, boolean skipNullUpdates, 
-			Database connection) throws 
+	public static void update(TableModel model, Join[] joins, Condition where, 
+			boolean skipNullUpdates, Database connection) throws 
 			DatabaseException, DatabaseUnavailableException
 	{
-		update(model.getTable(), joins, model.getAttributes(), where, skipNullUpdates, connection);
+		update(model.getTable(), joins, new ValueAssignment(skipNullUpdates, model.getAttributes()), 
+				where, connection);
 	}
 	
 	/**
@@ -1004,20 +971,6 @@ public class Database
 			appendColumnNames(sql, selection);
 	}
 	
-	private static void appendSet(StringBuilder sql, Collection<? extends ColumnVariable> set)
-	{
-		sql.append(" SET ");
-		boolean first = true;
-		for (ColumnVariable var : set)
-		{
-			if (!first)
-				sql.append(", ");
-			sql.append(var.getColumn().getColumnName());
-			sql.append(" = ?");
-			first = false;
-		}
-	}
-	
 	private static void appendColumnNames(StringBuilder sql, Collection<? extends Column> columns)
 	{
 		boolean first = true;
@@ -1028,19 +981,6 @@ public class Database
 			sql.append(column.getColumnNameWithTable());
 			first = false;
 		}
-	}
-	
-	private static void appendValueSetString(StringBuilder sql, int valueAmount)
-	{
-		sql.append("(");
-		for (int i = 0; i < valueAmount; i++)
-		{
-			if (i != 0)
-				sql.append(", ?");
-			else
-				sql.append("?");
-		}
-		sql.append(")");
 	}
 	
 	private static void appendJoin(StringBuilder sql, Join[] joins) throws DatabaseException
@@ -1058,101 +998,79 @@ public class Database
 		}
 	}
 	
-	private static int setConditionValues(PreparedStatement statement, int startIndex, 
-			Condition... conditions) throws DatabaseException, SQLException
-	{
-		int index = startIndex;
-		for (Condition condition : conditions)
-		{
-			try
-			{
-				index = condition.setObjectValues(statement, index);
-			}
-			catch (StatementParseException e)
-			{
-				throw new DatabaseException(e, condition);
-			}
-		}
-		return index;
-	}
-
-	private static int setConditionValues(PreparedStatement statement, int startIndex, 
-			Join[] joins) throws DatabaseException, SQLException
-	{
-		Condition[] conditions = new Condition[joins.length];
-		for (int i = 0; i < joins.length; i++)
-		{
-			conditions[i] = joins[i].getJoinCondition();
-		}
-		
-		return setConditionValues(statement, startIndex, conditions);
-	}
-	
-	private static List<ColumnVariable> getNonNullVariables(
-			Collection<? extends ColumnVariable> variables)
-	{
-		List<ColumnVariable> nonNull = new ArrayList<>();
-		for (ColumnVariable variable : variables)
-		{
-			if (!variable.isNull())
-				nonNull.add(variable);
-		}
-		
-		return nonNull;
-	}
-	
-	private static List<ColumnVariable> getManualVariables(
-			Collection<? extends ColumnVariable> variables)
-	{
-		List<ColumnVariable> notAuto = new ArrayList<>();
-		for (ColumnVariable variable : variables)
-		{
-			if (!variable.getColumn().usesAutoIncrementIndexing())
-				notAuto.add(variable);
-		}
-		
-		return notAuto;
-	}
-	
-	private static int setVariableValues(PreparedStatement statement, 
-			Collection<? extends ColumnVariable> variables, int startIndex) throws SQLException
-	{
-		int index = startIndex;
-		for (ColumnVariable variable : variables)
-		{
-			statement.setObject(index, variable.getValue().getObjectValue(), 
-					variable.getColumn().getSqlType().getSqlType());
-			index ++;
-		}
-		
-		return index;
-	}
-	
-	private static List<ColumnVariable> filterTableVariables(
-			Collection<? extends ColumnVariable> variables, Table table, Join[] joins)
+	private static void setStatementValues(PreparedStatement statement, Join[] joins, 
+			PreparedSQLClause... otherClauses) throws DatabaseException, SQLException
 	{
 		if (joins == null || joins.length == 0)
-			return table.filterTableVariables(variables);
-		
-		List<ColumnVariable> filtered = new ArrayList<>();
-		
-		for (ColumnVariable var : variables)
+			setStatementValues(statement, otherClauses);
+		else
 		{
-			if (var.getColumn().getTable().equals(table))
-				filtered.add(var);
-			else
+			PreparedSQLClause[] clauses = new PreparedSQLClause[joins.length + otherClauses.length];
+			int i = 0;
+			for (Join join : joins)
 			{
-				for (Join join : joins)
+				clauses[i] = join;
+				i++;
+			}
+			for (PreparedSQLClause clause : otherClauses)
+			{
+				clauses[i] = clause;
+				i++;
+			}
+			
+			setStatementValues(statement, clauses);
+		}
+	}
+	
+	/**
+	 * Inserts object values into a prepared statement
+	 * @param statement The prepared statement
+	 * @param clauses All the clauses used in the statement
+	 * @throws SQLException If an sql error occurred
+	 * @throws DatabaseException If some of the clause value couldn't be cast to compatible 
+	 * data types
+	 */
+	private static void setStatementValues(PreparedStatement statement, PreparedSQLClause... clauses) 
+			throws SQLException, DatabaseException
+	{
+		// Collects required information
+		SubTypeSet sqlTypes = SqlDataType.getSqlTypes();
+		
+		// Performs the value insert
+		int index = 1;
+		for (PreparedSQLClause clause : clauses)
+		{
+			for (Value value : clause.getValues())
+			{
+				// Casts each inserted value to a compatible data type
+				try
 				{
-					if (var.getColumn().getTable().equals(join.getJoinedTable()))
+					Value castValue = value.castTo(sqlTypes);
+					SqlDataType type = SqlDataType.castToSqlDataType(castValue.getType());
+					
+					statement.setObject(index, castValue.getObjectValue(), type.getSqlType());
+					index ++;
+				}
+				catch (DataTypeException e)
+				{
+					// Creates an exception if the value casting failed
+					StringBuilder s = new StringBuilder();
+					s.append("Value ");
+					s.append(value.getDescription());
+					s.append(" of clause ");
+					try
 					{
-						filtered.add(var);
-						break;
+						s.append(clause.toSql());
 					}
+					catch (StatementParseException e1)
+					{
+						s.append("-- PARSING FAILED --");
+					}
+					s.append(" can't be cast to sql data type");
+					
+					throw new DatabaseException(s.toString(), e);
 				}
 			}
 		}
-		
-		return filtered;
 	}
 }

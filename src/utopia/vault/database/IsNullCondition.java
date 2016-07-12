@@ -1,8 +1,6 @@
 package utopia.vault.database;
 
-import java.sql.PreparedStatement;
-import java.sql.SQLException;
-
+import utopia.flow.generics.Value;
 import utopia.vault.generics.Column;
 
 /**
@@ -32,17 +30,16 @@ public class IsNullCondition extends Condition
 	// IMPLEMENTED METHODS	--------
 
 	@Override
-	protected String toSql() throws StatementParseException
+	public String toSql() throws StatementParseException
 	{
 		return this.column.getColumnName() + " IS NULL";
 	}
-
+	
 	@Override
-	public int setObjectValues(PreparedStatement statement, int startIndex)
-			throws SQLException, StatementParseException
+	public Value[] getValues()
 	{
-		// No object values are used in this condition
-		return startIndex;
+		// Null conditions don't contain values
+		return new Value[0];
 	}
 
 	@Override
