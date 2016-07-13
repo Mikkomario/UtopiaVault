@@ -25,6 +25,8 @@ public class Table
 	private ModelDeclaration declaration = null;
 	
 	// TODO: Add fuzzy logic for column search
+	// TODO: Add table references:
+	// http://stackoverflow.com/questions/201621/how-do-i-see-all-foreign-keys-to-a-table-or-column
 	
 	
 	// CONSTRUCTOR	-------------
