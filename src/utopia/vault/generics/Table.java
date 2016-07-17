@@ -2,7 +2,9 @@ package utopia.vault.generics;
 
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 import utopia.flow.generics.ModelDeclaration;
 
@@ -18,15 +20,20 @@ public class Table
 	
 	private String databaseName, name;
 	private VariableNameMapping nameMapping;
-	private ColumnInitialiser initialiser;
+	private ColumnInitialiser columnInitialiser;
+	private TableReferenceReader referenceReader;
 	
 	private List<Column> columns = null;
 	private Column primaryColumn = null;
 	private ModelDeclaration declaration = null;
+	private Map<Table, TableReference[]> references = new HashMap<>();
 	
 	// TODO: Add fuzzy logic for column search
 	// TODO: Add table references:
 	// http://stackoverflow.com/questions/201621/how-do-i-see-all-foreign-keys-to-a-table-or-column
+	// SELECT COLUMN_NAME, REFERENCED_COLUMN_NAME FROM INFORMATION_SCHEMA.KEY_COLUMN_USAGE WHERE 
+	// TABLE_SCHEMA = 'test_db' AND TABLE_NAME = 'users' AND REFERENCED_TABLE_SCHEMA = 'test_db' 
+	// AND REFERENCED_TABLE_NAME = 'roles';
 	
 	
 	// CONSTRUCTOR	-------------
@@ -36,16 +43,19 @@ public class Table
 	 * @param databaseName The name of the database the table uses
 	 * @param name The name of the table
 	 * @param nameMapping The name mapping the table uses
-	 * @param initialiser The initialiser that is able to initialise the table's column data 
+	 * @param columnInitialiser The initialiser that is able to initialise the table's column data 
 	 * when necessary
+	 * @param referenceReader The instance that generates references for this table when 
+	 * necessary (Optional)
 	 */
 	public Table(String databaseName, String name, VariableNameMapping nameMapping, 
-			ColumnInitialiser initialiser)
+			ColumnInitialiser columnInitialiser, TableReferenceReader referenceReader)
 	{
 		this.databaseName = databaseName;
 		this.name = name;
 		this.nameMapping = nameMapping;
-		this.initialiser = initialiser;
+		this.columnInitialiser = columnInitialiser;
+		this.referenceReader = referenceReader;
 	}
 	
 	
@@ -124,15 +134,15 @@ public class Table
 	
 	/**
 	 * @return The columns in this table
-	 * @throws DatabaseTableInitialisationException If the columns couldn't be initialised, 
+	 * @throws TableInitialisationException If the columns couldn't be initialised, 
 	 * for some reason
 	 */
-	public List<? extends Column> getColumns() throws DatabaseTableInitialisationException
+	public List<? extends Column> getColumns() throws TableInitialisationException
 	{
 		// Reads the column data from the database when first requested
 		if (this.columns == null)
 		{
-			this.columns = new ArrayList<>(this.initialiser.generateColumns(this));
+			this.columns = new ArrayList<>(this.columnInitialiser.generateColumns(this));
 			// Also initialises the mappings
 			getNameMapping().addMappingForEachColumnWherePossible(this.columns);
 		}
@@ -226,6 +236,55 @@ public class Table
 	
 	
 	// OTHER METHODS	----------------
+	
+	/**
+	 * Finds all the references from this table to the other table
+	 * @param table The table this table may reference
+	 * @return The references from this table to the other table
+	 * @throws TableInitialisationException If the references couldn't be read / generated 
+	 * for some reason
+	 */
+	public TableReference[] getReferencesToTable(Table table) throws TableInitialisationException
+	{
+		TableReference[] references = this.references.get(table);
+		
+		// The reference data may be read if it wasn't already
+		if (references == null)
+		{
+			TableReference[] readReferences;
+			if (this.referenceReader == null)
+				readReferences = new TableReference[0];
+			else
+				readReferences = this.referenceReader.getReferencesBetween(this, table);
+			
+			this.references.put(table, readReferences);
+			return readReferences;
+		}
+		else
+			return references;
+	}
+	
+	/**
+	 * Defines the references from this table to another table. This will overwrite any existing 
+	 * reference to the targeted table
+	 * @param to The table that is referenced
+	 * @param references References to that table
+	 */
+	public void setReferences(Table to, TableReference... references)
+	{
+		this.references.put(to, references);
+	}
+	
+	/**
+	 * Checks whether a table references another table
+	 * @param table The table that may be referenced from this table
+	 * @return Does this table contain a reference to the targeted table
+	 * @throws TableInitialisationException If reference data couldn't be generated / read
+	 */
+	public boolean references(Table table) throws TableInitialisationException
+	{
+		return getReferencesToTable(table).length > 0;
+	}
 	
 	/**
 	 * @return Does the table's primary key use auto increment indexing
@@ -372,22 +431,6 @@ public class Table
 	
 	
 	// NESTED CLASSES	----------------------
-	
-	/**
-	 * These exceptions are thrown when database table initialisation (reading column 
-	 * information, etc) fails
-	 * @author Mikko Hilpinen
-	 * @since 9.1.2016
-	 */
-	public static class DatabaseTableInitialisationException extends RuntimeException
-	{
-		private static final long serialVersionUID = -4211842208696476343L;
-
-		private DatabaseTableInitialisationException(String message, Throwable cause)
-		{
-			super(message, cause);
-		}
-	}
 	
 	/**
 	 * These exceptions are thrown when table columns can't be found

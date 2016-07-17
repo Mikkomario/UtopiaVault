@@ -1,7 +1,7 @@
 package utopia.vault.database;
 
+import utopia.flow.generics.DataType;
 import utopia.flow.generics.Value;
-import utopia.vault.generics.SqlDataType;
 
 /**
  * This condition has only a single condition
@@ -14,7 +14,7 @@ public abstract class SingleCondition extends Condition
 	
 	private boolean inverted; // TODO: Move the invertion into a separate condition class
 	private Value[] values;
-	private SqlDataType targetType = null;
+	private DataType targetType = null;
 	
 	
 	// CONSTRUCTOR	------------------
@@ -191,7 +191,7 @@ public abstract class SingleCondition extends Condition
 	 * Specifies the data type used with the provided value(s)
 	 * @param type The data type used for the condition's value(s)
 	 */
-	protected void specifyValueDataType(SqlDataType type)
+	protected void specifyValueDataType(DataType type)
 	{
 		this.targetType = type;
 	}

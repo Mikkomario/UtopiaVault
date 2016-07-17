@@ -124,7 +124,7 @@ public class IsBetweenCondition extends SingleCondition
 		{
 			if (column != null)
 			{
-				specifyValueDataType(column.getSqlType());
+				specifyValueDataType(column.getType());
 				break;
 			}
 		}

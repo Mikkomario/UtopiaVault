@@ -21,7 +21,7 @@ public class Join implements PreparedSQLClause
 	// CONSTRUCTOR	---------------------
 	
 	/**
-	 * Creates a new left join
+	 * Creates a new inner join
 	 * @param joinedTable the table that is joined
 	 * @param joinCondition The condition on which the table is joined
 	 */
@@ -33,7 +33,7 @@ public class Join implements PreparedSQLClause
 	}
 	
 	/**
-	 * Creates a new left join by linking two columns
+	 * Creates a new inner join by linking two columns
 	 * @param tableColumn The column in the original table
 	 * @param joinedColumn The associated column in the joined table
 	 */
@@ -69,6 +69,8 @@ public class Join implements PreparedSQLClause
 		this.condition = new ComparisonCondition(tableColumn, joinedColumn);
 		this.type = type;
 	}
+	
+	// TODO: Create reference joins
 	
 	
 	// IMPLEMENTED METHODS	------------

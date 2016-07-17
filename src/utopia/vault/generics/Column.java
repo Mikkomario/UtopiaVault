@@ -4,6 +4,7 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 
+import utopia.flow.generics.DataType;
 import utopia.flow.generics.Value;
 import utopia.flow.generics.VariableDeclaration;
 import utopia.vault.generics.VariableNameMapping.NoVariableForColumnException;
@@ -20,7 +21,6 @@ public class Column extends VariableDeclaration
 	private String columnName;
 	private Table table;
 	private boolean autoIncrement, primary, nullAllowed;
-	private SqlDataType type;
 	
 	
 	// CONSTRUCTOR	----------------------
@@ -38,13 +38,12 @@ public class Column extends VariableDeclaration
 	 * @throws NoVariableForColumnException If the column name couldn't be mapped to a 
 	 * variable name
 	 */
-	public Column(Table table, String columnName, SqlDataType type, boolean nullAllowed, 
+	public Column(Table table, String columnName, DataType type, boolean nullAllowed, 
 			boolean primary, boolean autoIncrement, Value defaultValue) throws NoVariableForColumnException
 	{
 		super(table.getNameMapping().getVariableName(columnName), 
 				defaultValue == null ? Value.NullValue(type) : defaultValue.castTo(type));
 		
-		this.type = type;
 		this.table = table;
 		this.columnName = columnName;
 		this.primary = primary;
@@ -127,14 +126,6 @@ public class Column extends VariableDeclaration
 	public boolean nullAllowed()
 	{
 		return this.nullAllowed;
-	}
-	
-	/**
-	 * @return The data type of the column in sql type format
-	 */
-	public SqlDataType getSqlType()
-	{
-		return this.type;
 	}
 	
 	

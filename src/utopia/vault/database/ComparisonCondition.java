@@ -251,7 +251,7 @@ public class ComparisonCondition extends SingleCondition
 		}
 		
 		// Specifies the desired data type
-		specifyValueDataType(this.columns[0].getSqlType());
+		specifyValueDataType(this.columns[0].getType());
 		// Makes sure the values are accepted by the operator
 		if (!this.operator.acceptsValues(getValues()))
 			throw new StatementParseException("Operator" + this.operator + 

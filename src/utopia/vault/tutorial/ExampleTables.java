@@ -1,5 +1,6 @@
 package utopia.vault.tutorial;
 
+import utopia.vault.database.DatabaseReferenceReader;
 import utopia.vault.database.ReadFromDatabaseColumnInitialiser;
 import utopia.vault.generics.Table;
 import utopia.vault.generics.UnderlinesToCamelCaseRule;
@@ -33,7 +34,7 @@ public class ExampleTables
 		VariableNameMapping mapping = new VariableNameMapping();
 		mapping.addRule(UnderlinesToCamelCaseRule.getInstance());
 		
-		return new Table("test_db", name, mapping, 
-				new ReadFromDatabaseColumnInitialiser(null));
+		return new Table("test_db", name, mapping, new ReadFromDatabaseColumnInitialiser(), 
+				new DatabaseReferenceReader());
 	}
 }
