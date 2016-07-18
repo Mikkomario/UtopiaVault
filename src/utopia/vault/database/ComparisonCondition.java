@@ -147,12 +147,10 @@ public class ComparisonCondition extends SingleCondition
 	 * @param combinationOperator The operator used for combining the conditions
 	 * @param skipNullVariables Should null variables be skipped entirely
 	 * @return A combined condition based on the variables and the provided operator
-	 * @throws StatementParseException If XOR was used with more than 2 variables
 	 */
 	public static Condition createVariableSetEqualsCondition(
 			Collection<? extends ColumnVariable> variables, 
-			CombinationOperator combinationOperator, boolean skipNullVariables) throws 
-			StatementParseException
+			CombinationOperator combinationOperator, boolean skipNullVariables)
 	{
 		return createVariableSetCondition(variables, combinationOperator, Operator.EQUALS, 
 				skipNullVariables);
@@ -165,12 +163,11 @@ public class ComparisonCondition extends SingleCondition
 	 * @param comparisonOperator The operation that is performed for each variable
 	 * @param skipNullVariables Should null attributes be skipped entirely
 	 * @return A combined condition based on the variables and the provided operator
-	 * @throws StatementParseException If XOR was used with more than 2 variables
 	 */
 	public static Condition createVariableSetCondition(
 			Collection<? extends ColumnVariable> variables, 
 			CombinationOperator combinationOperator, Operator comparisonOperator, 
-			boolean skipNullVariables) throws StatementParseException
+			boolean skipNullVariables)
 	{
 		List<ColumnVariable> targetVariables = new ArrayList<>();
 		if (skipNullVariables)
@@ -209,18 +206,8 @@ public class ComparisonCondition extends SingleCondition
 	public static Condition createVariableSetEqualsCondition(
 			Collection<? extends ColumnVariable> variables, boolean skipNullVariables)
 	{
-		try
-		{
-			return createVariableSetEqualsCondition(variables, CombinationOperator.AND, 
-					skipNullVariables);
-		}
-		catch (StatementParseException e)
-		{
-			// This exception is only thrown when using XOR, this time AND is used so 
-			// this block shouldn't be reached
-			throw new RuntimeException("Where condition combination failed even when using AND", 
-					e);
-		}
+		return createVariableSetEqualsCondition(variables, CombinationOperator.AND, 
+				skipNullVariables);
 	}
 	
 	/**
@@ -240,7 +227,7 @@ public class ComparisonCondition extends SingleCondition
 	// IMPLEMENTED METHODS	---------
 
 	@Override
-	protected String getSQLWithPlaceholders() throws StatementParseException
+	public String toSql() throws StatementParseException
 	{
 		// Checks if some columns were null
 		for (int i = 0; i < this.columns.length; i++)

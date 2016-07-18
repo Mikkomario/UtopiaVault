@@ -12,7 +12,6 @@ public abstract class SingleCondition extends Condition
 {
 	// ATTRIBUTES	------------------
 	
-	private boolean inverted; // TODO: Move the invertion into a separate condition class
 	private Value[] values;
 	private DataType targetType = null;
 	
@@ -22,36 +21,14 @@ public abstract class SingleCondition extends Condition
 	/**
 	 * Creates a new where condition
 	 * @param values The value(s) used in the condition (optional)
-	 * @param inverted Should the condition be inverted
-	 */
-	public SingleCondition(boolean inverted, Value... values)
-	{
-		this.values = values;
-		this.inverted = inverted;
-	}
-	
-	/**
-	 * Creates a new where condition
-	 * @param values The value(s) used in the condition (optional)
 	 */
 	public SingleCondition(Value... values)
 	{
 		this.values = values;
-		this.inverted = false;
 	}
 	
 	
 	// ABSTRACT METHODS	--------------
-	
-	/**
-	 * In this method the subclass should return a string that represents the where condition 
-	 * in sql format. The place holders for values should be marked with '?'
-	 * @return A logical sql condition with a boolean return value and '?' as place holders 
-	 * for the values
-	 * @throws StatementParseException If the parsing fails
-	 */
-	protected abstract String getSQLWithPlaceholders() throws 
-			StatementParseException;
 	
 	/**
 	 * This method is used when creating a debug message for a where condition that couldn't 
@@ -83,19 +60,6 @@ public abstract class SingleCondition extends Condition
 			
 			return castValues;
 		}
-	}
-	
-	@Override
-	public String toSql() throws StatementParseException
-	{
-		if (!this.inverted)
-			return getSQLWithPlaceholders();
-		
-		StringBuilder sql = new StringBuilder(" NOT (");
-		sql.append(getSQLWithPlaceholders());
-		sql.append(")");
-		
-		return sql.toString();
 	}
 	
 	/*
@@ -159,15 +123,7 @@ public abstract class SingleCondition extends Condition
 		}
 		catch (StatementParseException e)
 		{
-			StringBuilder s = new StringBuilder();
-			if (this.inverted)
-			{
-				s.append("NOT (");
-				s.append(getDebugSqlWithNoParsing());
-				s.append(")");
-			}
-			else
-				s.append(getDebugSqlWithNoParsing());
+			StringBuilder s = new StringBuilder(getDebugSqlWithNoParsing());
 			
 			if (this.values.length == 0)
 				s.append("\n No values used");

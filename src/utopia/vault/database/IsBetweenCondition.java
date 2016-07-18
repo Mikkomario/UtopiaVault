@@ -22,12 +22,9 @@ public class IsBetweenCondition extends SingleCondition
 	 * @param column The compared column
 	 * @param minColumn The minimum value column
 	 * @param maxColumn The maximum value column
-	 * @param inverted Should the condition be inverted to "not between"
 	 */
-	public IsBetweenCondition(Column column, Column minColumn, 
-			Column maxColumn, boolean inverted)
+	public IsBetweenCondition(Column column, Column minColumn, Column maxColumn)
 	{
-		super(inverted);
 		this.parts = new Column[] {column, minColumn, maxColumn};
 	}
 	
@@ -36,12 +33,10 @@ public class IsBetweenCondition extends SingleCondition
 	 * @param value The compared value
 	 * @param minColumn The minimum value column
 	 * @param maxColumn The maximum value column
-	 * @param inverted Should the condition be inverted to "not between"
 	 */
-	public IsBetweenCondition(Value value, Column minColumn, Column maxColumn, 
-			boolean inverted)
+	public IsBetweenCondition(Value value, Column minColumn, Column maxColumn)
 	{
-		super(inverted, value);
+		super(value);
 		this.parts = new Column[] {null, minColumn, maxColumn};
 	}
 	
@@ -50,12 +45,10 @@ public class IsBetweenCondition extends SingleCondition
 	 * @param column The compared column
 	 * @param minValue The minimum value
 	 * @param maxValue The maximum value
-	 * @param inverted Should the condition be inverted to "not between"
 	 */
-	public IsBetweenCondition(Column column, Value minValue, Value maxValue, 
-			boolean inverted)
+	public IsBetweenCondition(Column column, Value minValue, Value maxValue)
 	{
-		super(inverted, minValue, maxValue);
+		super(minValue, maxValue);
 		this.parts = new Column[] {column, null, null};
 	}
 	
@@ -64,12 +57,10 @@ public class IsBetweenCondition extends SingleCondition
 	 * @param column The compared column
 	 * @param minColumn The minimum value column
 	 * @param maxValue The maximum value
-	 * @param inverted Should the condition be inverted to "not between"
 	 */
-	public IsBetweenCondition(Column column, Column minColumn, Value maxValue, 
-			boolean inverted)
+	public IsBetweenCondition(Column column, Column minColumn, Value maxValue)
 	{
-		super(inverted, maxValue);
+		super(maxValue);
 		this.parts = new Column[] {column, minColumn, null};
 	}
 	
@@ -78,12 +69,10 @@ public class IsBetweenCondition extends SingleCondition
 	 * @param column The compared column
 	 * @param minValue The minimum value
 	 * @param maxColumn The maximum value column
-	 * @param inverted Should the condition be inverted to "not between"
 	 */
-	public IsBetweenCondition(Column column, Value minValue, Column maxColumn, 
-			boolean inverted)
+	public IsBetweenCondition(Column column, Value minValue, Column maxColumn)
 	{
-		super(inverted, minValue);
+		super(minValue);
 		this.parts = new Column[] {column, null, maxColumn};
 	}
 	
@@ -91,7 +80,7 @@ public class IsBetweenCondition extends SingleCondition
 	// IMPLEMENTED METHODS	------
 
 	@Override
-	protected String getSQLWithPlaceholders()
+	public String toSql()
 	{
 		// First sets the target data type
 		specifyTargetType();
@@ -112,7 +101,7 @@ public class IsBetweenCondition extends SingleCondition
 	@Override
 	protected String getDebugSqlWithNoParsing()
 	{
-		return getSQLWithPlaceholders();
+		return toSql();
 	}
 
 	

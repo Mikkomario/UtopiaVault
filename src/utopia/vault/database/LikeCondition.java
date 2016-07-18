@@ -31,23 +31,10 @@ public class LikeCondition extends SingleCondition
 	 * @param column The column that should have a matching value
 	 * @param like a string the column value should match. Use '%' to represent any number of 
 	 * any characters and '_' to represent any single character.
-	 * @param inverted Should the condition be NOT LIKE instead
-	 */
-	public LikeCondition(Column column, String like, boolean inverted)
-	{
-		super(inverted, Value.String(like));
-		this.column = column;
-	}
-
-	/**
-	 * Creates a new condition
-	 * @param column The column that should have a matching value
-	 * @param like a string the column value should match. Use '%' to represent any number of 
-	 * any characters and '_' to represent any single character.
 	 */
 	public LikeCondition(Column column, String like)
 	{
-		super(false, Value.String(like));
+		super(Value.String(like));
 		this.column = column;
 	}
 	
@@ -109,7 +96,7 @@ public class LikeCondition extends SingleCondition
 	// IMPLEMENTED METHODS	---------
 
 	@Override
-	protected String getSQLWithPlaceholders() throws StatementParseException
+	public String toSql() throws StatementParseException
 	{
 		// Checks that the provided values are acceptable
 		if (this.column == null)

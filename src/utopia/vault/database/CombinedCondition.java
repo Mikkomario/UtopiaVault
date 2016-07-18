@@ -21,14 +21,13 @@ public class CombinedCondition extends Condition
 	
 	// CONSTRUCTOR	-----------------
 
-	private CombinedCondition(CombinationOperator operator, 
-			Condition... conditions) throws StatementParseException
+	private CombinedCondition(CombinationOperator operator, Condition... conditions) throws IllegalArgumentException
 	{
 		this.operator = operator;
 		
 		// Checks that enough conditions were provided
 		if (conditions.length < 2 || (this.operator == CombinationOperator.XOR && conditions.length > 2))
-			throw new StatementParseException("Operator " + operator + 
+			throw new IllegalArgumentException("Operator " + operator + 
 					" doesn't work with " + conditions.length + " operands");
 		
 		this.conditions = new ArrayList<>();
@@ -59,11 +58,10 @@ public class CombinedCondition extends Condition
 	 * @param conditions The conditions that are combined (0 or more)
 	 * @return Null if no conditions were provided, a single condition if only one 
 	 * condition was provided, a combined condition if multiple conditions were provided
-	 * @throws StatementParseException If {@link CombinationOperator#XOR} was used with 
-	 * more than 2 operands
+	 * @throws IllegalArgumentException If XOR was used with more than 2 conditions
 	 */
 	public static Condition combineConditions(CombinationOperator operator, 
-			Condition... conditions) throws StatementParseException
+			Condition... conditions) throws IllegalArgumentException
 	{
 		if (conditions.length == 0)
 			return null;
