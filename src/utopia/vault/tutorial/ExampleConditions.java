@@ -8,7 +8,7 @@ import utopia.vault.generics.Column;
 
 /**
  * This is a static collection of example methods that generate conditions that can be used 
- * in where adn join clauses.
+ * in where and join clauses.
  * @author Mikko Hilpinen
  * @since 24.11.2015
  */

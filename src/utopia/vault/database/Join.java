@@ -17,7 +17,7 @@ public class Join implements PreparedSQLClause
 	// ATTRIBUTES	---------------------
 	
 	private Condition condition;
-	private Table table;
+	private Table joinedTable;
 	private JoinType type;
 	
 	
@@ -30,7 +30,7 @@ public class Join implements PreparedSQLClause
 	 */
 	public Join(Table joinedTable, Condition joinCondition)
 	{
-		this.table = joinedTable;
+		this.joinedTable = joinedTable;
 		this.condition = joinCondition;
 		this.type = JoinType.INNER;
 	}
@@ -42,7 +42,7 @@ public class Join implements PreparedSQLClause
 	 */
 	public Join(Column tableColumn, Column joinedColumn)
 	{
-		this.table = joinedColumn.getTable();
+		this.joinedTable = joinedColumn.getTable();
 		this.condition = new ComparisonCondition(tableColumn, joinedColumn);
 		this.type = JoinType.INNER;
 	}
@@ -55,7 +55,7 @@ public class Join implements PreparedSQLClause
 	 */
 	public Join(Table joinedTable, Condition joinCondition, JoinType type)
 	{
-		this.table = joinedTable;
+		this.joinedTable = joinedTable;
 		this.condition = joinCondition;
 		this.type = type;
 	}
@@ -68,7 +68,7 @@ public class Join implements PreparedSQLClause
 	 */
 	public Join(Column tableColumn, Column joinedColumn, JoinType type)
 	{
-		this.table = joinedColumn.getTable();
+		this.joinedTable = joinedColumn.getTable();
 		this.condition = new ComparisonCondition(tableColumn, joinedColumn);
 		this.type = type;
 	}
@@ -81,7 +81,7 @@ public class Join implements PreparedSQLClause
 	 */
 	public Join(TableReference reference, JoinType type)
 	{
-		this.table = reference.getReferencingColumn().getTable();
+		this.joinedTable = reference.getReferencedColumn().getTable();
 		this.condition = new ComparisonCondition(reference.getReferencingColumn(), 
 				reference.getReferencedColumn());
 		this.type = type;
@@ -91,12 +91,12 @@ public class Join implements PreparedSQLClause
 	 * Creates a new join between the two tables using table references
 	 * @param from The primary table
 	 * @param to The joined table
-	 * @param type The reference type
+	 * @param type The join type
 	 * @throws NoSuchReferenceException If there wasn't a single reference between the two tables
 	 */
 	public Join(Table from, Table to, JoinType type) throws NoSuchReferenceException
 	{
-		this.table = from;
+		this.joinedTable = to;
 		this.type = type;
 		this.condition = getReferenceCondition(from, to);
 	}
@@ -109,7 +109,7 @@ public class Join implements PreparedSQLClause
 	 */
 	public Join(Table from, Table to) throws NoSuchReferenceException
 	{
-		this.table = from;
+		this.joinedTable = to;
 		this.type = JoinType.INNER;
 		this.condition = getReferenceCondition(from, to);
 	}
@@ -124,7 +124,7 @@ public class Join implements PreparedSQLClause
 	 */
 	public static Join[] createReferenceJoins(Table... tables) throws NoSuchReferenceException
 	{
-		if (tables.length == 0)
+		if (tables.length < 2)
 			return new Join[0];
 		else
 		{
@@ -173,7 +173,7 @@ public class Join implements PreparedSQLClause
 	 */
 	public Table getJoinedTable()
 	{
-		return this.table;
+		return this.joinedTable;
 	}
 	
 	/**

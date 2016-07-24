@@ -34,7 +34,7 @@ public class ExampleTables
 		VariableNameMapping mapping = new VariableNameMapping();
 		mapping.addRule(UnderlinesToCamelCaseRule.getInstance());
 		
-		return new Table("test_db", name, mapping, new ReadFromDatabaseColumnInitialiser(), 
+		return new Table("test_db", name, mapping, new ReadFromDatabaseColumnInitialiser(null), 
 				new DatabaseReferenceReader());
 	}
 }

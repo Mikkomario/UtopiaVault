@@ -62,7 +62,8 @@ public class ExampleDatabaseQueries
 	 * @throws DatabaseException If the operation failed
 	 * @throws DatabaseUnavailableException If the database couldn't be accessed
 	 */
-	public static List<ExampleUserModel> findUsers(Database connection) throws DatabaseException, DatabaseUnavailableException
+	public static List<ExampleUserModel> findUsers(Database connection) throws DatabaseException, 
+			DatabaseUnavailableException
 	{
 		// One can construct models with partial selects, but select all (null parameter) 
 		// is often the best option
@@ -118,10 +119,9 @@ public class ExampleDatabaseQueries
 		// the method expects one or more conditions
 		// We can use a where condition that was specified in the ExampleWhereConditions
 		List<List<ColumnVariable>> results = Database.select(
-				selection, ExampleTables.USERS, 
-				new Join[] {ExampleConditions.createRoleIndexJoin()}, 
-				ExampleConditions.createUserNameAndRoleNameCondition(userName, roleName), -1, 
-				null, connection);
+				selection, ExampleTables.USERS, Join.createReferenceJoins(ExampleTables.USERS, 
+				ExampleTables.ROLES), ExampleConditions.createUserNameAndRoleNameCondition(
+				userName, roleName), -1, null, connection);
 		
 		// The users are parsed the same way as always
 		return parseUsers(results);
@@ -141,8 +141,8 @@ public class ExampleDatabaseQueries
 		// This time only the user name is selected
 		List<Column> selection = ExampleTables.USERS.getVariableColumns("name");
 		// No where clause is used this time. The results come in same format as always
+		// The user names are ordered in alphabetical order (desc)
 		OrderBy order = new OrderBy(selection.get(0), false);
-		//System.out.println(order.toSql());
 		List<List<ColumnVariable>> results = Database.select(selection, ExampleTables.USERS, 
 				null, -1, order, connection);
 		
@@ -267,7 +267,7 @@ public class ExampleDatabaseQueries
 		
 		// Deletes the users and roles which have the specified role name. A join condition is used.
 		Database.delete(ExampleTables.USERS, 
-				new Join[] {ExampleConditions.createRoleIndexJoin()}, 
+				Join.createReferenceJoins(ExampleTables.USERS, ExampleTables.ROLES), 
 				roleNameCondition, true, connection);
 	}
 	

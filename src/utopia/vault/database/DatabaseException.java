@@ -143,6 +143,23 @@ public class DatabaseException extends DebuggableException
 	{
 		super(createMessage(cause), debugmessage, cause);
 	}
+	
+	/**
+	 * Creates a new database exception
+	 * @param message The message sent along with the exception
+	 * @param sqlStatement The sql statement that was being used
+	 * @param usedTable The table that was being used
+	 * @param whereClause The where clause used
+	 * @param assignedValues The values that were being assigned
+	 * @param selection The selection that was being made
+	 */
+	public DatabaseException(String message, String sqlStatement, Table usedTable, 
+			Condition whereClause, ValueAssignment assignedValues, 
+			Collection<? extends VariableDeclaration> selection)
+	{
+		super(message, parseDebugMessage(sqlStatement, usedTable, whereClause, assignedValues, 
+				selection));
+	}
 
 	
 	// OTHER METHODS	---------------

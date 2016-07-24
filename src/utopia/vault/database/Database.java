@@ -364,7 +364,6 @@ public class Database
 		if (limit >= 0)
 			sql.append(" LIMIT " + limit);
 		
-		// Executes the query
 		Database db = null;
 		PreparedStatement statement = null;
 		ResultSet results = null;
@@ -376,8 +375,10 @@ public class Database
 			statement = db.getPreparedStatement(sql.toString());
 			setStatementValues(statement, joins, where);
 			
-			// Parses the results
+			// Executes the query
 			results = statement.executeQuery();
+			
+			// Parses the results
 			ResultSetMetaData meta = results.getMetaData();
 			
 			// Determines which columns are read
@@ -403,19 +404,22 @@ public class Database
 			DataType[] columnTypes = new DataType[rowColumns.length];
 			for (int i = 0; i < rowColumns.length; i++)
 			{
-				columnTypes[i] = SqlDataType.getDataType(meta.getColumnType(i));
+				columnTypes[i] = SqlDataType.getDataType(meta.getColumnType(i + 1));
 				
-				String columnName = meta.getColumnName(i);
+				// Finds the column matching the column name
+				String columnName = meta.getColumnName(i + 1);
 				for (Column column : readColumns)
 				{
 					if (column.getColumnName().equalsIgnoreCase(columnName))
 					{
 						// Makes sure the correct table column is used, in case there are 
 						// columns with similar names in a join
-						if (column.getTable().getName().equalsIgnoreCase(meta.getTableName(i)))
+						if (column.getTable().getName().equalsIgnoreCase(meta.getTableName(i + 1)))
 						{
+							// Remembers the column and makes sure data type is defined
+							// If the matching column is not found, it won't be assigned
 							rowColumns[i] = column;
-							if (columnTypes[i] == null)
+							if (columnTypes[i] == null && column != null)
 								columnTypes[i] = column.getType();
 							break;
 						}
@@ -430,7 +434,9 @@ public class Database
 				List<ColumnVariable> row = new ArrayList<>();
 				for (int i = 0; i < rowColumns.length; i++)
 				{
-					row.add(rowColumns[i].assignValue(new Value(results.getObject(i), columnTypes[i])));
+					if (rowColumns[i] != null)
+						row.add(rowColumns[i].assignValue(new Value(results.getObject(i + 1), 
+								columnTypes[i])));
 				}
 				rows.add(row);
 			}
@@ -1050,42 +1056,60 @@ public class Database
 	private static void setStatementValues(PreparedStatement statement, PreparedSQLClause... clauses) 
 			throws SQLException, DatabaseException
 	{
-		// Collects required information
-		SubTypeSet sqlTypes = SqlDataType.getSqlTypes();
-		
-		// Performs the value insert
-		int index = 1;
-		for (PreparedSQLClause clause : clauses)
+		// May skip the whole process if no clauses have been specified
+		boolean clausesFound = false;
+		for (Object clause : clauses)
 		{
-			for (Value value : clause.getValues())
+			if (clause != null)
 			{
-				// Casts each inserted value to a compatible data type
-				try
+				clausesFound = true;
+				break;
+			}
+		}
+		if (clausesFound)
+		{
+			// Collects required information
+			SubTypeSet sqlTypes = SqlDataType.getSqlTypes();
+			
+			// Performs the value insert
+			int index = 1;
+			for (PreparedSQLClause clause : clauses)
+			{
+				// some clauses may be null (for example, no specified where condition, in which 
+				// case they are skipped
+				if (clause != null)
 				{
-					Value castValue = value.castTo(sqlTypes);
-					SqlDataType type = SqlDataType.castToSqlDataType(castValue.getType());
-					
-					statement.setObject(index, castValue.getObjectValue(), type.getSqlType());
-					index ++;
-				}
-				catch (DataTypeException e)
-				{
-					// Creates an exception if the value casting failed
-					StringBuilder s = new StringBuilder();
-					s.append("Value ");
-					s.append(value.getDescription());
-					s.append(" of clause ");
-					try
+					for (Value value : clause.getValues())
 					{
-						s.append(clause.toSql());
+						// Casts each inserted value to a compatible data type
+						try
+						{
+							Value castValue = value.castTo(sqlTypes);
+							SqlDataType type = SqlDataType.castToSqlDataType(castValue.getType());
+							
+							statement.setObject(index, castValue.getObjectValue(), type.getSqlType());
+							index ++;
+						}
+						catch (DataTypeException e)
+						{
+							// Creates an exception if the value casting failed
+							StringBuilder s = new StringBuilder();
+							s.append("Value ");
+							s.append(value.getDescription());
+							s.append(" of clause ");
+							try
+							{
+								s.append(clause.toSql());
+							}
+							catch (StatementParseException e1)
+							{
+								s.append("-- PARSING FAILED --");
+							}
+							s.append(" can't be cast to sql data type");
+							
+							throw new DatabaseException(s.toString(), e);
+						}
 					}
-					catch (StatementParseException e1)
-					{
-						s.append("-- PARSING FAILED --");
-					}
-					s.append(" can't be cast to sql data type");
-					
-					throw new DatabaseException(s.toString(), e);
 				}
 			}
 		}
