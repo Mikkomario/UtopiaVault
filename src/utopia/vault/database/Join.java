@@ -3,6 +3,7 @@ package utopia.vault.database;
 import utopia.flow.generics.Value;
 import utopia.vault.database.CombinedCondition.CombinationOperator;
 import utopia.vault.generics.Column;
+import utopia.vault.generics.NoSuchReferenceException;
 import utopia.vault.generics.Table;
 import utopia.vault.generics.TableReference;
 
@@ -119,8 +120,9 @@ public class Join implements PreparedSQLClause
 	 * with the fourth and so on.
 	 * @param tables The tables that are linked / joined
 	 * @return A collection of joins
+	 * @throws NoSuchReferenceException If there wasn't a reference between some two tables
 	 */
-	public static Join[] createReferenceJoins(Table... tables)
+	public static Join[] createReferenceJoins(Table... tables) throws NoSuchReferenceException
 	{
 		if (tables.length == 0)
 			return new Join[0];
@@ -271,26 +273,6 @@ public class Join implements PreparedSQLClause
 		public String toSql()
 		{
 			return this.sql;
-		}
-	}
-	
-	/**
-	 * These exceptions are thrown when necessary references can't be established
-	 * @author Mikko Hilpinen
-	 * @since 18.7.2016
-	 */
-	public static class NoSuchReferenceException extends RuntimeException
-	{
-		private static final long serialVersionUID = 577732472997906722L;
-
-		/**
-		 * Creates a new exception
-		 * @param from The table that was used
-		 * @param to The table that was being joined
-		 */
-		public NoSuchReferenceException(Table from, Table to)
-		{
-			super("There's no reference between " + from + " and " + to);
 		}
 	}
 }

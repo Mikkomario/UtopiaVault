@@ -892,6 +892,25 @@ public class Database
 	}
 	
 	/**
+	 * Checks whether a row can be found from the database
+	 * @param table The table that is searched
+	 * @param where The condition that is used for finding the row(s)
+	 * @param connection The database connection used (optional, temporary connection will be used 
+	 * if null)
+	 * @return Are there any rows that match the provided condition
+	 * @throws DatabaseException If the query failed
+	 * @throws DatabaseUnavailableException If the database couldn't be accessed
+	 */
+	public static boolean rowExists(Table table, Condition where, Database connection) throws 
+			DatabaseException, DatabaseUnavailableException
+	{
+		List<List<ColumnVariable>> results = select(new ArrayList<>(), table, null, 
+				where, 1, null, connection);
+		
+		return !results.isEmpty();
+	}
+	
+	/**
 	 * Checks whether the provided index exists in the table
 	 * @param table A table
 	 * @param index An index
@@ -905,10 +924,8 @@ public class Database
 	public static boolean indexExists(Table table, Value index, Database connection) throws 
 			DatabaseException, NoSuchColumnException, DatabaseUnavailableException
 	{
-		List<List<ColumnVariable>> results = select(new ArrayList<>(), table, null, 
-				new ComparisonCondition(table.getPrimaryColumn(), index), 1, null, connection);
-		
-		return !results.isEmpty();
+		return rowExists(table, ComparisonCondition.createIndexEqualsCondition(table, index), 
+				connection);
 	}
 	
 	/**

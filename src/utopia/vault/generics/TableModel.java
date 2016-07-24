@@ -5,6 +5,7 @@ import java.util.Collection;
 import utopia.flow.generics.Model;
 import utopia.flow.generics.Value;
 import utopia.flow.generics.VariableDeclaration;
+import utopia.flow.generics.VariableParser;
 import utopia.vault.generics.Table.NoSuchColumnException;
 
 /**
@@ -51,6 +52,18 @@ public class TableModel extends Model<ColumnVariable>
 	{
 		super(other);
 		this.table = other.table;
+	}
+	
+	/**
+	 * Creates a new table model with the specified variable parser. The parser should be 
+	 * able to generate variables for each of the provided table's columns
+	 * @param table The table used by this model
+	 * @param parser The variable parser used by this model
+	 */
+	protected TableModel(Table table, VariableParser<? extends ColumnVariable> parser)
+	{
+		super(parser);
+		this.table = table;
 	}
 	
 	
