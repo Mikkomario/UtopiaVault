@@ -441,7 +441,7 @@ public class Database
 				rows.add(row);
 			}
 		}
-		catch (SQLException e)
+		catch (SQLException | ValueInsertFailedException e)
 		{
 			throw new DatabaseException(e, sql.toString(), from, where, null, select);
 		}
@@ -590,7 +590,7 @@ public class Database
 			else if (resultsFound)
 				results = statement.getResultSet();
 		}
-		catch (SQLException e)
+		catch (SQLException | ValueInsertFailedException e)
 		{
 			throw new DatabaseException(e, sql.toString(), into, null, insert, null);
 		}
@@ -715,7 +715,7 @@ public class Database
 			// Executes
 			statement.executeUpdate();
 		}
-		catch (SQLException e)
+		catch (SQLException | ValueInsertFailedException e)
 		{
 			throw new DatabaseException(e, sql.toString(), from, where, null, null);
 		}
@@ -761,7 +761,8 @@ public class Database
 	 * Updates certain row(s) in the provided table
 	 * @param table The table that is updated
 	 * @param joins The joins used in this query
-	 * @param set The variable values that are set
+	 * @param set The variable values that are set (non-table variables and  
+	 * indices are automatically filtered)
 	 * @param where The condition which determines which rows are updated
 	 * @param connection A database connection that should be used in the query. Null if a 
 	 * temporary connection should be used. Only temporary connections are closed in this method.
@@ -772,8 +773,9 @@ public class Database
 	public static void update(Table table, Join[] joins, ValueAssignment set, 
 			Condition where, Database connection) throws DatabaseException, DatabaseUnavailableException
 	{
-		// Only updates attributes that belong to the target table(s) and don't use auto-increment 
-		// indexing
+		// Only updates attributes that belong to the target table(s) and are not primary 
+		// keys / auto-increment keys
+		// TODO: Add filter for primary keys as well?
 		ValueAssignment actualSet = set.filterToTables(table, joins, true);
 		
 		if (actualSet.isEmpty())
@@ -813,7 +815,7 @@ public class Database
 			// Executes the update
 			statement.executeUpdate();
 		}
-		catch (SQLException e)
+		catch (SQLException | ValueInsertFailedException e)
 		{
 			throw new DatabaseException(e, sql.toString(), table, where, set, null);
 		}
@@ -1022,7 +1024,7 @@ public class Database
 	}
 	
 	private static void setStatementValues(PreparedStatement statement, Join[] joins, 
-			PreparedSQLClause... otherClauses) throws DatabaseException, SQLException
+			PreparedSQLClause... otherClauses) throws ValueInsertFailedException
 	{
 		if (joins == null || joins.length == 0)
 			setStatementValues(statement, otherClauses);
@@ -1052,9 +1054,10 @@ public class Database
 	 * @throws SQLException If an sql error occurred
 	 * @throws DatabaseException If some of the clause value couldn't be cast to compatible 
 	 * data types
+	 * @throws ValueInsertFailedException If insertion of a value failed
 	 */
 	private static void setStatementValues(PreparedStatement statement, PreparedSQLClause... clauses) 
-			throws SQLException, DatabaseException
+			throws ValueInsertFailedException
 	{
 		// May skip the whole process if no clauses have been specified
 		boolean clausesFound = false;
@@ -1107,11 +1110,45 @@ public class Database
 							}
 							s.append(" can't be cast to sql data type");
 							
-							throw new DatabaseException(s.toString(), e);
+							throw new ValueInsertFailedException(s.toString(), e);
+						}
+						catch (SQLException e)
+						{
+							StringBuilder s = new StringBuilder();
+							s.append("Failed to assign value ");
+							s.append(value.getDescription());
+							s.append("to clause ");
+							s.append(clause.toString());
+							s.append(" at index ");
+							s.append(index);
+							
+							int valueAmount = 0;
+							for (PreparedSQLClause sqlClause : clauses)
+							{
+								valueAmount += sqlClause.getValues().length;
+							}
+							
+							s.append(". There are ");
+							s.append(valueAmount);
+							s.append(" values to set in total.");
+							
+							throw new ValueInsertFailedException(s.toString(), e);
 						}
 					}
 				}
 			}
+		}
+	}
+	
+	// NESTED CLASSES	---------------
+
+	private static class ValueInsertFailedException extends Exception
+	{
+		private static final long serialVersionUID = -5237257223474389560L;
+
+		public ValueInsertFailedException(String message, Throwable cause)
+		{
+			super(message, cause);
 		}
 	}
 }

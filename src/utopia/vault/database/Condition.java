@@ -39,6 +39,15 @@ public abstract class Condition implements PreparedSQLClause
 	public abstract String getDebugSql();
 	
 	
+	// IMPLEMENTED METHODS	----------------
+	
+	@Override
+	public String toString()
+	{
+		return getDebugSql();
+	}
+	
+	
 	// OTHER METHODS	--------------------
 	
 	/**
