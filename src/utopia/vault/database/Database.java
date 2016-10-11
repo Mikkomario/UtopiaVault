@@ -564,7 +564,7 @@ public class Database
 			throw new DatabaseException(into, actualInsert);
 		
 		// Parses the sql
-		String sql = insert.toInsertClause(into);
+		String sql = actualInsert.toInsertClause(into);
 		
 		Database db = null;
 		PreparedStatement statement = null;
@@ -575,7 +575,7 @@ public class Database
 			statement = db.getPreparedStatement(sql, into.usesAutoIncrementIndexing());
 			
 			// Inserts the values executes statement
-			setStatementValues(statement, insert);
+			setStatementValues(statement, actualInsert);
 			
 			// Performs the query
 			boolean resultsFound = statement.execute();
@@ -592,7 +592,7 @@ public class Database
 		}
 		catch (SQLException | ValueInsertFailedException e)
 		{
-			throw new DatabaseException(e, sql.toString(), into, null, insert, null);
+			throw new DatabaseException(e, sql.toString(), into, null, actualInsert, null);
 		}
 		finally
 		{
@@ -810,14 +810,14 @@ public class Database
 			statement = db.getPreparedStatement(sql.toString());
 			
 			// Prepares the values
-			setStatementValues(statement, joins, set, where);
+			setStatementValues(statement, joins, actualSet, where);
 			
 			// Executes the update
 			statement.executeUpdate();
 		}
 		catch (SQLException | ValueInsertFailedException e)
 		{
-			throw new DatabaseException(e, sql.toString(), table, where, set, null);
+			throw new DatabaseException(e, sql.toString(), table, where, actualSet, null);
 		}
 		finally
 		{
