@@ -187,6 +187,16 @@ public class Join implements PreparedSQLClause
 	
 	// OTHER METHODS	---------------
 	
+	/**
+	 * Creates a new join that has an extended condition
+	 * @param extension The extension added to the already existing join condition using AND
+	 * @return The new join
+	 */
+	public Join withExtendedCondition(Condition extension)
+	{
+		return new Join(getJoinedTable(), getJoinCondition().and(extension), this.type);
+	}
+	
 	private static Condition getReferenceCondition(Table from, Table to) throws NoSuchReferenceException
 	{
 		// Finds possible references from the first table to the joined table
