@@ -4,6 +4,7 @@ import java.util.Collection;
 
 import utopia.flow.generics.Model;
 import utopia.flow.generics.Value;
+import utopia.flow.generics.Variable;
 import utopia.flow.generics.VariableDeclaration;
 import utopia.flow.generics.VariableParser;
 import utopia.vault.generics.Table.NoSuchColumnException;
@@ -135,14 +136,18 @@ public class TableModel extends Model<ColumnVariable>
 	}
 	
 	/**
-	 * Checks whether the model has a specified index attribute
+	 * Checks whether the model has a specified index attribute and that attribute is not null
 	 * @return Does the model have a specified index attribute
 	 */
 	public boolean hasIndex()
 	{
-		if (getTable().findPrimaryColumn() == null)
+		Column primaryColumn = getTable().findPrimaryColumn();
+		if (primaryColumn == null)
 			return false;
 		else
-			return containsAttribute(getTable().findPrimaryColumn()).toBoolean();
+		{
+			Variable attribute = findAttribute(primaryColumn.getName());
+			return attribute != null && !attribute.isNull();
+		}
 	}
 }
