@@ -120,19 +120,21 @@ public class LikeColumnCondition extends SingleCondition
 			
 			if (hasStartFilter)
 			{
+				sql.append("'");
 				sql.append(this.startFilter);
-				sql.append(", ");
+				sql.append("', ");
 			}
 			
 			if (this.column == null)
-				sql.append("NULL");
+				sql.append("'NULL'");
 			else
 				sql.append(this.column.getColumnNameWithTable());
 			
 			if (hasEndFilter)
 			{
-				sql.append(", ");
+				sql.append(", '");
 				sql.append(this.endFilter);
+				sql.append("'");
 			}
 			
 			sql.append(")");
