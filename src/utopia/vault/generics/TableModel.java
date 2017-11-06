@@ -4,9 +4,9 @@ import java.util.Collection;
 
 import utopia.flow.generics.Model;
 import utopia.flow.generics.Value;
-import utopia.flow.generics.Variable;
 import utopia.flow.generics.VariableDeclaration;
 import utopia.flow.generics.VariableParser;
+import utopia.flow.structure.ImmutableList;
 import utopia.vault.generics.Table.NoSuchColumnException;
 
 /**
@@ -40,6 +40,17 @@ public class TableModel extends Model<ColumnVariable>
 	 * @param variables The variables stored in the model
 	 */
 	public TableModel(Table table, Collection<? extends ColumnVariable> variables)
+	{
+		super(new ColumnVariableParser(table), variables);
+		this.table = table;
+	}
+	
+	/**
+	 * Creates a new model with existing set of attributes
+	 * @param table The table the model uses
+	 * @param variables The variables stored in the model
+	 */
+	public TableModel(Table table, ImmutableList<? extends ColumnVariable> variables)
 	{
 		super(new ColumnVariableParser(table), variables);
 		this.table = table;
@@ -145,9 +156,6 @@ public class TableModel extends Model<ColumnVariable>
 		if (primaryColumn == null)
 			return false;
 		else
-		{
-			Variable attribute = findAttribute(primaryColumn.getName());
-			return attribute != null && !attribute.isNull();
-		}
+			return findAttribute(primaryColumn.getName()).exists(att -> !att.isNull());
 	}
 }

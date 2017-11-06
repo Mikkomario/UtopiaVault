@@ -14,6 +14,9 @@ import utopia.flow.generics.ModelDeclaration;
 import utopia.flow.generics.Value;
 import utopia.flow.generics.Variable;
 import utopia.flow.generics.VariableDeclaration;
+import utopia.flow.structure.ImmutableList;
+import utopia.flow.structure.ImmutableMap;
+import utopia.flow.util.Option;
 
 /**
  * A combined model may contain both "normal" and database specific variables
@@ -61,11 +64,36 @@ public class CombinedModel
 			this.dbModel = new TableModel(table, databaseVariables);
 	}
 	
+	/**
+	 * Creates a new model with existing attributes
+	 * @param table The table the model uses
+	 * @param databaseVariables The database-specific model attributes (optional)
+	 * @param otherVariables The general model attributes (optional)
+	 */
+	public CombinedModel(Table table, 
+			ImmutableList<? extends ColumnVariable> databaseVariables, 
+			ImmutableList<? extends Variable> otherVariables)
+	{
+		if (otherVariables == null)
+			this.baseModel = Model.createBasicModel();
+		else
+			this.baseModel = new Model<>(new BasicVariableParser(), otherVariables);
+		
+		if (databaseVariables == null)
+			this.dbModel = new TableModel(table);
+		else
+			this.dbModel = new TableModel(table, databaseVariables);
+	}
+	
 	// IMPLEMENTED METHODS	----------
 	
 	@Override
 	public String toString()
 	{
+		return ImmutableMap.withValue("Database attributes", this.dbModel.getValuesMap(false)).plus(
+				"Other attributes", this.baseModel.getValuesMap(false)).toString();
+		
+		/*
 		StringBuilder s = new StringBuilder();
 		s.append("Model (");
 		s.append(getTable());
@@ -85,6 +113,7 @@ public class CombinedModel
 		}
 		
 		return s.toString();
+		*/
 	}
 	
 	
@@ -124,7 +153,7 @@ public class CombinedModel
 	/**
 	 * @return The model attributes which aren't database attributes
 	 */
-	public Set<Variable> getGeneralAttributes()
+	public ImmutableList<Variable> getGeneralAttributes()
 	{
 		return this.baseModel.getAttributes();
 	}
@@ -132,7 +161,7 @@ public class CombinedModel
 	/**
 	 * @return The model's database attributes
 	 */
-	public Set<ColumnVariable> getDatabaseAttributes()
+	public ImmutableList<ColumnVariable> getDatabaseAttributes()
 	{
 		return this.dbModel.getAttributes();
 	}
@@ -140,11 +169,41 @@ public class CombinedModel
 	/**
 	 * @return Both the models database attributes and the other attributes
 	 */
-	public Set<Variable> getAttributes()
+	public ImmutableList<Variable> getAttributes()
 	{
-		Set<Variable> attributes = getGeneralAttributes();
-		attributes.addAll(getDatabaseAttributes());
-		return attributes;
+		return getGeneralAttributes().plus(getDatabaseAttributes());
+	}
+	
+	public Option<Value> find(String attributeName)
+	{
+		Option<Value> dbValue = this.dbModel.find(attributeName);
+		if (dbValue.isDefined())
+			return dbValue;
+		else
+			return this.baseModel.find(attributeName);
+	}
+	
+	public Option<? extends Variable> findAttribute(String attributeName)
+	{
+		Option<ColumnVariable> dbAtt = this.dbModel.findAttribute(attributeName);
+		if (dbAtt.isDefined())
+			return dbAtt;
+		else
+			return this.baseModel.findAttribute(attributeName);
+	}
+	
+	public Value get(String attributeName)
+	{
+		return find(attributeName).getOrElse(Value.EMPTY);
+	}
+	
+	/**
+	 * @param attributeName The name of the attribute
+	 * @return A database-related value for the attribute or an empty value if no such attribute exists
+	 */
+	public Value getDatabaseValue(String attributeName)
+	{
+		return this.dbModel.get(attributeName);
 	}
 	
 	/**
