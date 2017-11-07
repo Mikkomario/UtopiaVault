@@ -318,7 +318,7 @@ public class DatabaseTableModel extends TableModel
 						return getAttribute(variableName);
 					// If that didn't work (index missing, etc.), generates the new value
 					else
-						return new ColumnVariable(getTable().findColumnWithVariableName(variableName));
+						return new ColumnVariable(getTable().getColumnWithVariableName(variableName));
 				}
 				else
 					throw new VariableGenerationFailedException("Table " + getTable() + 
@@ -339,7 +339,7 @@ public class DatabaseTableModel extends TableModel
 			// Assigns the provided value to the generated variable
 			try
 			{
-				return new ColumnVariable(getTable().findColumnWithVariableName(variableName), 
+				return new ColumnVariable(getTable().getColumnWithVariableName(variableName), 
 						value);
 			}
 			catch (NoSuchColumnException e)

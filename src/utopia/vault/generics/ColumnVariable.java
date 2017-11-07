@@ -18,7 +18,7 @@ public class ColumnVariable extends Variable
 {
 	// ATTRIBUTES	-----------------
 	
-	private Column column;
+	private final Column column;
 	
 	
 	// CONSTRUCTOR	-----------------
@@ -38,15 +38,18 @@ public class ColumnVariable extends Variable
 	 * Creates a database variable based on another variable
 	 * @param table A table that should contain the variable's column
 	 * @param other another variable
+	 * @throws NoSuchColumnException If the table doesn't contain a matching column
 	 */
-	public ColumnVariable(Variable other, Table table)
+	public ColumnVariable(Variable other, Table table) throws NoSuchColumnException
 	{
 		super(other);
 		
 		if (other instanceof ColumnVariable)
 			this.column = ((ColumnVariable) other).getColumn();
 		else
-			this.column = table.findColumnWithVariableName(getName());
+		{
+			this.column = table.getColumnWithVariableName(getName());
+		}
 		
 		// Checks for nulls
 		setValue(getValue());
@@ -99,7 +102,7 @@ public class ColumnVariable extends Variable
 	public static ColumnVariable createVariable(Table table, String variableName, 
 			Value value) throws NoSuchColumnException
 	{
-		Column column = table.findColumnWithVariableName(variableName);
+		Column column = table.getColumnWithVariableName(variableName);
 		return new ColumnVariable(column, value);
 	}
 	

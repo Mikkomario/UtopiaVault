@@ -58,7 +58,7 @@ public class ColumnVariableParser implements VariableParser<ColumnVariable>
 	{
 		try
 		{
-			return this.table.findColumnWithVariableName(variableName);
+			return this.table.getColumnWithVariableName(variableName);
 		}
 		catch (NoSuchColumnException e)
 		{

@@ -1,9 +1,5 @@
 package utopia.vault.generics;
 
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.List;
-
 import utopia.flow.generics.ModelDeclaration;
 import utopia.flow.structure.ImmutableList;
 import utopia.flow.structure.ImmutableMap;
@@ -278,63 +274,65 @@ public class Table
 	/**
 	 * @return A list containing the name of each column in the table
 	 */
-	public List<String> getColumnNames()
+	public ImmutableList<String> getColumnNames()
 	{
-		List<String> names = new ArrayList<>();
-		for (Column column : getColumns())
-		{
-			names.add(column.getColumnName());
-		}
-		
-		return names;
+		return getColumns().map(c -> c.getColumnName());
 	}
 	
 	/**
 	 * @return A list containing the variable names of the columns in the table
 	 */
-	public List<String> getColumnVariableNames()
+	public ImmutableList<String> getColumnVariableNames()
 	{
-		List<String> names = new ArrayList<>();
-		for (Column column : getColumns())
-		{
-			names.add(column.getName());
-		}
-		
-		return names;
+		return getColumns().map(c -> c.getName());
 	}
 	
 	/**
 	 * Finds a column in this table that has the provided variable name
 	 * @param variableName The name of the column variable
-	 * @return A column in this table with the provided name.
-	 * @throws NoSuchColumnException If the column can't be found
+	 * @return A column in this table with the provided name. None if no such column exists.
 	 */
-	public Column findColumnWithVariableName(String variableName) throws NoSuchColumnException
+	public Option<Column> findColumnWithVariableName(String variableName)
 	{
-		for (Column column : getColumns())
-		{
-			if (column.getName().equalsIgnoreCase(variableName))
-				return column;
-		}
-		
-		throw new NoSuchColumnException(this, variableName, true);
+		return getColumns().find(c -> c.getName().equalsIgnoreCase(variableName));
 	}
 	
 	/**
 	 * Finds a column in this table that has the provided column name
 	 * @param columnName The name of a column in the database
-	 * @return A column in this table with the provided column name.
-	 * @throws NoSuchColumnException If the column can't be found
+	 * @return A column in this table with the provided column name. None if no such column exists.
 	 */
-	public Column findColumnWithColumnName(String columnName) throws NoSuchColumnException
+	public Option<Column> findColumnWithColumnName(String columnName)
 	{
-		for (Column column : getColumns())
-		{
-			if (column.getColumnName().equalsIgnoreCase(columnName))
-				return column;
-		}
-		
-		throw new NoSuchColumnException(this, columnName, false);
+		return getColumns().find(c -> c.getColumnName().equalsIgnoreCase(columnName));
+	}
+	
+	/**
+	 * @param varName The name of the variable
+	 * @return A column matching the variable
+	 * @throws NoSuchColumnException If no such column exists
+	 */
+	public Column getColumnWithVariableName(String varName) throws NoSuchColumnException
+	{
+		Option<Column> column = findColumnWithVariableName(varName);
+		if (column.isDefined())
+			return column.get();
+		else
+			throw new NoSuchColumnException(this, varName, true);
+	}
+	
+	/**
+	 * @param columnName The name of the column
+	 * @return A column matching the name
+	 * @throws NoSuchColumnException If no such column exists
+	 */
+	public Column getColumnWithColumnName(String columnName) throws NoSuchColumnException
+	{
+		Option<Column> column = findColumnWithColumnName(columnName);
+		if (column.isDefined())
+			return column.get();
+		else
+			throw new NoSuchColumnException(this, columnName, false);
 	}
 	
 	/**
@@ -344,13 +342,7 @@ public class Table
 	 */
 	public boolean containsColumn(String columnName)
 	{
-		for (Column column : getColumns())
-		{
-			if (column.getColumnName().equalsIgnoreCase(columnName))
-				return true;
-		}
-		
-		return false;
+		return getColumns().exists(c -> c.getColumnName().equalsIgnoreCase(columnName));
 	}
 	
 	/**
@@ -360,13 +352,7 @@ public class Table
 	 */
 	public boolean containsColumnForVariable(String variableName)
 	{
-		for (Column column : getColumns())
-		{
-			if (column.getName().equalsIgnoreCase(variableName))
-				return true;
-		}
-		
-		return false;
+		return getColumns().exists(c -> c.getName().equalsIgnoreCase(variableName));
 	}
 	
 	/**
@@ -375,16 +361,9 @@ public class Table
 	 * @return A subset of the provided variables so that the subset contains only variables 
 	 * based on this table
 	 */
-	public List<ColumnVariable> filterTableVariables(Collection<? extends ColumnVariable> variables)
+	public ImmutableList<ColumnVariable> filterTableVariables(ImmutableList<ColumnVariable> variables)
 	{
-		List<ColumnVariable> tableVars = new ArrayList<>();
-		for (ColumnVariable variable : variables)
-		{
-			if (this.equals(variable.getColumn().getTable()))
-				tableVars.add(variable);
-		}
-		
-		return tableVars;
+		return variables.filter(var -> equals(var.getColumn().getTable()));
 	}
 	
 	/**

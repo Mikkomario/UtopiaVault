@@ -5,6 +5,7 @@ import java.util.Map;
 
 import utopia.flow.generics.VariableDeclaration;
 import utopia.flow.structure.ImmutableList;
+import utopia.flow.util.Option;
 import utopia.vault.generics.Column;
 import utopia.vault.generics.Table;
 import utopia.vault.generics.VariableNameMapping;
@@ -188,11 +189,11 @@ public class DatabaseException extends DebuggableException
 			s.append(" at ");
 			s.append(table);
 			
-			Column column = table.findColumnWithColumnName(cause.getColumnName());
-			if (column != null)
+			Option<Column> column = table.findColumnWithColumnName(cause.getColumnName());
+			if (column.isDefined())
 			{
 				s.append("\nColumn: ");
-				s.append(column);
+				s.append(column.get());
 			}
 			
 			s.append("\nUsing mapping:\n");

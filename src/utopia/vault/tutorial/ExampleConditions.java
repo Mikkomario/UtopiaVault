@@ -89,7 +89,7 @@ public class ExampleConditions
 	 */
 	public static Condition createUserNameStartsWithCondition(String nameStart)
 	{
-		return LikeCondition.startsWith(ExampleTables.USERS.findColumnWithVariableName(
+		return LikeCondition.startsWith(ExampleTables.USERS.getColumnWithVariableName(
 				"name"), nameStart);
 	}
 	
@@ -116,7 +116,7 @@ public class ExampleConditions
 	 */
 	public static Join createRoleIndexJoin()
 	{
-		Column userRoleColumn = ExampleTables.USERS.findColumnWithVariableName("roleId");
+		Column userRoleColumn = ExampleTables.USERS.getColumnWithVariableName("roleId");
 		Column roleIndexColumn = ExampleTables.ROLES.getPrimaryColumn();
 		
 		return new Join(userRoleColumn, roleIndexColumn);
