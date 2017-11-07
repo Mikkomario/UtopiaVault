@@ -4,6 +4,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 import utopia.flow.generics.Value;
+import utopia.flow.structure.ImmutableList;
 import utopia.vault.database.Condition;
 import utopia.vault.database.Database;
 import utopia.vault.database.DatabaseException;
@@ -113,7 +114,7 @@ public class ExampleDatabaseQueries
 	{
 		// This time only the user attributes are selected, as opposed to all, which 
 		// would select the role attributes as well (since the roles are joined)
-		List<? extends Column> selection = ExampleTables.USERS.getColumns();
+		ImmutableList<? extends Column> selection = ExampleTables.USERS.getColumns();
 		
 		// A join condition is used. The condition needs to be wrapped into an array since 
 		// the method expects one or more conditions
@@ -139,7 +140,7 @@ public class ExampleDatabaseQueries
 			DatabaseUnavailableException
 	{
 		// This time only the user name is selected
-		List<Column> selection = ExampleTables.USERS.getVariableColumns("name");
+		ImmutableList<Column> selection = ExampleTables.USERS.getVariableColumns("name");
 		// No where clause is used this time. The results come in same format as always
 		// The user names are ordered in alphabetical order (desc)
 		OrderBy order = new OrderBy(selection.get(0), false);

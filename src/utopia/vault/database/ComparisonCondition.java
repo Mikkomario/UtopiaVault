@@ -5,9 +5,11 @@ import java.util.Collection;
 import java.util.List;
 
 import utopia.flow.generics.Value;
+import utopia.flow.structure.ImmutableList;
 import utopia.vault.database.CombinedCondition.CombinationOperator;
 import utopia.vault.generics.Column;
 import utopia.vault.generics.ColumnVariable;
+import utopia.vault.generics.CombinedModel;
 import utopia.vault.generics.Table;
 import utopia.vault.generics.TableModel;
 import utopia.vault.generics.Table.NoSuchColumnException;
@@ -157,6 +159,21 @@ public class ComparisonCondition extends SingleCondition
 	}
 	
 	/**
+	 * Creates a new condition that checks multiple variable values with 
+	 * {@link Operator#EQUALS} comparison.
+	 * @param variables The variables that are checked
+	 * @param combinationOperator The operator used for combining the conditions
+	 * @param skipNullVariables Should null variables be skipped entirely
+	 * @return A combined condition based on the variables and the provided operator
+	 */
+	public static Condition createVariableSetEqualsCondition(ImmutableList<? extends ColumnVariable> variables, 
+			CombinationOperator combinationOperator, boolean skipNullVariables)
+	{
+		return createVariableSetCondition(variables, combinationOperator, Operator.EQUALS, 
+				skipNullVariables);
+	}
+	
+	/**
 	 * Creates a new condition that compares multiple variable values.
 	 * @param variables The variables that are checked
 	 * @param combinationOperator The operator used for combining the conditions
@@ -196,6 +213,22 @@ public class ComparisonCondition extends SingleCondition
 	}
 	
 	/**
+	 * Creates a new condition that compares multiple variable values.
+	 * @param variables The variables that are checked
+	 * @param combinationOperator The operator used for combining the conditions
+	 * @param comparisonOperator The operation that is performed for each variable
+	 * @param skipNullVariables Should null attributes be skipped entirely
+	 * @return A combined condition based on the variables and the provided operator
+	 */
+	public static Condition createVariableSetCondition(ImmutableList<? extends ColumnVariable> variables, 
+			CombinationOperator combinationOperator, Operator comparisonOperator, boolean skipNullVariables)
+	{
+		return CombinedCondition.combineConditions(combinationOperator, 
+				(skipNullVariables ? variables.filter(var -> !var.isNull()) : variables).map(var -> 
+				new ComparisonCondition(var, comparisonOperator)));
+	}
+	
+	/**
 	 * Creates a new condition that checks multiple variable values with 
 	 * {@link Operator#EQUALS} comparison. Each of the variables must match the row's 
 	 * equivalents for the row to be selected.
@@ -211,16 +244,42 @@ public class ComparisonCondition extends SingleCondition
 	}
 	
 	/**
+	 * Creates a new condition that checks multiple variable values with 
+	 * {@link Operator#EQUALS} comparison. Each of the variables must match the row's 
+	 * equivalents for the row to be selected.
+	 * @param variables The variables that are checked
+	 * @param skipNullVariables Should null variables be skipped entirely
+	 * @return A combined condition based on the variables
+	 */
+	public static Condition createVariableSetEqualsCondition(
+			ImmutableList<? extends ColumnVariable> variables, boolean skipNullVariables)
+	{
+		return createVariableSetEqualsCondition(variables, CombinationOperator.AND, 
+				skipNullVariables);
+	}
+	
+	/**
 	 * Creates a condition that only selects rows that have state identical to the model's 
 	 * declared attributes
 	 * @param model a model
 	 * @param skipNullVariables Should model's null attributes be skipped
 	 * @return a condition
 	 */
-	public static Condition createModelEqualsCondition(TableModel model, 
-			boolean skipNullVariables)
+	public static Condition createModelEqualsCondition(TableModel model, boolean skipNullVariables)
 	{
 		return createVariableSetEqualsCondition(model.getAttributes(), skipNullVariables);
+	}
+	
+	/**
+	 * Creates a condition that only selects rows that have state identical to the model's 
+	 * declared attributes
+	 * @param model a model
+	 * @param skipNullVariables Should model's null attributes be skipped
+	 * @return a condition
+	 */
+	public static Condition createModelEqualsCondition(CombinedModel model, boolean skipNullVariables)
+	{
+		return createModelEqualsCondition(model.toDatabaseModel(), skipNullVariables);
 	}
 	
 	

@@ -7,6 +7,7 @@ import java.util.List;
 import java.util.Map;
 
 import utopia.flow.generics.ModelDeclaration;
+import utopia.flow.structure.ImmutableList;
 
 /**
  * A database table represents a table in a database and contains the necessary column 
@@ -23,7 +24,7 @@ public class Table
 	private ColumnInitialiser columnInitialiser;
 	private TableReferenceReader referenceReader;
 	
-	private List<Column> columns = null;
+	private ImmutableList<Column> columns = null;
 	private Column primaryColumn = null;
 	private ModelDeclaration declaration = null;
 	private Map<Table, TableReference[]> references = new HashMap<>();
@@ -137,12 +138,12 @@ public class Table
 	 * @throws TableInitialisationException If the columns couldn't be initialised, 
 	 * for some reason
 	 */
-	public List<? extends Column> getColumns() throws TableInitialisationException
+	public ImmutableList<Column> getColumns() throws TableInitialisationException
 	{
 		// Reads the column data from the database when first requested
 		if (this.columns == null)
 		{
-			this.columns = new ArrayList<>(this.columnInitialiser.generateColumns(this));
+			this.columns = ImmutableList.of(this.columnInitialiser.generateColumns(this));
 			// Also initialises the mappings
 			getNameMapping().addMappingForEachColumnWherePossible(this.columns);
 		}
@@ -156,22 +157,9 @@ public class Table
 	 * @return A list of columns containing a column for each of the provided variable names 
 	 * that has a corresponding column in this table
 	 */
-	public List<Column> getVariableColumns(Collection<String> variableNames)
+	public ImmutableList<Column> getVariableColumns(ImmutableList<String> variableNames)
 	{
-		List<Column> columns = new ArrayList<>();
-		for (Column column : getColumns())
-		{
-			for (String variableName : variableNames)
-			{
-				if (variableName.equalsIgnoreCase(column.getName()))
-				{
-					columns.add(column);
-					break;
-				}
-			}
-		}
-		
-		return columns;
+		return variableNames.flatMap(name -> getColumns().find(column -> column.getName().equalsIgnoreCase(name)).stream());
 	}
 	
 	/**
@@ -180,15 +168,9 @@ public class Table
 	 * @return A list of columns containing a column for each of the provided variable names 
 	 * that has a corresponding column in this table
 	 */
-	public List<Column> getVariableColumns(String... variableNames)
+	public ImmutableList<Column> getVariableColumns(String... variableNames)
 	{
-		List<String> varNames = new ArrayList<>();
-		for (String varName : variableNames)
-		{
-			varNames.add(varName);
-		}
-		
-		return getVariableColumns(varNames);
+		return getVariableColumns(ImmutableList.of(variableNames));
 	}
 	
 	/**
@@ -230,7 +212,7 @@ public class Table
 	public ModelDeclaration toModelDeclaration()
 	{
 		if (this.declaration == null)
-			this.declaration = new ModelDeclaration(getColumns());
+			this.declaration = new ModelDeclaration(ImmutableList.of(getColumns()));
 		return this.declaration;
 	}
 	

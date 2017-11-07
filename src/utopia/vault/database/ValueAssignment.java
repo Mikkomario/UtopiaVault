@@ -5,6 +5,7 @@ import java.util.Collection;
 import java.util.List;
 
 import utopia.flow.generics.Value;
+import utopia.flow.structure.ImmutableList;
 import utopia.flow.structure.Pair;
 import utopia.vault.generics.Column;
 import utopia.vault.generics.ColumnVariable;
@@ -32,6 +33,17 @@ public class ValueAssignment implements PreparedSQLClause
 	 * @param values The values set by this clause
 	 */
 	public ValueAssignment(boolean removeNullAssignments, Collection<? extends ColumnVariable> values)
+	{
+		this.removeNulls = removeNullAssignments;
+		appendValues(values);
+	}
+	
+	/**
+	 * Creates a new set clause
+	 * @param removeNullAssignments Should the assignment filter out any null values
+	 * @param values The values set by this clause
+	 */
+	public ValueAssignment(boolean removeNullAssignments, ImmutableList<? extends ColumnVariable> values)
 	{
 		this.removeNulls = removeNullAssignments;
 		appendValues(values);
@@ -142,6 +154,18 @@ public class ValueAssignment implements PreparedSQLClause
 	 * @param setValues The value assignments added to the set
 	 */
 	public void appendValues(Collection<? extends ColumnVariable> setValues)
+	{
+		for (ColumnVariable var : setValues)
+		{
+			append(var);
+		}
+	}
+	
+	/**
+	 * Adds multiple value assignments to the set
+	 * @param setValues The value assignments added to the set
+	 */
+	public void appendValues(ImmutableList<? extends ColumnVariable> setValues)
 	{
 		for (ColumnVariable var : setValues)
 		{
@@ -287,7 +311,7 @@ public class ValueAssignment implements PreparedSQLClause
 	 * @param removeAutoIncrementKeys Should auto-increment keys be removed as well
 	 * @return A filtered version of this assignment
 	 */
-	public ValueAssignment filterToTables(Table table, Join[] joins, boolean removeAutoIncrementKeys)
+	public ValueAssignment filterToTables(Table table, Iterable<Join> joins, boolean removeAutoIncrementKeys)
 	{
 		List<Table> tables = new ArrayList<>();
 		tables.add(table);

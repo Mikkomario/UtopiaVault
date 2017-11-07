@@ -1,10 +1,10 @@
 package utopia.vault.database;
 
-import java.util.Collection;
 import java.util.HashMap;
 import java.util.Map;
 
 import utopia.flow.generics.VariableDeclaration;
+import utopia.flow.structure.ImmutableList;
 import utopia.vault.generics.Column;
 import utopia.vault.generics.Table;
 import utopia.vault.generics.VariableNameMapping;
@@ -107,7 +107,7 @@ public class DatabaseException extends DebuggableException
 	 */
 	public DatabaseException(Throwable cause, String sqlStatement, Table usedTable, 
 			Condition whereClause, ValueAssignment assignedValues, 
-			Collection<? extends VariableDeclaration> selection)
+			ImmutableList<? extends VariableDeclaration> selection)
 	{
 		super(createMessage(cause), parseDebugMessage(sqlStatement, 
 				usedTable, whereClause, assignedValues, selection), cause);
@@ -155,7 +155,7 @@ public class DatabaseException extends DebuggableException
 	 */
 	public DatabaseException(String message, String sqlStatement, Table usedTable, 
 			Condition whereClause, ValueAssignment assignedValues, 
-			Collection<? extends VariableDeclaration> selection)
+			ImmutableList<? extends VariableDeclaration> selection)
 	{
 		super(message, parseDebugMessage(sqlStatement, usedTable, whereClause, assignedValues, 
 				selection));
@@ -252,7 +252,7 @@ public class DatabaseException extends DebuggableException
 	
 	private static String parseDebugMessage(String sqlStatement, Table table, 
 			Condition where, ValueAssignment providedValues, 
-			Collection<? extends VariableDeclaration> selection)
+			ImmutableList<? extends VariableDeclaration> selection)
 	{
 		StringBuilder message = new StringBuilder();
 		if (sqlStatement != null)

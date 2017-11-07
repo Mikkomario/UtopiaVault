@@ -6,6 +6,8 @@ import java.util.List;
 
 import utopia.flow.generics.Value;
 import utopia.flow.generics.VariableParser;
+import utopia.flow.structure.ImmutableList;
+import utopia.flow.util.Option;
 import utopia.vault.database.CombinedCondition.CombinationOperator;
 import utopia.vault.database.Join.JoinType;
 import utopia.vault.generics.Column;
@@ -224,7 +226,7 @@ public class DatabaseTableModel extends TableModel
 			{
 				// Only accepts the first result from the first reference
 				List<List<ColumnVariable>> results = Database.select(modelTable.getColumns(), 
-						getTable(), new Join[] {new Join(references[0], JoinType.INNER)}, 
+						getTable(), ImmutableList.withValue(new Join(references[0], JoinType.INNER)), 
 						condition, 1, null, this.connection);
 				if (results.isEmpty())
 					return null;
@@ -282,11 +284,11 @@ public class DatabaseTableModel extends TableModel
 			for (int i = 0; i < conditions.length; i++)
 			{
 				Column column = this.columnComboKeys[i];
-				ColumnVariable attribute = findAttribute(column.getName());
-				if (attribute == null)
+				Option<ColumnVariable> attribute = findAttribute(column.getName());
+				if (attribute.isEmpty())
 					return null;
 				else
-					conditions[i] = new ComparisonCondition(attribute);
+					conditions[i] = new ComparisonCondition(attribute.get());
 			}
 			
 			return CombinedCondition.combineConditions(CombinationOperator.AND, conditions);

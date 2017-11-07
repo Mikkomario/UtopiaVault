@@ -7,6 +7,7 @@ import utopia.flow.generics.Value;
 import utopia.flow.generics.VariableDeclaration;
 import utopia.flow.generics.VariableParser;
 import utopia.flow.structure.ImmutableList;
+import utopia.flow.util.Option;
 import utopia.vault.generics.Table.NoSuchColumnException;
 
 /**
@@ -144,6 +145,26 @@ public class TableModel extends Model<ColumnVariable>
 			return getIndex();
 		else
 			return defaultValue;
+	}
+	
+	/**
+	 * @return The index attribute for the model or None if no such attribute exists
+	 */
+	public Option<ColumnVariable> getIndexAttributeOption()
+	{
+		Column primaryColumn = getTable().findPrimaryColumn();
+		if (primaryColumn == null)
+			return Option.none();
+		else
+			return findAttribute(primaryColumn.getName());
+	}
+	
+	/**
+	 * @return The index value for the model or none if no such attribute exists
+	 */
+	public Option<Value> getIndexOption()
+	{
+		return getIndexAttributeOption().map(att -> att.getValue());
 	}
 	
 	/**

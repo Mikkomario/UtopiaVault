@@ -4,6 +4,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 import utopia.flow.generics.Value;
+import utopia.flow.structure.ImmutableList;
 
 /**
  * A combined condition is a set of conditions that must be met. The clause can be used in 
@@ -37,6 +38,18 @@ public class CombinedCondition extends Condition
 		}
 	}
 	
+	private CombinedCondition(CombinationOperator operator, ImmutableList<? extends Condition> conditions) throws IllegalArgumentException
+	{
+		this.operator = operator;
+		
+		// Checks that enough conditions were provided
+		if (conditions.size() < 2 || (this.operator == CombinationOperator.XOR && conditions.size() > 2))
+			throw new IllegalArgumentException("Operator " + operator + 
+					" doesn't work with " + conditions.size() + " operands");
+		
+		this.conditions = new ArrayList<>(conditions.toMutableList());
+	}
+	
 	private CombinedCondition(CombinationOperator operator, 
 			Condition firstCondition, Condition secondCondition, 
 			Condition... additionalConditions)
@@ -67,6 +80,25 @@ public class CombinedCondition extends Condition
 			return null;
 		else if (conditions.length == 1)
 			return conditions[0];
+		else
+			return new CombinedCondition(operator, conditions);
+	}
+	
+	/**
+	 * Combines a bunch of conditions together
+	 * @param operator The operator that separates the conditions
+	 * @param conditions The conditions that are combined (0 or more)
+	 * @return Null if no conditions were provided, a single condition if only one 
+	 * condition was provided, a combined condition if multiple conditions were provided
+	 * @throws IllegalArgumentException If XOR was used with more than 2 conditions
+	 */
+	public static Condition combineConditions(CombinationOperator operator, 
+			ImmutableList<? extends Condition> conditions) throws IllegalArgumentException
+	{
+		if (conditions.isEmpty())
+			return null;
+		else if (conditions.size() == 1)
+			return conditions.head();
 		else
 			return new CombinedCondition(operator, conditions);
 	}

@@ -8,13 +8,13 @@ import java.sql.ResultSetMetaData;
 import java.sql.SQLException;
 import java.sql.Statement;
 import java.util.ArrayList;
-import java.util.Collection;
 import java.util.List;
 
 import utopia.flow.generics.DataType;
 import utopia.flow.generics.DataTypeException;
 import utopia.flow.generics.SubTypeSet;
 import utopia.flow.generics.Value;
+import utopia.flow.structure.ImmutableList;
 import utopia.vault.database.DatabaseSettings.UninitializedSettingsException;
 import utopia.vault.generics.Column;
 import utopia.vault.generics.ColumnVariable;
@@ -336,8 +336,8 @@ public class Database
 	 * @throws DatabaseException If the query failed
 	 */
 	@SuppressWarnings("resource")
-	public static List<List<ColumnVariable>> select(Collection<? extends Column> select, 
-			Table from, Join[] joins, Condition where, int limit, 
+	public static List<List<ColumnVariable>> select(ImmutableList<? extends Column> select, 
+			Table from, ImmutableList<Join> joins, Condition where, int limit, 
 			OrderBy orderBy, Database connection) throws DatabaseUnavailableException, DatabaseException
 	{
 		List<List<ColumnVariable>> rows = new ArrayList<>();
@@ -383,21 +383,8 @@ public class Database
 			
 			// Determines which columns are read
 			// If it was select *, all rows from all tables are read
-			List<Column> readColumns = new ArrayList<>();
-			if (select == null)
-			{
-				readColumns.addAll(from.getColumns());
-				if (joins != null)
-				{
-					for (Join join : joins)
-					{
-						readColumns.addAll(join.getJoinedTable().getColumns());
-					}
-				}
-			}
-			// Otherwise only selected rows are read
-			else
-				readColumns.addAll(select);
+			ImmutableList<? extends Column> readColumns = select == null ? 
+					from.getColumns().plus(joins.flatMap(join -> join.getJoinedTable().getColumns().stream())) : select;
 			
 			// Matches the columns to the result indices. Also reads the data types
 			Column[] rowColumns = new Column[meta.getColumnCount()];
@@ -473,7 +460,7 @@ public class Database
 	 * @throws DatabaseUnavailableException If the database couldn't be accessed
 	 * @throws DatabaseException If the query failed
 	 */
-	public static List<List<ColumnVariable>> select(Collection<? extends Column> select, 
+	public static List<List<ColumnVariable>> select(ImmutableList<? extends Column> select, 
 			Table from, Condition where, int limit, OrderBy orderBy, Database connection) 
 			throws DatabaseUnavailableException, DatabaseException
 	{
@@ -669,7 +656,7 @@ public class Database
 	 * @throws DatabaseException If the query failed / was misused
 	 */
 	@SuppressWarnings("resource")
-	public static void delete(Table from, Join[] joins, Condition where, 
+	public static void delete(Table from, ImmutableList<Join> joins, Condition where, 
 			boolean deleteFromJoined, Database connection) throws DatabaseUnavailableException, 
 			DatabaseException
 	{
@@ -770,7 +757,7 @@ public class Database
 	 * @throws DatabaseUnavailableException If the database couldn't be accessed
 	 */
 	@SuppressWarnings("resource")
-	public static void update(Table table, Join[] joins, ValueAssignment set, 
+	public static void update(Table table, ImmutableList<Join> joins, ValueAssignment set, 
 			Condition where, Database connection) throws DatabaseException, DatabaseUnavailableException
 	{
 		// Only updates attributes that belong to the target table(s) and are not primary 
@@ -837,7 +824,7 @@ public class Database
 	 * @throws DatabaseException If the process failed
 	 * @throws DatabaseUnavailableException If the database couldn't be accessed
 	 */
-	public static void update(TableModel model, Join[] joins, Condition where, 
+	public static void update(TableModel model, ImmutableList<Join> joins, Condition where, 
 			boolean skipNullUpdates, Database connection) throws 
 			DatabaseException, DatabaseUnavailableException
 	{
@@ -912,7 +899,7 @@ public class Database
 	public static boolean rowExists(Table table, Condition where, Database connection) throws 
 			DatabaseException, DatabaseUnavailableException
 	{
-		List<List<ColumnVariable>> results = select(new ArrayList<>(), table, null, 
+		List<List<ColumnVariable>> results = select(ImmutableList.empty(), table, null, 
 				where, 1, null, connection);
 		
 		return !results.isEmpty();
@@ -985,7 +972,7 @@ public class Database
 			usedConnection.closeConnection();
 	}
 	
-	private static void appendSelect(StringBuilder sql, Collection<? extends Column> selection)
+	private static void appendSelect(StringBuilder sql, ImmutableList<? extends Column> selection)
 	{
 		sql.append("SELECT ");
 		if (selection == null)
@@ -996,7 +983,7 @@ public class Database
 			appendColumnNames(sql, selection);
 	}
 	
-	private static void appendColumnNames(StringBuilder sql, Collection<? extends Column> columns)
+	private static void appendColumnNames(StringBuilder sql, ImmutableList<? extends Column> columns)
 	{
 		boolean first = true;
 		for (Column column : columns)
@@ -1008,7 +995,7 @@ public class Database
 		}
 	}
 	
-	private static void appendJoin(StringBuilder sql, Join[] joins) throws DatabaseException
+	private static void appendJoin(StringBuilder sql, Iterable<Join> joins) throws DatabaseException
 	{
 		for (Join join : joins)
 		{
@@ -1023,28 +1010,25 @@ public class Database
 		}
 	}
 	
-	private static void setStatementValues(PreparedStatement statement, Join[] joins, 
+	private static void setStatementValues(PreparedStatement statement, ImmutableList<Join> joins, 
 			PreparedSQLClause... otherClauses) throws ValueInsertFailedException
 	{
-		if (joins == null || joins.length == 0)
+		setStatementValues(statement, joins, ImmutableList.of(otherClauses));
+	}
+	
+	private static void setStatementValues(PreparedStatement statement, ImmutableList<Join> joins, 
+			ImmutableList<PreparedSQLClause> otherClauses) throws ValueInsertFailedException
+	{
+		if (joins == null || joins.isEmpty())
 			setStatementValues(statement, otherClauses);
 		else
-		{
-			PreparedSQLClause[] clauses = new PreparedSQLClause[joins.length + otherClauses.length];
-			int i = 0;
-			for (Join join : joins)
-			{
-				clauses[i] = join;
-				i++;
-			}
-			for (PreparedSQLClause clause : otherClauses)
-			{
-				clauses[i] = clause;
-				i++;
-			}
-			
-			setStatementValues(statement, clauses);
-		}
+			setStatementValues(statement, ImmutableList.of(joins, otherClauses));
+	}
+	
+	private static void setStatementValues(PreparedStatement statement, PreparedSQLClause... clauses) 
+			throws ValueInsertFailedException
+	{
+		setStatementValues(statement, ImmutableList.of(clauses));
 	}
 	
 	/**
@@ -1056,84 +1040,75 @@ public class Database
 	 * data types
 	 * @throws ValueInsertFailedException If insertion of a value failed
 	 */
-	private static void setStatementValues(PreparedStatement statement, PreparedSQLClause... clauses) 
+	private static void setStatementValues(PreparedStatement statement, ImmutableList<PreparedSQLClause> clauses) 
 			throws ValueInsertFailedException
 	{
 		// May skip the whole process if no clauses have been specified
-		boolean clausesFound = false;
-		for (Object clause : clauses)
+		if (clauses.forAll(clause -> clause == null))
+			return;
+		
+		// Collects required information
+		SubTypeSet sqlTypes = SqlDataType.getSqlTypes();
+		
+		// Performs the value insert
+		int index = 1;
+		for (PreparedSQLClause clause : clauses)
 		{
+			// some clauses may be null (for example, no specified where condition, in which 
+			// case they are skipped
 			if (clause != null)
 			{
-				clausesFound = true;
-				break;
-			}
-		}
-		if (clausesFound)
-		{
-			// Collects required information
-			SubTypeSet sqlTypes = SqlDataType.getSqlTypes();
-			
-			// Performs the value insert
-			int index = 1;
-			for (PreparedSQLClause clause : clauses)
-			{
-				// some clauses may be null (for example, no specified where condition, in which 
-				// case they are skipped
-				if (clause != null)
+				for (Value value : clause.getValues())
 				{
-					for (Value value : clause.getValues())
+					// Casts each inserted value to a compatible data type
+					try
 					{
-						// Casts each inserted value to a compatible data type
+						Value castValue = value.castTo(sqlTypes);
+						SqlDataType type = SqlDataType.castToSqlDataType(castValue.getType());
+						
+						statement.setObject(index, castValue.getObjectValue(), type.getSqlType());
+						index ++;
+					}
+					catch (DataTypeException e)
+					{
+						// Creates an exception if the value casting failed
+						StringBuilder s = new StringBuilder();
+						s.append("Value ");
+						s.append(value.getDescription());
+						s.append(" of clause ");
 						try
 						{
-							Value castValue = value.castTo(sqlTypes);
-							SqlDataType type = SqlDataType.castToSqlDataType(castValue.getType());
-							
-							statement.setObject(index, castValue.getObjectValue(), type.getSqlType());
-							index ++;
+							s.append(clause.toSql());
 						}
-						catch (DataTypeException e)
+						catch (StatementParseException e1)
 						{
-							// Creates an exception if the value casting failed
-							StringBuilder s = new StringBuilder();
-							s.append("Value ");
-							s.append(value.getDescription());
-							s.append(" of clause ");
-							try
-							{
-								s.append(clause.toSql());
-							}
-							catch (StatementParseException e1)
-							{
-								s.append("-- PARSING FAILED --");
-							}
-							s.append(" can't be cast to sql data type");
-							
-							throw new ValueInsertFailedException(s.toString(), e);
+							s.append("-- PARSING FAILED --");
 						}
-						catch (SQLException e)
+						s.append(" can't be cast to sql data type");
+						
+						throw new ValueInsertFailedException(s.toString(), e);
+					}
+					catch (SQLException e)
+					{
+						StringBuilder s = new StringBuilder();
+						s.append("Failed to assign value ");
+						s.append(value.getDescription());
+						s.append("to clause ");
+						s.append(clause.toString());
+						s.append(" at index ");
+						s.append(index);
+						
+						int valueAmount = 0;
+						for (PreparedSQLClause sqlClause : clauses)
 						{
-							StringBuilder s = new StringBuilder();
-							s.append("Failed to assign value ");
-							s.append(value.getDescription());
-							s.append("to clause ");
-							s.append(clause.toString());
-							s.append(" at index ");
-							s.append(index);
-							
-							int valueAmount = 0;
-							for (PreparedSQLClause sqlClause : clauses)
-							{
-								valueAmount += sqlClause.getValues().length;
-							}
-							
-							s.append(". There are ");
-							s.append(valueAmount);
-							s.append(" values to set in total.");
-							
-							throw new ValueInsertFailedException(s.toString(), e);
+							valueAmount += sqlClause.getValues().length;
 						}
+						
+						s.append(". There are ");
+						s.append(valueAmount);
+						s.append(" values to set in total.");
+						
+						throw new ValueInsertFailedException(s.toString(), e);
 					}
 				}
 			}

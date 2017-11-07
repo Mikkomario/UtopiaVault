@@ -1,6 +1,7 @@
 package utopia.vault.database;
 
 import utopia.flow.generics.Value;
+import utopia.flow.structure.ImmutableList;
 import utopia.vault.database.CombinedCondition.CombinationOperator;
 import utopia.vault.generics.Column;
 import utopia.vault.generics.NoSuchReferenceException;
@@ -122,10 +123,10 @@ public class Join implements PreparedSQLClause
 	 * @return A collection of joins
 	 * @throws NoSuchReferenceException If there wasn't a reference between some two tables
 	 */
-	public static Join[] createReferenceJoins(Table... tables) throws NoSuchReferenceException
+	public static ImmutableList<Join> createReferenceJoins(Table... tables) throws NoSuchReferenceException
 	{
 		if (tables.length < 2)
-			return new Join[0];
+			return ImmutableList.empty();
 		else
 		{
 			Join[] joins = new Join[tables.length - 1];
@@ -134,7 +135,7 @@ public class Join implements PreparedSQLClause
 				joins[i] = new Join(tables[i], tables[i + 1]);
 			}
 			
-			return joins;
+			return ImmutableList.of(joins);
 		}
 	}
 	
