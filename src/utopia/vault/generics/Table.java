@@ -2,12 +2,11 @@ package utopia.vault.generics;
 
 import java.util.ArrayList;
 import java.util.Collection;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 
 import utopia.flow.generics.ModelDeclaration;
 import utopia.flow.structure.ImmutableList;
+import utopia.flow.structure.ImmutableMap;
 import utopia.flow.util.Option;
 
 /**
@@ -23,12 +22,12 @@ public class Table
 	private String databaseName, name;
 	private VariableNameMapping nameMapping;
 	private ColumnInitialiser columnInitialiser;
-	private TableReferenceReader referenceReader;
+	private Option<TableReferenceReader> referenceReader;
 	
 	private ImmutableList<Column> columns = null;
 	private Option<Column> primaryColumn = null;
 	private ModelDeclaration declaration = null;
-	private Map<Table, TableReference[]> references = new HashMap<>();
+	private ImmutableMap<Table, ImmutableList<TableReference>> references = ImmutableMap.empty();
 	
 	// TODO: Add fuzzy logic for column search
 	// TODO: Add table references:
@@ -57,7 +56,7 @@ public class Table
 		this.name = name;
 		this.nameMapping = nameMapping;
 		this.columnInitialiser = columnInitialiser;
-		this.referenceReader = referenceReader;
+		this.referenceReader = new Option<>(referenceReader);
 	}
 	
 	
@@ -218,24 +217,21 @@ public class Table
 	 * @throws TableInitialisationException If the references couldn't be read / generated 
 	 * for some reason
 	 */
-	public TableReference[] getReferencesToTable(Table table) throws TableInitialisationException
+	public ImmutableList<TableReference> getReferencesToTable(Table table) throws TableInitialisationException
 	{
-		TableReference[] references = this.references.get(table);
+		Option<ImmutableList<TableReference>> references = this.references.getOption(table);
 		
 		// The reference data may be read if it wasn't already
-		if (references == null)
+		if (references.isEmpty())
 		{
-			TableReference[] readReferences;
-			if (this.referenceReader == null)
-				readReferences = new TableReference[0];
-			else
-				readReferences = this.referenceReader.getReferencesBetween(this, table);
+			ImmutableList<TableReference> newReferences = this.referenceReader.map(reader -> 
+					reader.getReferencesBetween(this, table)).getOrElse(ImmutableList.empty());
 			
-			this.references.put(table, readReferences);
-			return readReferences;
+			this.references = this.references.plus(table, newReferences);
+			return newReferences;
 		}
 		else
-			return references;
+			return references.get();
 	}
 	
 	/**
@@ -246,7 +242,18 @@ public class Table
 	 */
 	public void setReferences(Table to, TableReference... references)
 	{
-		this.references.put(to, references);
+		setReferences(to, ImmutableList.of(references));
+	}
+	
+	/**
+	 * Defines the references from this table to another table. This will overwrite any existing 
+	 * reference to the targeted table
+	 * @param to The table that is referenced
+	 * @param references References to that table
+	 */
+	public void setReferences(Table to, ImmutableList<TableReference> references)
+	{
+		this.references = this.references.plus(to, references);
 	}
 	
 	/**
@@ -257,7 +264,7 @@ public class Table
 	 */
 	public boolean references(Table table) throws TableInitialisationException
 	{
-		return getReferencesToTable(table).length > 0;
+		return !getReferencesToTable(table).isEmpty();
 	}
 	
 	/**

@@ -6,6 +6,7 @@ import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.List;
 
+import utopia.flow.structure.ImmutableList;
 import utopia.vault.generics.Column;
 import utopia.vault.generics.Table;
 import utopia.vault.generics.TableInitialisationException;
@@ -23,7 +24,7 @@ public class DatabaseReferenceReader implements TableReferenceReader
 	
 	@SuppressWarnings("resource") // Resources are closed, but this is done through database class
 	@Override
-	public TableReference[] getReferencesBetween(Table from, Table to) throws TableInitialisationException
+	public ImmutableList<TableReference> getReferencesBetween(Table from, Table to) throws TableInitialisationException
 	{
 		Database connection = new Database("INFORMATION_SCHEMA");
 		PreparedStatement statement = null;
@@ -58,7 +59,7 @@ public class DatabaseReferenceReader implements TableReferenceReader
 				references.add(new TableReference(fromColumn, toColumn));
 			}
 			
-			return references.toArray(new TableReference[0]);
+			return ImmutableList.of(references);
 		}
 		catch (DatabaseUnavailableException | SQLException e)
 		{

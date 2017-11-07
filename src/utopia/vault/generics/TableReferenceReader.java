@@ -1,5 +1,7 @@
 package utopia.vault.generics;
 
+import utopia.flow.structure.ImmutableList;
+
 /**
  * A reference reader can be used for initialising table reference data
  * @author Mikko Hilpinen
@@ -14,5 +16,5 @@ public interface TableReferenceReader
 	 * @param to The table that contains the referenced column
 	 * @return The references from the first table to the second table
 	 */
-	public TableReference[] getReferencesBetween(Table from, Table to);
+	public ImmutableList<TableReference> getReferencesBetween(Table from, Table to);
 }

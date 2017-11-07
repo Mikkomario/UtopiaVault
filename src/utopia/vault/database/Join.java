@@ -201,30 +201,25 @@ public class Join implements PreparedSQLClause
 	private static Condition getReferenceCondition(Table from, Table to) throws NoSuchReferenceException
 	{
 		// Finds possible references from the first table to the joined table
-		TableReference[] references = from.getReferencesToTable(to);
+		ImmutableList<TableReference> references = from.getReferencesToTable(to);
 		
 		// If there weren't any references, tries the other way instead
-		if (references.length == 0)
+		if (references.isEmpty())
 			references = to.getReferencesToTable(from);
 		
 		// If there aren't any references, fails
-		if (references.length == 0)
+		if (references.isEmpty())
 			throw new NoSuchReferenceException(from, to);
 		
 		// In case there is a single reference only, the columns are compared
-		if (references.length == 1)
-			return new ComparisonCondition(references[0].getReferencingColumn(), 
-					references[0].getReferencedColumn());
+		if (references.size() == 1)
+			return new ComparisonCondition(references.head().getReferencingColumn(), 
+					references.head().getReferencedColumn());
 		// Otherwise each reference is joined
 		else
 		{
-			Condition[] conditions = new Condition[references.length];
-			for (int i = 0; i < references.length; i++)
-			{
-				conditions[i] = new ComparisonCondition(references[i].getReferencingColumn(), 
-						references[i].getReferencedColumn());
-			}
-			
+			ImmutableList<Condition> conditions = references.map(ref -> 
+					new ComparisonCondition(ref.getReferencingColumn(), ref.getReferencedColumn()));
 			return CombinedCondition.combineConditions(CombinationOperator.OR, conditions);
 		}
 	}

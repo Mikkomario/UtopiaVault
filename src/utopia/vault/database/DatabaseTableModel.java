@@ -212,8 +212,8 @@ public class DatabaseTableModel extends TableModel
 			NoSuchReferenceException, DatabaseUnavailableException
 	{
 		// Finds the reference between the tables
-		TableReference[] references = getTable().getReferencesToTable(modelTable);
-		if (references.length == 0)
+		ImmutableList<TableReference> references = getTable().getReferencesToTable(modelTable);
+		if (references.isEmpty())
 			throw new NoSuchReferenceException(getTable(), modelTable);
 		else
 		{
@@ -226,7 +226,7 @@ public class DatabaseTableModel extends TableModel
 			{
 				// Only accepts the first result from the first reference
 				List<List<ColumnVariable>> results = Database.select(modelTable.getColumns(), 
-						getTable(), ImmutableList.withValue(new Join(references[0], JoinType.INNER)), 
+						getTable(), ImmutableList.withValue(new Join(references.head(), JoinType.INNER)), 
 						condition, 1, null, this.connection);
 				if (results.isEmpty())
 					return null;
