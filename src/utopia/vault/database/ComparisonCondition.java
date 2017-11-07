@@ -1,11 +1,8 @@
 package utopia.vault.database;
 
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.List;
-
 import utopia.flow.generics.Value;
 import utopia.flow.structure.ImmutableList;
+import utopia.flow.util.Option;
 import utopia.vault.database.CombinedCondition.CombinationOperator;
 import utopia.vault.generics.Column;
 import utopia.vault.generics.ColumnVariable;
@@ -150,23 +147,7 @@ public class ComparisonCondition extends SingleCondition
 	 * @param skipNullVariables Should null variables be skipped entirely
 	 * @return A combined condition based on the variables and the provided operator
 	 */
-	public static Condition createVariableSetEqualsCondition(
-			Collection<? extends ColumnVariable> variables, 
-			CombinationOperator combinationOperator, boolean skipNullVariables)
-	{
-		return createVariableSetCondition(variables, combinationOperator, Operator.EQUALS, 
-				skipNullVariables);
-	}
-	
-	/**
-	 * Creates a new condition that checks multiple variable values with 
-	 * {@link Operator#EQUALS} comparison.
-	 * @param variables The variables that are checked
-	 * @param combinationOperator The operator used for combining the conditions
-	 * @param skipNullVariables Should null variables be skipped entirely
-	 * @return A combined condition based on the variables and the provided operator
-	 */
-	public static Condition createVariableSetEqualsCondition(ImmutableList<? extends ColumnVariable> variables, 
+	public static Option<Condition> createVariableSetEqualsCondition(ImmutableList<? extends ColumnVariable> variables, 
 			CombinationOperator combinationOperator, boolean skipNullVariables)
 	{
 		return createVariableSetCondition(variables, combinationOperator, Operator.EQUALS, 
@@ -181,46 +162,7 @@ public class ComparisonCondition extends SingleCondition
 	 * @param skipNullVariables Should null attributes be skipped entirely
 	 * @return A combined condition based on the variables and the provided operator
 	 */
-	public static Condition createVariableSetCondition(
-			Collection<? extends ColumnVariable> variables, 
-			CombinationOperator combinationOperator, Operator comparisonOperator, 
-			boolean skipNullVariables)
-	{
-		List<ColumnVariable> targetVariables = new ArrayList<>();
-		if (skipNullVariables)
-		{
-			for (ColumnVariable var : variables)
-			{
-				if (!var.isNull())
-					targetVariables.add(var);
-			}
-		}
-		else
-			targetVariables.addAll(variables);
-		
-		if (targetVariables.isEmpty())
-			return null;
-		
-		Condition[] conditions = new Condition[targetVariables.size()];
-		int i = 0;
-		for (ColumnVariable variable : targetVariables)
-		{
-			conditions[i] = new ComparisonCondition(variable, comparisonOperator);
-			i ++;
-		}
-		
-		return CombinedCondition.combineConditions(combinationOperator, conditions);
-	}
-	
-	/**
-	 * Creates a new condition that compares multiple variable values.
-	 * @param variables The variables that are checked
-	 * @param combinationOperator The operator used for combining the conditions
-	 * @param comparisonOperator The operation that is performed for each variable
-	 * @param skipNullVariables Should null attributes be skipped entirely
-	 * @return A combined condition based on the variables and the provided operator
-	 */
-	public static Condition createVariableSetCondition(ImmutableList<? extends ColumnVariable> variables, 
+	public static Option<Condition> createVariableSetCondition(ImmutableList<? extends ColumnVariable> variables, 
 			CombinationOperator combinationOperator, Operator comparisonOperator, boolean skipNullVariables)
 	{
 		return CombinedCondition.combineConditions(combinationOperator, 
@@ -236,22 +178,7 @@ public class ComparisonCondition extends SingleCondition
 	 * @param skipNullVariables Should null variables be skipped entirely
 	 * @return A combined condition based on the variables
 	 */
-	public static Condition createVariableSetEqualsCondition(
-			Collection<? extends ColumnVariable> variables, boolean skipNullVariables)
-	{
-		return createVariableSetEqualsCondition(variables, CombinationOperator.AND, 
-				skipNullVariables);
-	}
-	
-	/**
-	 * Creates a new condition that checks multiple variable values with 
-	 * {@link Operator#EQUALS} comparison. Each of the variables must match the row's 
-	 * equivalents for the row to be selected.
-	 * @param variables The variables that are checked
-	 * @param skipNullVariables Should null variables be skipped entirely
-	 * @return A combined condition based on the variables
-	 */
-	public static Condition createVariableSetEqualsCondition(
+	public static Option<Condition> createVariableSetEqualsCondition(
 			ImmutableList<? extends ColumnVariable> variables, boolean skipNullVariables)
 	{
 		return createVariableSetEqualsCondition(variables, CombinationOperator.AND, 
@@ -265,7 +192,7 @@ public class ComparisonCondition extends SingleCondition
 	 * @param skipNullVariables Should model's null attributes be skipped
 	 * @return a condition
 	 */
-	public static Condition createModelEqualsCondition(TableModel model, boolean skipNullVariables)
+	public static Option<Condition> createModelEqualsCondition(TableModel model, boolean skipNullVariables)
 	{
 		return createVariableSetEqualsCondition(model.getAttributes(), skipNullVariables);
 	}
@@ -277,7 +204,7 @@ public class ComparisonCondition extends SingleCondition
 	 * @param skipNullVariables Should model's null attributes be skipped
 	 * @return a condition
 	 */
-	public static Condition createModelEqualsCondition(CombinedModel model, boolean skipNullVariables)
+	public static Option<Condition> createModelEqualsCondition(CombinedModel model, boolean skipNullVariables)
 	{
 		return createModelEqualsCondition(model.toDatabaseModel(), skipNullVariables);
 	}

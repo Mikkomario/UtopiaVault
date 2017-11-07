@@ -279,7 +279,7 @@ public class DatabaseTableModel extends TableModel
 					conditions[i] = new ComparisonCondition(attribute.get());
 			}
 			
-			return Option.some(CombinedCondition.combineConditions(CombinationOperator.AND, conditions));
+			return CombinedCondition.combineConditions(CombinationOperator.AND, conditions);
 		}
 		else
 			return Option.none();

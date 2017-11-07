@@ -220,7 +220,7 @@ public class Join implements PreparedSQLClause
 		{
 			ImmutableList<Condition> conditions = references.map(ref -> 
 					new ComparisonCondition(ref.getReferencingColumn(), ref.getReferencedColumn()));
-			return CombinedCondition.combineConditions(CombinationOperator.OR, conditions);
+			return CombinedCondition.combineConditions(CombinationOperator.OR, conditions).get();
 		}
 	}
 	
