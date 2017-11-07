@@ -1,9 +1,5 @@
 package utopia.vault.database;
 
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.List;
-
 import utopia.flow.generics.Value;
 import utopia.flow.generics.VariableParser;
 import utopia.flow.structure.ImmutableList;
@@ -52,7 +48,7 @@ public class DatabaseTableModel extends TableModel
 	 * @param attributes The attributes assigned to the model
 	 * @param comboIndexColumns The columns that when combined, create a unique index
 	 */
-	public DatabaseTableModel(Table table, Collection<? extends ColumnVariable> attributes, 
+	public DatabaseTableModel(Table table, ImmutableList<? extends ColumnVariable> attributes, 
 			Column... comboIndexColumns)
 	{
 		super(table);
@@ -115,11 +111,11 @@ public class DatabaseTableModel extends TableModel
 	public boolean readFromDatabase() throws DatabaseException, DatabaseUnavailableException
 	{
 		// Searches the model's data based on the index
-		Condition condition = getCondition();
-		if (condition == null)
+		Option<Condition> condition = getCondition();
+		if (condition.isEmpty())
 			return false;
 		else
-			return Database.readModelAttributes(this, condition, this.connection);
+			return Database.readModelAttributes(this, condition.get(), this.connection);
 	}
 	
 	/**
@@ -142,8 +138,8 @@ public class DatabaseTableModel extends TableModel
 	public boolean updateToDatabase(boolean skipNullUpdates) throws DatabaseException, 
 			DatabaseUnavailableException
 	{
-		Condition condition = getCondition();
-		if (condition == null)
+		Option<Condition> condition = getCondition();
+		if (condition.isEmpty())
 			return false;
 		else
 		{
@@ -174,8 +170,8 @@ public class DatabaseTableModel extends TableModel
 		else
 		{
 			// Has to check whether combo key row already exists in the database
-			Condition condition = getCondition();
-			if (condition == null)
+			Option<Condition> condition = getCondition();
+			if (condition.isEmpty())
 				Database.insert(this, this.connection);
 			else if (Database.rowExists(getTable(), condition, this.connection))
 				Database.update(this, condition, skipNullUpdates, this.connection);
@@ -192,8 +188,8 @@ public class DatabaseTableModel extends TableModel
 	 */
 	public boolean existsInDatabase() throws DatabaseException, DatabaseUnavailableException
 	{
-		Condition condition = getCondition();
-		if (condition == null)
+		Option<Condition> condition = getCondition();
+		if (condition.isEmpty())
 			return false;
 		else
 			return Database.rowExists(getTable(), condition, this.connection);
@@ -208,7 +204,7 @@ public class DatabaseTableModel extends TableModel
 	 * the provided table
 	 * @throws DatabaseUnavailableException If the database couldn't be accessed
 	 */
-	public TableModel getReferredModel(Table modelTable) throws DatabaseException, 
+	public Option<TableModel> getReferredModel(Table modelTable) throws DatabaseException, 
 			NoSuchReferenceException, DatabaseUnavailableException
 	{
 		// Finds the reference between the tables
@@ -219,19 +215,17 @@ public class DatabaseTableModel extends TableModel
 		{
 			// Finds the row referred from this model's row
 			// If this model doesn't have a row, no joined row is found either
-			Condition condition = getCondition();
-			if (condition == null)
-				return null;
+			Option<Condition> condition = getCondition();
+			if (condition.isEmpty())
+				return Option.none();
 			else
 			{
 				// Only accepts the first result from the first reference
-				ImmutableList<ImmutableList<ColumnVariable>> results = Database.select(modelTable.getColumns(), 
+				ImmutableList<ImmutableList<ColumnVariable>> results = Database.select(new Selection(modelTable), 
 						getTable(), ImmutableList.withValue(new Join(references.head(), JoinType.INNER)), 
-						condition, 1, null, this.connection);
-				if (results.isEmpty())
-					return null;
-				else
-					return new TableModel(modelTable, results.head());
+						condition, Option.some(1), Option.none(), this.connection);
+				
+				return results.headOption().map(row -> new TableModel(modelTable, row));
 			}
 		}
 	}
@@ -247,35 +241,29 @@ public class DatabaseTableModel extends TableModel
 	 * @throws NoSuchReferenceException If there isn't a reference between the two tables
 	 * @throws DatabaseUnavailableException If the database coundn't be accessed
 	 */
-	public List<TableModel> getConnectedModels(Table modelTable) throws DatabaseException, 
+	public ImmutableList<TableModel> getConnectedModels(Table modelTable) throws DatabaseException, 
 			NoSuchReferenceException, DatabaseUnavailableException
 	{
-		Condition condition = getCondition();
-		if (condition == null)
-			return new ArrayList<>();
+		Option<Condition> condition = getCondition();
+		if (condition.isEmpty())
+			return ImmutableList.empty();
 		else
 		{
 			// Joins the two tables together and finds the connected rows
-			ImmutableList<ImmutableList<ColumnVariable>> results = Database.select(modelTable.getColumns(), 
+			ImmutableList<ImmutableList<ColumnVariable>> results = Database.select(new Selection(modelTable), 
 					getTable(), Join.createReferenceJoins(getTable(), modelTable), condition, 
-					-1, null, this.connection);
+					Option.none(), Option.none(), this.connection);
 			
 			// Parses the results
-			List<TableModel> models = new ArrayList<>();
-			for (ImmutableList<ColumnVariable> row : results)
-			{
-				models.add(new TableModel(modelTable, row));
-			}
-			
-			return models;
+			return results.map(row -> new TableModel(modelTable, row));
 		}
 	}
 	
-	private Condition getCondition()
+	private Option<Condition> getCondition()
 	{
 		// The primary key is the primary search option
 		if (hasIndex())
-			return ComparisonCondition.createIndexEqualsCondition(this);
+			return Option.some(ComparisonCondition.createIndexEqualsCondition(this));
 		// May also use column combinations
 		else if (this.columnComboKeys.length > 0)
 		{
@@ -286,15 +274,15 @@ public class DatabaseTableModel extends TableModel
 				Column column = this.columnComboKeys[i];
 				Option<ColumnVariable> attribute = findAttribute(column.getName());
 				if (attribute.isEmpty())
-					return null;
+					return Option.none();
 				else
 					conditions[i] = new ComparisonCondition(attribute.get());
 			}
 			
-			return CombinedCondition.combineConditions(CombinationOperator.AND, conditions);
+			return Option.some(CombinedCondition.combineConditions(CombinationOperator.AND, conditions));
 		}
 		else
-			return null;
+			return Option.none();
 	}
 
 	

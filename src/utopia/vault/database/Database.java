@@ -329,39 +329,11 @@ public class Database implements AutoCloseable
 	/**
 	 * Performs a select query, selecting certain column value(s) from certain row(s) in certain 
 	 * table(s)
-	 * @param select The column values that are selected from each row. Null if the whole row 
-	 * should be selected. Use an empty list if no variables should be selected.
+	 * @param select The selected columns
 	 * @param from The table the selection is made on
 	 * @param joins The joins that are inserted to the query (optional)
-	 * @param where The condition that specifies which rows are selected. Null if each row 
-	 * should be selected.
-	 * @param limit The limit on how many rows should be selected at maximum. < 0 if no limit 
-	 * should be set
-	 * @param orderBy The method the returned rows are sorted with (optional)
-	 * @param connection A database connection that should be used in the query. Null if a 
-	 * temporary connection should be used. Only temporary connections are closed in this method.
-	 * @return A list containing each selected row. Each row contains the selected column 
-	 * values.
-	 * @throws DatabaseUnavailableException If the database couldn't be accessed
-	 * @throws DatabaseException If the query failed
-	 */
-	public static ImmutableList<ImmutableList<ColumnVariable>> select(ImmutableList<? extends Column> select, 
-			Table from, ImmutableList<Join> joins, Condition where, int limit, 
-			OrderBy orderBy, Database connection) throws DatabaseUnavailableException, DatabaseException
-	{
-		return null;
-	}
-	
-	/**
-	 * Performs a select query, selecting certain column value(s) from certain row(s) in certain 
-	 * table(s)
-	 * @param select The column values that are selected from each row. Null if the whole row 
-	 * should be selected. Use an empty list if no variables should be selected.
-	 * @param from The table the selection is made on
-	 * @param joins The joins that are inserted to the query (optional)
-	 * @param where The condition that specifies which rows are selected. Null if each row 
-	 * should be selected.
-	 * @param limit The limit on how many rows should be selected at maximum. < 0 if no limit 
+	 * @param where The condition that specifies which rows are selected. None if all rows should be selected.
+	 * @param limit The limit on how many rows should be selected at maximum. None if no limit 
 	 * should be set
 	 * @param orderBy The method the returned rows are sorted with (optional)
 	 * @param connection A database connection that should be used in the query. Null if a 
@@ -479,26 +451,25 @@ public class Database implements AutoCloseable
 	/**
 	 * Performs a select query, selecting certain column value(s) from certain row(s) in certain 
 	 * table(s)
-	 * @param select The column values that are selected from each row. Null if the whole row 
-	 * should be selected. Use an empty list if no variables should be selected.
+	 * @param select The selected columns
 	 * @param from The table the selection is made on
-	 * @param where The condition that specifies which rows are selected. Null if each row 
+	 * @param where The condition that specifies which rows are selected. None if each row 
 	 * should be selected.
-	 * @param limit The limit on how many rows should be selected at maximum. < 0 if no limit 
+	 * @param limit The limit on how many rows should be selected at maximum. None if no limit 
 	 * should be set
 	 * @param orderBy The method the returned rows are sorted with (optional)
-	 * @param connection A database connection that should be used in the query. Null if a 
+	 * @param connection A database connection that should be used in the query. None if a 
 	 * temporary connection should be used. Only temporary connections are closed in this method.
 	 * @return A list containing each selected row. Each row contains the selected column 
 	 * values.
 	 * @throws DatabaseUnavailableException If the database couldn't be accessed
 	 * @throws DatabaseException If the query failed
 	 */
-	public static ImmutableList<ImmutableList<ColumnVariable>> select(ImmutableList<? extends Column> select, 
-			Table from, Condition where, int limit, OrderBy orderBy, Database connection) 
+	public static ImmutableList<ImmutableList<ColumnVariable>> select(Selection select, 
+			Table from, Option<Condition> where, Option<Integer> limit, Option<OrderBy> orderBy, Database connection) 
 			throws DatabaseUnavailableException, DatabaseException
 	{
-		return select(select, from, null, where, limit, orderBy, connection);
+		return select(select, from, ImmutableList.empty(), where, limit, orderBy, connection);
 	}
 	
 	/**
@@ -516,8 +487,8 @@ public class Database implements AutoCloseable
 			Database connection) throws DatabaseException, DatabaseUnavailableException
 	{
 		// The index value is used as a where condition
-		ImmutableList<ImmutableList<ColumnVariable>> result = select(null, model.getTable(), null, 
-				where, 1, null, connection);
+		ImmutableList<ImmutableList<ColumnVariable>> result = select(Selection.ALL, model.getTable(), 
+				ImmutableList.empty(), Option.some(where), Option.some(1), Option.none(), connection);
 		if (result.isEmpty())
 			return false;
 		else
@@ -546,8 +517,8 @@ public class Database implements AutoCloseable
 		
 		// The index value is used as a where condition
 		Condition where = new ComparisonCondition(model.getTable().getPrimaryColumn(), index);
-		ImmutableList<ImmutableList<ColumnVariable>> result = select(null, model.getTable(), null, 
-				where, 1, null, connection);
+		ImmutableList<ImmutableList<ColumnVariable>> result = select(Selection.ALL, model.getTable(), 
+				ImmutableList.empty(), Option.some(where), Option.some(1), Option.none(), connection);
 		if (result.isEmpty())
 			return false;
 		else
@@ -682,7 +653,7 @@ public class Database implements AutoCloseable
 	 * Deletes row(s) from a database table
 	 * @param from The table the row(s) are deleted from
 	 * @param joins The joins that are performed in the query (optional)
-	 * @param where The condition which determines, which rows are deleted
+	 * @param where The condition which determines, which rows are deleted. None if all rows should be deleted.
 	 * @param deleteFromJoined Should the joined rows be deleted as well
 	 * @param connection A database connection that should be used in the query. Null if a 
 	 * temporary connection should be used. Only temporary connections are closed in this method.
@@ -690,7 +661,7 @@ public class Database implements AutoCloseable
 	 * @throws DatabaseException If the query failed / was misused
 	 */
 	@SuppressWarnings("resource")
-	public static void delete(Table from, ImmutableList<Join> joins, Condition where, 
+	public static void delete(Table from, ImmutableList<Join> joins, Option<Condition> where, 
 			boolean deleteFromJoined, Database connection) throws DatabaseUnavailableException, 
 			DatabaseException
 	{
@@ -712,15 +683,15 @@ public class Database implements AutoCloseable
 		if (joins != null)
 			appendJoin(sql, joins);
 		
-		if (where != null)
+		if (where != null && where.isDefined())
 		{
 			try
 			{
-				sql.append(where.toWhereClause());
+				sql.append(where.get().toWhereClause());
 			}
 			catch (StatementParseException e)
 			{
-				throw new DatabaseException(e, where);
+				throw new DatabaseException(e, where.get());
 			}
 		}
 		
@@ -731,7 +702,7 @@ public class Database implements AutoCloseable
 			db = openIfTemporary(from, connection);
 			// Prepares the statement
 			statement = db.getPreparedStatement(sql.toString());
-			setStatementValues(statement, joins, where);
+			setStatementValues(statement, joins, where.toList());
 			
 			// Executes
 			statement.executeUpdate();
@@ -750,32 +721,32 @@ public class Database implements AutoCloseable
 	/**
 	 * Deletes row(s) from a database table
 	 * @param from The table the row(s) are deleted from
-	 * @param where The condition which determines, which rows are deleted
+	 * @param where The condition which determines, which rows are deleted. None if all rows should be deleted
 	 * @param connection A database connection that should be used in the query. Null if a 
 	 * temporary connection should be used. Only temporary connections are closed in this method.
 	 * @throws DatabaseUnavailableException If the database couldn't be accessed
 	 * @throws DatabaseException If the query failed / was misused
 	 */
-	public static void delete(Table from, Condition where, Database connection) 
+	public static void delete(Table from, Option<Condition> where, Database connection) 
 			throws DatabaseUnavailableException, DatabaseException
 	{
-		delete(from, null, where, false, connection);
+		delete(from, ImmutableList.empty(), where, false, connection);
 	}
 	
 	/**
 	 * Updates certain row(s) in the provided table
 	 * @param table The table that is updated
 	 * @param set The variable values that are set
-	 * @param where The condition which determines which rows are updated
+	 * @param where The condition which determines which rows are updated. None if all rows should be updated.
 	 * @param connection A database connection that should be used in the query. Null if a 
 	 * temporary connection should be used. Only temporary connections are closed in this method.
 	 * @throws DatabaseException If the operation failed
 	 * @throws DatabaseUnavailableException If the database couldn't be accessed
 	 */
-	public static void update(Table table, ValueAssignment set, Condition where, 
+	public static void update(Table table, ValueAssignment set, Option<Condition> where, 
 			Database connection) throws DatabaseException, DatabaseUnavailableException
 	{
-		update(table, null, set, where, connection);
+		update(table, ImmutableList.empty(), set, where, connection);
 	}
 	
 	/**
@@ -784,7 +755,7 @@ public class Database implements AutoCloseable
 	 * @param joins The joins used in this query
 	 * @param set The variable values that are set (non-table variables and  
 	 * indices are automatically filtered)
-	 * @param where The condition which determines which rows are updated
+	 * @param where The condition which determines which rows are updated. None if all rows should be updated
 	 * @param connection A database connection that should be used in the query. Null if a 
 	 * temporary connection should be used. Only temporary connections are closed in this method.
 	 * @throws DatabaseException If the operation failed
@@ -792,11 +763,10 @@ public class Database implements AutoCloseable
 	 */
 	@SuppressWarnings("resource")
 	public static void update(Table table, ImmutableList<Join> joins, ValueAssignment set, 
-			Condition where, Database connection) throws DatabaseException, DatabaseUnavailableException
+			Option<Condition> where, Database connection) throws DatabaseException, DatabaseUnavailableException
 	{
 		// Only updates attributes that belong to the target table(s) and are not primary 
 		// keys / auto-increment keys
-		// TODO: Add filter for primary keys as well?
 		ValueAssignment actualSet = set.filterToTables(table, joins, true);
 		
 		if (actualSet.isEmpty())
@@ -810,15 +780,15 @@ public class Database implements AutoCloseable
 			appendJoin(sql, joins);
 		sql.append(actualSet.toSetClause());
 		
-		if (where != null)
+		if (where != null && where.isDefined())
 		{
 			try
 			{
-				sql.append(where.toWhereClause());
+				sql.append(where.get().toWhereClause());
 			}
 			catch (StatementParseException e)
 			{
-				throw new DatabaseException(e, where);
+				throw new DatabaseException(e, where.get());
 			}
 		}
 		
@@ -831,7 +801,7 @@ public class Database implements AutoCloseable
 			statement = db.getPreparedStatement(sql.toString());
 			
 			// Prepares the values
-			setStatementValues(statement, joins, actualSet, where);
+			setStatementValues(statement, ImmutableList.of(joins, ImmutableList.withValue(actualSet), where.toList()));
 			
 			// Executes the update
 			statement.executeUpdate();
@@ -851,14 +821,14 @@ public class Database implements AutoCloseable
 	 * Updates a models data into the database
 	 * @param model The model who's attributes are written into the database
 	 * @param joins The joins used in this query
-	 * @param where The condition with which the updated rows are selected
+	 * @param where The condition with which the updated rows are selected. None if all rows should be updated
 	 * @param skipNullUpdates Should null value attributes be skipped
 	 * @param connection A database connection that should be used in the query. Null if a 
 	 * temporary connection should be used. Only temporary connections are closed in this method.
 	 * @throws DatabaseException If the process failed
 	 * @throws DatabaseUnavailableException If the database couldn't be accessed
 	 */
-	public static void update(TableModel model, ImmutableList<Join> joins, Condition where, 
+	public static void update(TableModel model, ImmutableList<Join> joins, Option<Condition> where, 
 			boolean skipNullUpdates, Database connection) throws 
 			DatabaseException, DatabaseUnavailableException
 	{
@@ -869,18 +839,17 @@ public class Database implements AutoCloseable
 	/**
 	 * Updates a models data into the database
 	 * @param model The model who's attributes are written into the database
-	 * @param where The condition with which the updated rows are selected
+	 * @param where The condition with which the updated rows are selected. None if all rows should be updated
 	 * @param skipNullUpdates Should null value attributes be skipped
 	 * @param connection A database connection that should be used in the query. Null if a 
 	 * temporary connection should be used. Only temporary connections are closed in this method.
 	 * @throws DatabaseException If the process failed
 	 * @throws DatabaseUnavailableException If the database couldn't be accessed
 	 */
-	public static void update(TableModel model, Condition where, boolean skipNullUpdates, 
-			Database connection) throws 
-			DatabaseException, DatabaseUnavailableException
+	public static void update(TableModel model, Option<Condition> where, boolean skipNullUpdates, 
+			Database connection) throws DatabaseException, DatabaseUnavailableException
 	{
-		update(model, null, where, skipNullUpdates, connection);
+		update(model, ImmutableList.empty(), where, skipNullUpdates, connection);
 	}
 	
 	/**
@@ -898,7 +867,7 @@ public class Database implements AutoCloseable
 			Database connection) throws DatabaseException, NoSuchColumnException, 
 			DatabaseUnavailableException
 	{
-		update(model, new ComparisonCondition(model.getTable().getPrimaryColumn(), index), 
+		update(model, Option.some(new ComparisonCondition(model.getTable().getPrimaryColumn(), index)), 
 				skipNullUpdates, connection);
 	}
 	
@@ -916,25 +885,24 @@ public class Database implements AutoCloseable
 	public static void update(TableModel model, boolean skipNullUpdates, Database connection) 
 			throws DatabaseException, DatabaseUnavailableException, NoSuchColumnException
 	{
-		update(model, ComparisonCondition.createIndexEqualsCondition(model), 
-				skipNullUpdates, connection);
+		update(model, Option.some(ComparisonCondition.createIndexEqualsCondition(model)), skipNullUpdates, connection);
 	}
 	
 	/**
 	 * Checks whether a row can be found from the database
 	 * @param table The table that is searched
-	 * @param where The condition that is used for finding the row(s)
+	 * @param where The condition that is used for finding the row(s). None if there should be no filter.
 	 * @param connection The database connection used (optional, temporary connection will be used 
 	 * if null)
 	 * @return Are there any rows that match the provided condition
 	 * @throws DatabaseException If the query failed
 	 * @throws DatabaseUnavailableException If the database couldn't be accessed
 	 */
-	public static boolean rowExists(Table table, Condition where, Database connection) throws 
+	public static boolean rowExists(Table table, Option<Condition> where, Database connection) throws 
 			DatabaseException, DatabaseUnavailableException
 	{
-		ImmutableList<ImmutableList<ColumnVariable>> results = select(ImmutableList.empty(), table, null, 
-				where, 1, null, connection);
+		ImmutableList<ImmutableList<ColumnVariable>> results = select(Selection.NONE, table, ImmutableList.empty(), 
+				where, Option.some(1), Option.none(), connection);
 		
 		return !results.isEmpty();
 	}
@@ -953,7 +921,7 @@ public class Database implements AutoCloseable
 	public static boolean indexExists(Table table, Value index, Database connection) throws 
 			DatabaseException, NoSuchColumnException, DatabaseUnavailableException
 	{
-		return rowExists(table, ComparisonCondition.createIndexEqualsCondition(table, index), 
+		return rowExists(table, Option.some(ComparisonCondition.createIndexEqualsCondition(table, index)), 
 				connection);
 	}
 	
@@ -1019,13 +987,10 @@ public class Database implements AutoCloseable
 	
 	private static void appendColumnNames(StringBuilder sql, ImmutableList<? extends Column> columns)
 	{
-		boolean first = true;
-		for (Column column : columns)
+		if (!columns.isEmpty())
 		{
-			if (!first)
-				sql.append(", ");
-			sql.append(column.getColumnNameWithTable());
-			first = false;
+			sql.append(columns.head().getColumnNameWithTable());
+			columns.tail().forEach(c -> sql.append(", " + c.getColumnNameWithTable()));
 		}
 	}
 	
@@ -1042,12 +1007,6 @@ public class Database implements AutoCloseable
 				throw new DatabaseException(e, join.getJoinCondition());
 			}
 		}
-	}
-	
-	private static void setStatementValues(PreparedStatement statement, ImmutableList<Join> joins, 
-			PreparedSQLClause... otherClauses) throws ValueInsertFailedException
-	{
-		setStatementValues(statement, joins, ImmutableList.of(otherClauses));
 	}
 	
 	private static void setStatementValues(PreparedStatement statement, ImmutableList<Join> joins, 
@@ -1077,8 +1036,12 @@ public class Database implements AutoCloseable
 	private static void setStatementValues(PreparedStatement statement, ImmutableList<? extends PreparedSQLClause> clauses) 
 			throws ValueInsertFailedException
 	{
+		// some clauses may be null (for example, no specified where condition, in which 
+		// case they are skipped
+		ImmutableList<? extends PreparedSQLClause> nonNullClauses = clauses.filter(c -> c != null);
+		
 		// May skip the whole process if no clauses have been specified
-		if (clauses.forAll(clause -> clause == null))
+		if (nonNullClauses.isEmpty())
 			return;
 		
 		// Collects required information
@@ -1086,64 +1049,59 @@ public class Database implements AutoCloseable
 		
 		// Performs the value insert
 		int index = 1;
-		for (PreparedSQLClause clause : clauses)
+		for (PreparedSQLClause clause : nonNullClauses)
 		{
-			// some clauses may be null (for example, no specified where condition, in which 
-			// case they are skipped
-			if (clause != null)
+			for (Value value : clause.getValues())
 			{
-				for (Value value : clause.getValues())
+				// Casts each inserted value to a compatible data type
+				try
 				{
-					// Casts each inserted value to a compatible data type
+					Value castValue = value.castTo(sqlTypes);
+					SqlDataType type = SqlDataType.castToSqlDataType(castValue.getType());
+					
+					statement.setObject(index, castValue.getObjectValue(), type.getSqlType());
+					index ++;
+				}
+				catch (DataTypeException e)
+				{
+					// Creates an exception if the value casting failed
+					StringBuilder s = new StringBuilder();
+					s.append("Value ");
+					s.append(value.getDescription());
+					s.append(" of clause ");
 					try
 					{
-						Value castValue = value.castTo(sqlTypes);
-						SqlDataType type = SqlDataType.castToSqlDataType(castValue.getType());
-						
-						statement.setObject(index, castValue.getObjectValue(), type.getSqlType());
-						index ++;
+						s.append(clause.toSql());
 					}
-					catch (DataTypeException e)
+					catch (StatementParseException e1)
 					{
-						// Creates an exception if the value casting failed
-						StringBuilder s = new StringBuilder();
-						s.append("Value ");
-						s.append(value.getDescription());
-						s.append(" of clause ");
-						try
-						{
-							s.append(clause.toSql());
-						}
-						catch (StatementParseException e1)
-						{
-							s.append("-- PARSING FAILED --");
-						}
-						s.append(" can't be cast to sql data type");
-						
-						throw new ValueInsertFailedException(s.toString(), e);
+						s.append("-- PARSING FAILED --");
 					}
-					catch (SQLException e)
+					s.append(" can't be cast to sql data type");
+					
+					throw new ValueInsertFailedException(s.toString(), e);
+				}
+				catch (SQLException e)
+				{
+					StringBuilder s = new StringBuilder();
+					s.append("Failed to assign value ");
+					s.append(value.getDescription());
+					s.append("to clause ");
+					s.append(clause.toString());
+					s.append(" at index ");
+					s.append(index);
+					
+					int valueAmount = 0;
+					for (PreparedSQLClause sqlClause : clauses)
 					{
-						StringBuilder s = new StringBuilder();
-						s.append("Failed to assign value ");
-						s.append(value.getDescription());
-						s.append("to clause ");
-						s.append(clause.toString());
-						s.append(" at index ");
-						s.append(index);
-						
-						int valueAmount = 0;
-						for (PreparedSQLClause sqlClause : clauses)
-						{
-							valueAmount += sqlClause.getValues().length;
-						}
-						
-						s.append(". There are ");
-						s.append(valueAmount);
-						s.append(" values to set in total.");
-						
-						throw new ValueInsertFailedException(s.toString(), e);
+						valueAmount += sqlClause.getValues().length;
 					}
+					
+					s.append(". There are ");
+					s.append(valueAmount);
+					s.append(" values to set in total.");
+					
+					throw new ValueInsertFailedException(s.toString(), e);
 				}
 			}
 		}

@@ -2,6 +2,7 @@ package utopia.vault.database;
 
 import utopia.flow.structure.ImmutableList;
 import utopia.vault.generics.Column;
+import utopia.vault.generics.Table;
 
 /**
  * A selection is used for specifying selected columns from db
@@ -41,6 +42,40 @@ public class Selection
 	{
 		this.selectAll = false;
 		this.selectedColumns = columns;
+	}
+	
+	/**
+	 * Creates a selection that selects all columns from a specific table
+	 * @param table the table that is selected
+	 */
+	public Selection(Table table)
+	{
+		this.selectAll = false;
+		this.selectedColumns = table.getColumns();
+	}
+	
+	/**
+	 * Creates a selection that selects certain columns from a specific table
+	 * @param table A table
+	 * @param firstVarName The name of the first selected variable
+	 * @param moreVarNames The names of the rest of the selected variables
+	 */
+	public Selection(Table table, String firstVarName, String... moreVarNames)
+	{
+		this.selectAll = false;
+		this.selectedColumns = ImmutableList.withValues(firstVarName, moreVarNames).flatMap(name -> 
+				table.findColumnWithVariableName(name).stream());
+	}
+	
+	/**
+	 * Creates a selection that selects certain columns from a specific table
+	 * @param table A table
+	 * @param varNames The names of the selected variables
+	 */
+	public Selection(Table table, ImmutableList<String> varNames)
+	{
+		this.selectAll = false;
+		this.selectedColumns = varNames.flatMap(name -> table.findColumnWithVariableName(name).stream());
 	}
 	
 	
