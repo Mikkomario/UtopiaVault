@@ -152,11 +152,7 @@ public class TableModel extends Model<ColumnVariable>
 	 */
 	public Option<ColumnVariable> getIndexAttributeOption()
 	{
-		Column primaryColumn = getTable().findPrimaryColumn();
-		if (primaryColumn == null)
-			return Option.none();
-		else
-			return findAttribute(primaryColumn.getName());
+		return getTable().findPrimaryColumn().flatMap(column -> findAttribute(column.getName()));
 	}
 	
 	/**
@@ -173,10 +169,6 @@ public class TableModel extends Model<ColumnVariable>
 	 */
 	public boolean hasIndex()
 	{
-		Column primaryColumn = getTable().findPrimaryColumn();
-		if (primaryColumn == null)
-			return false;
-		else
-			return findAttribute(primaryColumn.getName()).exists(att -> !att.isNull());
+		return getIndexAttributeOption().exists(att -> !att.isNull());
 	}
 }

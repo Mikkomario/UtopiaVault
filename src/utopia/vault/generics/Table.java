@@ -8,6 +8,7 @@ import java.util.Map;
 
 import utopia.flow.generics.ModelDeclaration;
 import utopia.flow.structure.ImmutableList;
+import utopia.flow.util.Option;
 
 /**
  * A database table represents a table in a database and contains the necessary column 
@@ -25,7 +26,7 @@ public class Table
 	private TableReferenceReader referenceReader;
 	
 	private ImmutableList<Column> columns = null;
-	private Column primaryColumn = null;
+	private Option<Column> primaryColumn = null;
 	private ModelDeclaration declaration = null;
 	private Map<Table, TableReference[]> references = new HashMap<>();
 	
@@ -179,29 +180,20 @@ public class Table
 	 */
 	public Column getPrimaryColumn() throws NoSuchColumnException
 	{
-		Column primary = findPrimaryColumn();
-		if (primary == null)
+		Option<Column> primary = findPrimaryColumn();
+		if (primary.isEmpty())
 			throw new NoSuchColumnException("Table " + this + " doesn't have a primary column");
 		else
-			return primary;
+			return primary.get();
 	}
 	
 	/**
 	 * @return The primary column in this table. Null if there is no primary column
 	 */
-	public Column findPrimaryColumn()
+	public Option<Column> findPrimaryColumn()
 	{
 		if (this.primaryColumn == null)
-		{
-			for (Column column : getColumns())
-			{
-				if (column.isPrimary())
-				{
-					this.primaryColumn = column;
-					break;
-				}
-			}
-		}
+			this.primaryColumn = getColumns().find(column -> column.isPrimary());
 		
 		return this.primaryColumn;
 	}
@@ -273,11 +265,7 @@ public class Table
 	 */
 	public boolean usesAutoIncrementIndexing()
 	{
-		Column primary = findPrimaryColumn();
-		if (primary == null)
-			return false;
-		else
-			return primary.usesAutoIncrementIndexing();
+		return findPrimaryColumn().exists(column -> column.usesAutoIncrementIndexing());
 	}
 	
 	/**
