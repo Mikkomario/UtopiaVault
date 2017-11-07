@@ -3,8 +3,6 @@ package utopia.vault.database;
 import java.util.HashMap;
 import java.util.Map;
 
-import utopia.flow.generics.VariableDeclaration;
-import utopia.flow.structure.ImmutableList;
 import utopia.flow.util.Option;
 import utopia.vault.generics.Column;
 import utopia.vault.generics.Table;
@@ -107,8 +105,7 @@ public class DatabaseException extends DebuggableException
 	 * @param selection The selected columns
 	 */
 	public DatabaseException(Throwable cause, String sqlStatement, Table usedTable, 
-			Condition whereClause, ValueAssignment assignedValues, 
-			ImmutableList<? extends VariableDeclaration> selection)
+			Option<Condition> whereClause, ValueAssignment assignedValues, Selection selection)
 	{
 		super(createMessage(cause), parseDebugMessage(sqlStatement, 
 				usedTable, whereClause, assignedValues, selection), cause);
@@ -155,8 +152,7 @@ public class DatabaseException extends DebuggableException
 	 * @param selection The selection that was being made
 	 */
 	public DatabaseException(String message, String sqlStatement, Table usedTable, 
-			Condition whereClause, ValueAssignment assignedValues, 
-			ImmutableList<? extends VariableDeclaration> selection)
+			Option<Condition> whereClause, ValueAssignment assignedValues, Selection selection)
 	{
 		super(message, parseDebugMessage(sqlStatement, usedTable, whereClause, assignedValues, 
 				selection));
@@ -251,15 +247,14 @@ public class DatabaseException extends DebuggableException
 		return s.toString();
 	}
 	
-	private static String parseDebugMessage(String sqlStatement, Table table, 
-			Condition where, ValueAssignment providedValues, 
-			ImmutableList<? extends VariableDeclaration> selection)
+	private static String parseDebugMessage(String sqlStatement, Table table, Option<Condition> where, 
+			ValueAssignment providedValues, Selection selection)
 	{
 		StringBuilder message = new StringBuilder();
 		if (sqlStatement != null)
 			message.append("SQL: " + sqlStatement);
 		if (where != null && table != null)
-			message.append("\nWhere: " + where.getDebugSql());
+			where.forEach(w -> message.append("\nWhere: " + w.getDebugSql()));
 		if (table != null)
 		{
 			message.append("\nTable used: ");
@@ -271,14 +266,10 @@ public class DatabaseException extends DebuggableException
 			message.append("\nValues provided: ");
 			message.append(providedValues.getDebugDescription());
 		}
-		if (selection != null && !selection.isEmpty())
+		if (selection != null)
 		{
-			message.append("\nSelection:");
-			for (VariableDeclaration dec : selection)
-			{
-				message.append("\n");
-				message.append(dec);
-			}
+			message.append("\nSelection: ");
+			message.append(selection);
 		}
 		
 		return message.toString();

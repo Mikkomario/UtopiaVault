@@ -15,6 +15,7 @@ import utopia.flow.generics.DataTypeException;
 import utopia.flow.generics.SubTypeSet;
 import utopia.flow.generics.Value;
 import utopia.flow.structure.ImmutableList;
+import utopia.flow.util.Option;
 import utopia.vault.database.DatabaseSettings.UninitializedSettingsException;
 import utopia.vault.generics.Column;
 import utopia.vault.generics.ColumnVariable;
@@ -344,10 +345,36 @@ public class Database implements AutoCloseable
 	 * @throws DatabaseUnavailableException If the database couldn't be accessed
 	 * @throws DatabaseException If the query failed
 	 */
-	@SuppressWarnings("resource")
 	public static ImmutableList<ImmutableList<ColumnVariable>> select(ImmutableList<? extends Column> select, 
 			Table from, ImmutableList<Join> joins, Condition where, int limit, 
 			OrderBy orderBy, Database connection) throws DatabaseUnavailableException, DatabaseException
+	{
+		return null;
+	}
+	
+	/**
+	 * Performs a select query, selecting certain column value(s) from certain row(s) in certain 
+	 * table(s)
+	 * @param select The column values that are selected from each row. Null if the whole row 
+	 * should be selected. Use an empty list if no variables should be selected.
+	 * @param from The table the selection is made on
+	 * @param joins The joins that are inserted to the query (optional)
+	 * @param where The condition that specifies which rows are selected. Null if each row 
+	 * should be selected.
+	 * @param limit The limit on how many rows should be selected at maximum. < 0 if no limit 
+	 * should be set
+	 * @param orderBy The method the returned rows are sorted with (optional)
+	 * @param connection A database connection that should be used in the query. Null if a 
+	 * temporary connection should be used. Only temporary connections are closed in this method.
+	 * @return A list containing each selected row. Each row contains the selected column 
+	 * values.
+	 * @throws DatabaseUnavailableException If the database couldn't be accessed
+	 * @throws DatabaseException If the query failed
+	 */
+	@SuppressWarnings("resource")
+	public static ImmutableList<ImmutableList<ColumnVariable>> select(Selection select, 
+			Table from, ImmutableList<Join> joins, Option<Condition> where, Option<Integer> limit, 
+			Option<OrderBy> orderBy, Database connection) throws DatabaseUnavailableException, DatabaseException
 	{
 		StringBuilder sql = new StringBuilder();
 		appendSelect(sql, select);
@@ -355,21 +382,21 @@ public class Database implements AutoCloseable
 		sql.append(from.getName());
 		if (joins != null)
 			appendJoin(sql, joins);
-		if (where != null)
+		if (where != null && where.isDefined())
 		{
 			try
 			{
-				sql.append(where.toWhereClause());
+				sql.append(where.get().toWhereClause());
 			}
 			catch (StatementParseException e)
 			{
-				throw new DatabaseException(e, where);
+				throw new DatabaseException(e, where.get());
 			}
 		}
-		if (orderBy != null)
-			sql.append(orderBy.toSql());
-		if (limit >= 0)
-			sql.append(" LIMIT " + limit);
+		if (orderBy != null && orderBy.isDefined())
+			sql.append(orderBy.get().toSql());
+		if (limit != null)
+			limit.forEach(l -> sql.append(" LIMIT " + l));
 		
 		Database db = null;
 		PreparedStatement statement = null;
@@ -380,7 +407,7 @@ public class Database implements AutoCloseable
 			
 			// Prepares the statement
 			statement = db.getPreparedStatement(sql.toString());
-			setStatementValues(statement, joins, where);
+			setStatementValues(statement, joins, where.toList());
 			
 			// Executes the query
 			results = statement.executeQuery();
@@ -390,8 +417,8 @@ public class Database implements AutoCloseable
 			
 			// Determines which columns are read
 			// If it was select *, all rows from all tables are read
-			ImmutableList<? extends Column> readColumns = select == null ? 
-					from.getColumns().plus(joins.flatMap(join -> join.getJoinedTable().getColumns().stream())) : select;
+			ImmutableList<Column> readColumns = select == null || select.selectsAll() ? 
+					from.getColumns().plus(joins.flatMap(join -> join.getJoinedTable().getColumns().stream())) : select.getColumns();
 			
 			// Matches the columns to the result indices. Also reads the data types
 			Column[] rowColumns = new Column[meta.getColumnCount()];
@@ -979,15 +1006,15 @@ public class Database implements AutoCloseable
 			usedConnection.closeConnection();
 	}
 	
-	private static void appendSelect(StringBuilder sql, ImmutableList<? extends Column> selection)
+	private static void appendSelect(StringBuilder sql, Selection selection)
 	{
 		sql.append("SELECT ");
-		if (selection == null)
+		if (selection == null || selection.selectsAll())
 			sql.append("*");
 		else if (selection.isEmpty())
 			sql.append("NULL");
 		else
-			appendColumnNames(sql, selection);
+			appendColumnNames(sql, selection.getColumns());
 	}
 	
 	private static void appendColumnNames(StringBuilder sql, ImmutableList<? extends Column> columns)
@@ -1024,7 +1051,7 @@ public class Database implements AutoCloseable
 	}
 	
 	private static void setStatementValues(PreparedStatement statement, ImmutableList<Join> joins, 
-			ImmutableList<PreparedSQLClause> otherClauses) throws ValueInsertFailedException
+			ImmutableList<? extends PreparedSQLClause> otherClauses) throws ValueInsertFailedException
 	{
 		if (joins == null || joins.isEmpty())
 			setStatementValues(statement, otherClauses);
@@ -1047,7 +1074,7 @@ public class Database implements AutoCloseable
 	 * data types
 	 * @throws ValueInsertFailedException If insertion of a value failed
 	 */
-	private static void setStatementValues(PreparedStatement statement, ImmutableList<PreparedSQLClause> clauses) 
+	private static void setStatementValues(PreparedStatement statement, ImmutableList<? extends PreparedSQLClause> clauses) 
 			throws ValueInsertFailedException
 	{
 		// May skip the whole process if no clauses have been specified
