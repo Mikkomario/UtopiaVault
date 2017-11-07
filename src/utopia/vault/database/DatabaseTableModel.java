@@ -225,13 +225,13 @@ public class DatabaseTableModel extends TableModel
 			else
 			{
 				// Only accepts the first result from the first reference
-				List<List<ColumnVariable>> results = Database.select(modelTable.getColumns(), 
+				ImmutableList<ImmutableList<ColumnVariable>> results = Database.select(modelTable.getColumns(), 
 						getTable(), ImmutableList.withValue(new Join(references.head(), JoinType.INNER)), 
 						condition, 1, null, this.connection);
 				if (results.isEmpty())
 					return null;
 				else
-					return new TableModel(modelTable, results.get(0));
+					return new TableModel(modelTable, results.head());
 			}
 		}
 	}
@@ -256,13 +256,13 @@ public class DatabaseTableModel extends TableModel
 		else
 		{
 			// Joins the two tables together and finds the connected rows
-			List<List<ColumnVariable>> results = Database.select(modelTable.getColumns(), 
+			ImmutableList<ImmutableList<ColumnVariable>> results = Database.select(modelTable.getColumns(), 
 					getTable(), Join.createReferenceJoins(getTable(), modelTable), condition, 
 					-1, null, this.connection);
 			
 			// Parses the results
 			List<TableModel> models = new ArrayList<>();
-			for (List<ColumnVariable> row : results)
+			for (ImmutableList<ColumnVariable> row : results)
 			{
 				models.add(new TableModel(modelTable, row));
 			}

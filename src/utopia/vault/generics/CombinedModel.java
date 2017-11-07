@@ -66,9 +66,7 @@ public class CombinedModel
 	 * @param databaseVariables The database-specific model attributes (optional)
 	 * @param otherVariables The general model attributes (optional)
 	 */
-	public CombinedModel(Table table, 
-			ImmutableList<? extends ColumnVariable> databaseVariables, 
-			ImmutableList<? extends Variable> otherVariables)
+	public CombinedModel(Table table, ImmutableList<ColumnVariable> databaseVariables, ImmutableList<Variable> otherVariables)
 	{
 		if (otherVariables == null)
 			this.baseModel = Model.createBasicModel();
@@ -375,6 +373,16 @@ public class CombinedModel
 	 * @param attributes The attributes that are added to the model
 	 */
 	public void addGeneralAttributes(Collection<? extends Variable> attributes)
+	{
+		this.baseModel.addAttributes(attributes, true);
+	}
+	
+	/**
+	 * This metod adds multiple new general attributes to the model. If the model already 
+	 * contains some of the attributes, the previous attributes get overwritten
+	 * @param attributes The attributes that are added to the model
+	 */
+	public void addGeneralAttributes(ImmutableList<? extends Variable> attributes)
 	{
 		this.baseModel.addAttributes(attributes, true);
 	}

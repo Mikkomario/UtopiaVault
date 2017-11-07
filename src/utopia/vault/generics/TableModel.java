@@ -51,7 +51,7 @@ public class TableModel extends Model<ColumnVariable>
 	 * @param table The table the model uses
 	 * @param variables The variables stored in the model
 	 */
-	public TableModel(Table table, ImmutableList<? extends ColumnVariable> variables)
+	public TableModel(Table table, ImmutableList<ColumnVariable> variables)
 	{
 		super(new ColumnVariableParser(table), variables);
 		this.table = table;

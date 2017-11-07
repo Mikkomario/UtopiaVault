@@ -28,7 +28,7 @@ import utopia.vault.generics.Table.NoSuchColumnException;
  * @author Mikko Hilpinen
  * @since 17.1.2016
  */
-public class Database
+public class Database implements AutoCloseable
 {
 	// ATTRIBUTES	-----------------
 	
@@ -66,6 +66,15 @@ public class Database
 	public Database()
 	{
 		this.name = null;
+	}
+	
+	
+	// IMPLEMENTED METHODS	---------
+	
+	@Override
+	public void close()
+	{
+		closeConnection();
 	}
 	
 	
@@ -336,12 +345,10 @@ public class Database
 	 * @throws DatabaseException If the query failed
 	 */
 	@SuppressWarnings("resource")
-	public static List<List<ColumnVariable>> select(ImmutableList<? extends Column> select, 
+	public static ImmutableList<ImmutableList<ColumnVariable>> select(ImmutableList<? extends Column> select, 
 			Table from, ImmutableList<Join> joins, Condition where, int limit, 
 			OrderBy orderBy, Database connection) throws DatabaseUnavailableException, DatabaseException
 	{
-		List<List<ColumnVariable>> rows = new ArrayList<>();
-		
 		StringBuilder sql = new StringBuilder();
 		appendSelect(sql, select);
 		sql.append(" FROM ");
@@ -415,6 +422,7 @@ public class Database
 			}
 			
 			// Reads the data
+			List<ImmutableList<ColumnVariable>> rows = new ArrayList<>();
 			while (results.next())
 			{
 				// Assigns column values to each row
@@ -422,11 +430,12 @@ public class Database
 				for (int i = 0; i < rowColumns.length; i++)
 				{
 					if (rowColumns[i] != null)
-						row.add(rowColumns[i].assignValue(new Value(results.getObject(i + 1), 
-								columnTypes[i])));
+						row.add(rowColumns[i].assignValue(new Value(results.getObject(i + 1), columnTypes[i])));
 				}
-				rows.add(row);
+				rows.add(ImmutableList.of(row));
 			}
+			
+			return ImmutableList.of(rows);
 		}
 		catch (SQLException | ValueInsertFailedException e)
 		{
@@ -438,8 +447,6 @@ public class Database
 			closeStatement(statement);
 			closeIfTemporary(db, connection);
 		}
-		
-		return rows;
 	}
 	
 	/**
@@ -460,7 +467,7 @@ public class Database
 	 * @throws DatabaseUnavailableException If the database couldn't be accessed
 	 * @throws DatabaseException If the query failed
 	 */
-	public static List<List<ColumnVariable>> select(ImmutableList<? extends Column> select, 
+	public static ImmutableList<ImmutableList<ColumnVariable>> select(ImmutableList<? extends Column> select, 
 			Table from, Condition where, int limit, OrderBy orderBy, Database connection) 
 			throws DatabaseUnavailableException, DatabaseException
 	{
@@ -482,13 +489,13 @@ public class Database
 			Database connection) throws DatabaseException, DatabaseUnavailableException
 	{
 		// The index value is used as a where condition
-		List<List<ColumnVariable>> result = select(null, model.getTable(), null, 
+		ImmutableList<ImmutableList<ColumnVariable>> result = select(null, model.getTable(), null, 
 				where, 1, null, connection);
 		if (result.isEmpty())
 			return false;
 		else
 		{
-			model.addAttributes(result.get(0), true);
+			model.addAttributes(result.head(), true);
 			return true;
 		}
 	}
@@ -512,13 +519,13 @@ public class Database
 		
 		// The index value is used as a where condition
 		Condition where = new ComparisonCondition(model.getTable().getPrimaryColumn(), index);
-		List<List<ColumnVariable>> result = select(null, model.getTable(), null, 
+		ImmutableList<ImmutableList<ColumnVariable>> result = select(null, model.getTable(), null, 
 				where, 1, null, connection);
 		if (result.isEmpty())
 			return false;
 		else
 		{
-			model.addAttributes(result.get(0), true);
+			model.addAttributes(result.head(), true);
 			return true;
 		}
 	}
@@ -899,7 +906,7 @@ public class Database
 	public static boolean rowExists(Table table, Condition where, Database connection) throws 
 			DatabaseException, DatabaseUnavailableException
 	{
-		List<List<ColumnVariable>> results = select(ImmutableList.empty(), table, null, 
+		ImmutableList<ImmutableList<ColumnVariable>> results = select(ImmutableList.empty(), table, null, 
 				where, 1, null, connection);
 		
 		return !results.isEmpty();

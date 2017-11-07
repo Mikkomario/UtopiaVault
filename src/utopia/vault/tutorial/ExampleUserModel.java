@@ -1,12 +1,9 @@
 package utopia.vault.tutorial;
 
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.List;
-
 import utopia.flow.generics.BasicDataType;
 import utopia.flow.generics.Value;
 import utopia.flow.generics.Variable;
+import utopia.flow.structure.ImmutableList;
 import utopia.vault.database.Database;
 import utopia.vault.database.DatabaseException;
 import utopia.vault.database.DatabaseUnavailableException;
@@ -38,7 +35,7 @@ public class ExampleUserModel extends CombinedModel
 	 * Creates a new user model from the provided database variables
 	 * @param databaseVariables The attributes that are added to the user
 	 */
-	public ExampleUserModel(Collection<? extends ColumnVariable> databaseVariables)
+	public ExampleUserModel(ImmutableList<ColumnVariable> databaseVariables)
 	{
 		super(ExampleTables.USERS, databaseVariables, initialiseGeneralAttributes());
 	}
@@ -135,11 +132,8 @@ public class ExampleUserModel extends CombinedModel
 		return null;
 	}
 	
-	private static List<Variable> initialiseGeneralAttributes()
+	private static ImmutableList<Variable> initialiseGeneralAttributes()
 	{
-		List<Variable> vars = new ArrayList<>();
-		vars.add(new Variable("points", BasicDataType.INTEGER, 0));
-		
-		return vars;
+		return ImmutableList.withValue(new Variable("points", BasicDataType.INTEGER, 0));
 	}
 }

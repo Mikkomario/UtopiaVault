@@ -1,8 +1,5 @@
 package utopia.vault.tutorial;
 
-import java.util.ArrayList;
-import java.util.List;
-
 import utopia.flow.generics.Value;
 import utopia.flow.structure.ImmutableList;
 import utopia.vault.database.Condition;
@@ -63,12 +60,12 @@ public class ExampleDatabaseQueries
 	 * @throws DatabaseException If the operation failed
 	 * @throws DatabaseUnavailableException If the database couldn't be accessed
 	 */
-	public static List<ExampleUserModel> findUsers(Database connection) throws DatabaseException, 
+	public static ImmutableList<ExampleUserModel> findUsers(Database connection) throws DatabaseException, 
 			DatabaseUnavailableException
 	{
 		// One can construct models with partial selects, but select all (null parameter) 
 		// is often the best option
-		List<List<ColumnVariable>> results = Database.select(null, ExampleTables.USERS, null, 
+		ImmutableList<ImmutableList<ColumnVariable>> results = Database.select(null, ExampleTables.USERS, null, 
 				-1, null, connection);
 		
 		// The users are parsed in a separate method to avoid repeating code
@@ -85,11 +82,11 @@ public class ExampleDatabaseQueries
 	 * @throws DatabaseUnavailableException If the database can't be accessed
 	 * @throws DatabaseException If the operation failed
 	 */
-	public static List<ExampleUserModel> findUsers(String userName, Database connection) 
+	public static ImmutableList<ExampleUserModel> findUsers(String userName, Database connection) 
 			throws DatabaseException, DatabaseUnavailableException
 	{
 		// Like previously, all data is selected. This time a where condition is used, though.
-		List<List<ColumnVariable>> results = Database.select(null, ExampleTables.USERS, 
+		ImmutableList<ImmutableList<ColumnVariable>> results = Database.select(null, ExampleTables.USERS, 
 				ExampleConditions.createUserNameStartsWithCondition(userName)
 				/*ExampleConditions.createUserNameCondition(userName)*/, -1, null, 
 				connection);
@@ -109,7 +106,7 @@ public class ExampleDatabaseQueries
 	 * @throws DatabaseException if the operation fails
 	 * @throws DatabaseUnavailableException If the database can't be accessed
 	 */
-	public static List<ExampleUserModel> findUsers(String userName, String roleName, 
+	public static ImmutableList<ExampleUserModel> findUsers(String userName, String roleName, 
 			Database connection) throws DatabaseException, DatabaseUnavailableException
 	{
 		// This time only the user attributes are selected, as opposed to all, which 
@@ -119,7 +116,7 @@ public class ExampleDatabaseQueries
 		// A join condition is used. The condition needs to be wrapped into an array since 
 		// the method expects one or more conditions
 		// We can use a where condition that was specified in the ExampleWhereConditions
-		List<List<ColumnVariable>> results = Database.select(
+		ImmutableList<ImmutableList<ColumnVariable>> results = Database.select(
 				selection, ExampleTables.USERS, Join.createReferenceJoins(ExampleTables.USERS, 
 				ExampleTables.ROLES), ExampleConditions.createUserNameAndRoleNameCondition(
 				userName, roleName), -1, null, connection);
@@ -136,7 +133,7 @@ public class ExampleDatabaseQueries
 	 * @throws DatabaseException If the operation failed
 	 * @throws DatabaseUnavailableException If the database can't be accessed
 	 */
-	public static List<String> findUserNames(Database connection) throws DatabaseException, 
+	public static ImmutableList<String> findUserNames(Database connection) throws DatabaseException, 
 			DatabaseUnavailableException
 	{
 		// This time only the user name is selected
@@ -144,21 +141,15 @@ public class ExampleDatabaseQueries
 		// No where clause is used this time. The results come in same format as always
 		// The user names are ordered in alphabetical order (desc)
 		OrderBy order = new OrderBy(selection.get(0), false);
-		List<List<ColumnVariable>> results = Database.select(selection, ExampleTables.USERS, 
+		ImmutableList<ImmutableList<ColumnVariable>> results = Database.select(selection, ExampleTables.USERS, 
 				null, -1, order, connection);
 		
-		List<String> userNames = new ArrayList<>();
 		// Each list in the result represents a row in the database
 		// Each row then contains a single user name
-		for (List<ColumnVariable> row : results)
-		{
-			// The user name is the first and only attribute that is returned for each row.
-			// That's why we can simply call get(0).
-			// The attribute value must also be parsed to string before it is added to the set
-			userNames.add(row.get(0).getValue().toString());
-		}
-		
-		return userNames;
+		// The user name is the first and only attribute that is returned for each row.
+		// That's why we can simply call head().
+		// The attribute value must also be parsed to string before it is added to the set
+		return results.map(row -> row.head().getValue().toString());
 	}
 	
 	/**
@@ -272,18 +263,10 @@ public class ExampleDatabaseQueries
 				roleNameCondition, true, connection);
 	}
 	
-	private static List<ExampleUserModel> parseUsers(List<List<ColumnVariable>> results)
+	private static ImmutableList<ExampleUserModel> parseUsers(ImmutableList<ImmutableList<ColumnVariable>> results)
 	{
-		List<ExampleUserModel> users = new ArrayList<>();
 		// The result may contain data from multiple rows. Each row needs to be parsed 
 		// separately. Also, each row contains a single user's attribute data
-		for (List<ColumnVariable> userAttributes : results)
-		{
-			// Since we created the attribute constructor, creating a new user is a simple 
-			// matter
-			users.add(new ExampleUserModel(userAttributes));
-		}
-		
-		return users;
+		return results.map(row -> new ExampleUserModel(row));
 	}
 }
