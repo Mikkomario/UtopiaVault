@@ -343,19 +343,9 @@ public class ComparisonCondition extends SingleCondition
 		 * @param values The values used with this operator
 		 * @return Are the values valid for this operator
 		 */
-		public boolean acceptsValues(Value[] values)
+		public boolean acceptsValues(ImmutableList<Value> values)
 		{
-			if (allowsNull())
-				return true;
-			
-			// Checks for null comparisons
-			for (Value value : values)
-			{
-				if (value.isNull())
-					return false;
-			}
-			
-			return true;
+			return allowsNull() || values.forAll(value -> !value.isNull());
 		}
 	}
 }

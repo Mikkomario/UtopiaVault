@@ -143,7 +143,7 @@ public class Join implements PreparedSQLClause
 	// IMPLEMENTED METHODS	------------
 	
 	@Override
-	public Value[] getValues()
+	public ImmutableList<Value> getValues()
 	{
 		return this.condition.getValues();
 	}

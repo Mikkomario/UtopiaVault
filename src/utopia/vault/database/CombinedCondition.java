@@ -1,8 +1,5 @@
 package utopia.vault.database;
 
-import java.util.ArrayList;
-import java.util.List;
-
 import utopia.flow.generics.Value;
 import utopia.flow.structure.ImmutableList;
 import utopia.flow.util.Option;
@@ -154,19 +151,9 @@ public class CombinedCondition extends Condition
 	}
 	
 	@Override
-	public Value[] getValues()
+	public ImmutableList<Value> getValues()
 	{
-		// Collects the values from each condition
-		List<Value> values = new ArrayList<>();
-		for (Condition condition : this.conditions)
-		{
-			 for (Value value : condition.getValues())
-			 {
-				 values.add(value);
-			 }
-		}
-		
-		return values.toArray(new Value[0]);
+		return this.conditions.flatMap(condition -> condition.getValues().stream());
 	}
 	
 	/*

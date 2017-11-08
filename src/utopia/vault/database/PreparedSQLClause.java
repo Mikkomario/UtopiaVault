@@ -1,6 +1,7 @@
 package utopia.vault.database;
 
 import utopia.flow.generics.Value;
+import utopia.flow.structure.ImmutableList;
 
 /**
  * This interface is implemented by various clauses that can be used in prepared sql 
@@ -19,8 +20,8 @@ public interface PreparedSQLClause
 	public String toSql() throws StatementParseException;
 	
 	/**
-	 * @return The values inserted to the prepared statement. The length of the array must be 
+	 * @return The values inserted to the prepared statement. The size of the list must be 
 	 * equal to the amount of '?' place holders in the return value of {@link #toSql()}
 	 */
-	public Value[] getValues();
+	public ImmutableList<Value> getValues();
 }

@@ -1094,7 +1094,7 @@ public class Database implements AutoCloseable
 					int valueAmount = 0;
 					for (PreparedSQLClause sqlClause : clauses)
 					{
-						valueAmount += sqlClause.getValues().length;
+						valueAmount += sqlClause.getValues().size();
 					}
 					
 					s.append(". There are ");
