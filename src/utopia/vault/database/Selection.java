@@ -3,6 +3,7 @@ package utopia.vault.database;
 import utopia.flow.structure.ImmutableList;
 import utopia.vault.generics.Column;
 import utopia.vault.generics.Table;
+import utopia.vault.generics.Table.NoSuchColumnException;
 
 /**
  * A selection is used for specifying selected columns from db
@@ -32,6 +33,16 @@ public class Selection
 	{
 		this.selectAll = selectAll;
 		this.selectedColumns = colums;
+	}
+	
+	/**
+	 * Creates a selection for a single column
+	 * @param column The column that is selected
+	 */
+	public Selection(Column column)
+	{
+		this.selectAll = false;
+		this.selectedColumns = ImmutableList.withValue(column);
 	}
 	
 	/**
@@ -76,6 +87,17 @@ public class Selection
 	{
 		this.selectAll = false;
 		this.selectedColumns = varNames.flatMap(name -> table.findColumnWithVariableName(name).stream());
+	}
+	
+	/**
+	 * Selects the index column from a table
+	 * @param table The targeted table
+	 * @return A selection for the index column of the table
+	 * @throws NoSuchColumnException If the table doesn't have a primary column
+	 */
+	public static Selection indexFrom(Table table) throws NoSuchColumnException
+	{
+		return new Selection(table.getPrimaryColumn());
 	}
 	
 	
