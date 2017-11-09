@@ -527,6 +527,24 @@ public class Database implements AutoCloseable
 	}
 	
 	/**
+	 * Fills a new model with new data and returns the model
+	 * @param model An (empty) model
+	 * @param where A condition with which the model is found
+	 * @param connection A database connection used
+	 * @return The updated model or none if data couldn't be read
+	 * @throws DatabaseException If query failed
+	 * @throws DatabaseUnavailableException If database couldn't be accessed
+	 */
+	public static <T extends TableModel> Option<T> selectModel(T model, Condition where, Database connection) throws 
+			DatabaseException, DatabaseUnavailableException
+	{
+		if (readModelAttributes(model, where, connection))
+			return Option.some(model);
+		else
+			return Option.none();
+	}
+	
+	/**
 	 * Updates a model's attributes based on a database query
 	 * @param model The model who's attributes are updated
 	 * @param where The condition with which the model is found. Notice that only the first 
