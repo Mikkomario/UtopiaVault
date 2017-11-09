@@ -473,6 +473,41 @@ public class Database implements AutoCloseable
 	}
 	
 	/**
+	 * Selects a single row
+	 * @param select The selected columns
+	 * @param from The table the selection is made on
+	 * @param where The condition that specifies the rows selected
+	 * @param order The order which determines the first row. None if default order (row id).
+	 * @param connection The database connection used
+	 * @return The first row accepted by the condition. None if no such row exists
+	 * @throws DatabaseException If query failed
+	 * @throws DatabaseUnavailableException If database couldn't be accessed
+	 */
+	public static Option<ImmutableList<ColumnVariable>> selectSingle(Selection select, Table from, Condition where, 
+			Option<OrderBy> order, Database connection) throws DatabaseException, DatabaseUnavailableException
+	{
+		return select(select, from, new Option<>(where), Option.some(1), order, connection).headOption();
+	}
+	
+	/**
+	 * Selects a single row based on row index
+	 * @param select The selected columns
+	 * @param from The table the selection is made on
+	 * @param index The index that is selected
+	 * @param connection The database connection used
+	 * @return A row matching the index or none if no such index exists
+	 * @throws DatabaseException Id query failed
+	 * @throws NoSuchColumnException If table has no index
+	 * @throws DatabaseUnavailableException If database couldn't be accessed
+	 */
+	public static Option<ImmutableList<ColumnVariable>> selectIndex(Selection select, Table from, Value index, 
+			Database connection) throws DatabaseException, NoSuchColumnException, DatabaseUnavailableException
+	{
+		return selectSingle(select, from, ComparisonCondition.createIndexEqualsCondition(from, index), Option.none(), 
+				connection);
+	}
+	
+	/**
 	 * Updates a model's attributes based on a database query
 	 * @param model The model who's attributes are updated
 	 * @param where The condition with which the model is found. Notice that only the first 
