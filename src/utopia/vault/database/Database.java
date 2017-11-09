@@ -509,6 +509,23 @@ public class Database implements AutoCloseable
 	}
 	
 	/**
+	 * Selects a single value from a single row
+	 * @param from The table the value is read from
+	 * @param varName The name of the variable which is read
+	 * @param where The condition used for finding the row
+	 * @param order The ordering used (optional)
+	 * @param connection The database connection used
+	 * @return The read value or none if no such row existed
+	 * @throws DatabaseException If query failed
+	 * @throws DatabaseUnavailableException If database couldn't be accessed
+	 */
+	public static Option<Value> selectSingleValue(Table from, String varName, Condition where, Option<OrderBy> order, 
+			Database connection) throws DatabaseException, DatabaseUnavailableException
+	{
+		return selectSingle(new Selection(from, varName), from, where, order, connection).map(row -> row.head().getValue());
+	}
+	
+	/**
 	 * Selects a single row based on row index
 	 * @param select The selected columns
 	 * @param from The table the selection is made on
