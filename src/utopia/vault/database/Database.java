@@ -515,14 +515,15 @@ public class Database implements AutoCloseable
 	 * @param where The condition used for finding the row
 	 * @param order The ordering used (optional)
 	 * @param connection The database connection used
-	 * @return The read value or none if no such row existed
+	 * @return The read value. Empty value if no such row existed.
 	 * @throws DatabaseException If query failed
 	 * @throws DatabaseUnavailableException If database couldn't be accessed
 	 */
-	public static Option<Value> selectSingleValue(Table from, String varName, Condition where, Option<OrderBy> order, 
+	public static Value selectSingleValue(Table from, String varName, Condition where, Option<OrderBy> order, 
 			Database connection) throws DatabaseException, DatabaseUnavailableException
 	{
-		return selectSingle(new Selection(from, varName), from, where, order, connection).map(row -> row.head().getValue());
+		return selectSingle(new Selection(from, varName), from, where, order, connection).map(row -> 
+				row.head().getValue()).getOrElse(() -> Value.NullValue(from.getColumnWithVariableName(varName).getType()));
 	}
 	
 	/**
