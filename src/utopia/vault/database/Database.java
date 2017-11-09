@@ -473,6 +473,25 @@ public class Database implements AutoCloseable
 	}
 	
 	/**
+	 * Performs a select query, selecting certain column value(s) from certain row(s) in a certain 
+	 * table
+	 * @param select The selected columns
+	 * @param from The table the selection is made on
+	 * @param where The condition that specifies which rows are selected.
+	 * @param connection A database connection that should be used in the query. None if a 
+	 * temporary connection should be used. Only temporary connections are closed in this method.
+	 * @return A list containing each selected row. Each row contains the selected column 
+	 * values.
+	 * @throws DatabaseUnavailableException If the database couldn't be accessed
+	 * @throws DatabaseException If the query failed
+	 */
+	public static ImmutableList<ImmutableList<ColumnVariable>> select(Selection select, Table from, Condition where, 
+			Database connection) throws DatabaseUnavailableException, DatabaseException
+	{
+		return select(select, from, ImmutableList.empty(), Option.some(where), Option.none(), Option.none(), connection);
+	}
+	
+	/**
 	 * Selects a single row
 	 * @param select The selected columns
 	 * @param from The table the selection is made on
