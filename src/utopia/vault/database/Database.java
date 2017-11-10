@@ -891,7 +891,7 @@ public class Database implements AutoCloseable
 			statement = db.getPreparedStatement(sql.toString());
 			
 			// Prepares the values
-			setStatementValues(statement, ImmutableList.of(joins, ImmutableList.withValue(actualSet), where.toList()));
+			setStatementValues(statement, ImmutableList.flatten(joins, ImmutableList.withValue(actualSet), where.toList()));
 			
 			// Executes the update
 			statement.executeUpdate();
@@ -1105,7 +1105,7 @@ public class Database implements AutoCloseable
 		if (joins == null || joins.isEmpty())
 			setStatementValues(statement, otherClauses);
 		else
-			setStatementValues(statement, ImmutableList.of(joins, otherClauses));
+			setStatementValues(statement, ImmutableList.flatten(joins, otherClauses));
 	}
 	
 	private static void setStatementValues(PreparedStatement statement, PreparedSQLClause... clauses) 
