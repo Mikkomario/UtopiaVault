@@ -338,6 +338,28 @@ public class CombinedModel
 	/**
 	 * Changes an attribute value of the model. The targeted value may be a database attribute 
 	 * or a general attribute
+	 * @param attName The name of the attribute
+	 * @param value The new value assigned to the attribute
+	 * @throws NoSuchAttributeException If the table doesn't contain the attribute and it 
+	 * couldn't be generated either
+	 */
+	public void set(String attName, Option<Value> value)
+	{
+		Option<Variable> var = this.baseModel.findAttribute(attName);
+		if (var.isEmpty())
+		{
+			if (getTable().containsColumnForVariable(attName))
+				this.dbModel.set(attName, value);
+			else
+				this.baseModel.set(attName, value);
+		}
+		else
+			var.get().setValue(value.getOrElse(() -> Value.NullValue(var.get().getType())));
+	}
+	
+	/**
+	 * Changes an attribute value of the model. The targeted value may be a database attribute 
+	 * or a general attribute
 	 * @param attributeName The name of the attribute
 	 * @param value The new value assigned to the attribute
 	 * @throws NoSuchAttributeException If the table doesn't contain the attribute and it 
