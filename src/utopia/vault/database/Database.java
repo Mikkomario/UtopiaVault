@@ -16,7 +16,6 @@ import utopia.flow.generics.SubTypeSet;
 import utopia.flow.generics.Value;
 import utopia.flow.structure.ImmutableList;
 import utopia.flow.util.Option;
-import utopia.vault.database.DatabaseSettings.UninitializedSettingsException;
 import utopia.vault.generics.Column;
 import utopia.vault.generics.ColumnVariable;
 import utopia.vault.generics.SqlDataType;
@@ -135,12 +134,12 @@ public class Database implements AutoCloseable
 			if (this.connection != null && !this.connection.isClosed())
 				return;
 			
-			String driver = DatabaseSettings.getDriver();
-			if (driver != null)
+			Option<String> driver = DatabaseSettings.getDriver();
+			if (driver.isDefined())
 			{
 				try
 				{
-					Class.forName(driver).newInstance();
+					Class.forName(driver.get()).newInstance();
 				}
 				catch (Exception e)
 				{
@@ -149,9 +148,9 @@ public class Database implements AutoCloseable
 			}
 			this.connection = DriverManager.getConnection(
 					DatabaseSettings.getConnectionTarget() + getName(), 
-					DatabaseSettings.getUser(), DatabaseSettings.getPassword());
+					DatabaseSettings.getUser(), DatabaseSettings.getPassword().getValue());
 		}
-		catch (SQLException | UninitializedSettingsException e)
+		catch (SQLException e)
 		{
 			throw new DatabaseUnavailableException(e);
 		}
