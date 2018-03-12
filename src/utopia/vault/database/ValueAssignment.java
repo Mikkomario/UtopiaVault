@@ -104,7 +104,7 @@ public class ValueAssignment implements PreparedSQLClause
 	@Override
 	public ImmutableList<Value> getValues()
 	{
-		return this.assignments.flatMap(a -> a.getValue().stream());
+		return this.assignments.flatMap(a -> a.getValue());
 	}
 	
 	

@@ -139,7 +139,8 @@ public class Database implements AutoCloseable
 			{
 				try
 				{
-					Class.forName(driver.get()).newInstance();
+					// Was previously Class.forName(...).newInstance();
+					Class.forName(driver.get()).getDeclaredConstructor().newInstance();
 				}
 				catch (Exception e)
 				{
@@ -389,7 +390,7 @@ public class Database implements AutoCloseable
 			// Determines which columns are read
 			// If it was select *, all rows from all tables are read
 			ImmutableList<Column> readColumns = select == null || select.selectsAll() ? 
-					from.getColumns().plus(joins.flatMap(join -> join.getJoinedTable().getColumns().stream())) : select.getColumns();
+					from.getColumns().plus(joins.flatMap(join -> join.getJoinedTable().getColumns())) : select.getColumns();
 			
 			// Matches the columns to the result indices. Also reads the data types
 			Column[] rowColumns = new Column[meta.getColumnCount()];

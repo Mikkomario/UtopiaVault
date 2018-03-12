@@ -155,7 +155,7 @@ public class Table
 	 */
 	public ImmutableList<Column> getVariableColumns(ImmutableList<String> variableNames)
 	{
-		return variableNames.flatMap(name -> getColumns().find(column -> column.getName().equalsIgnoreCase(name)).stream());
+		return variableNames.flatMap(name -> getColumns().find(column -> column.getName().equalsIgnoreCase(name)));
 	}
 	
 	/**

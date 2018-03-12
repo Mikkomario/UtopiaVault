@@ -153,7 +153,7 @@ public class CombinedCondition extends Condition
 	@Override
 	public ImmutableList<Value> getValues()
 	{
-		return this.conditions.flatMap(condition -> condition.getValues().stream());
+		return this.conditions.flatMap(condition -> condition.getValues());
 	}
 	
 	/*

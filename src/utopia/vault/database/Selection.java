@@ -75,7 +75,7 @@ public class Selection
 	{
 		this.selectAll = false;
 		this.selectedColumns = ImmutableList.withValues(firstVarName, moreVarNames).flatMap(name -> 
-				table.findColumnWithVariableName(name).stream());
+				table.findColumnWithVariableName(name));
 	}
 	
 	/**
@@ -86,7 +86,7 @@ public class Selection
 	public Selection(Table table, ImmutableList<String> varNames)
 	{
 		this.selectAll = false;
-		this.selectedColumns = varNames.flatMap(name -> table.findColumnWithVariableName(name).stream());
+		this.selectedColumns = varNames.flatMap(name -> table.findColumnWithVariableName(name));
 	}
 	
 	/**
