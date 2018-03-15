@@ -6,7 +6,6 @@ import java.sql.Timestamp;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeParseException;
 import java.util.ArrayList;
-import java.util.Collection;
 import java.util.List;
 
 import utopia.flow.generics.BasicDataType;
@@ -15,7 +14,9 @@ import utopia.flow.generics.ConversionReliability;
 import utopia.flow.generics.DataType;
 import utopia.flow.generics.Value;
 import utopia.flow.generics.ValueParser;
+import utopia.flow.structure.ImmutableList;
 import utopia.flow.structure.Pair;
+import utopia.flow.util.Lazy;
 
 /**
  * This parser is able to parse values between the basic data types and the sql data types
@@ -26,49 +27,54 @@ public class SqlValueParser implements ValueParser
 {
 	// ATTRIBUTES	---------------
 	
-	private static SqlValueParser instance = null;
+	private static final Lazy<SqlValueParser> INSTANCE = new Lazy<>(() -> new SqlValueParser());
 	
-	private List<Conversion> conversions = new ArrayList<>();
-	private List<Pair<DataType, DataType>> wrapable = new ArrayList<>();
+	private ImmutableList<Conversion> conversions;
+	private ImmutableList<Pair<DataType, DataType>> wrapable;
 	
 	
 	// CONSTRUCTOR	---------------
 	
 	private SqlValueParser()
 	{
+		List<Pair<DataType, DataType>> wrapBuffer = new ArrayList<>();
+		List<Conversion> conversionBuffer = new ArrayList<>();
+		
 		// Creates the supported wraps
-		addWrap(BasicDataType.STRING, BasicSqlDataType.VARCHAR);
-		addWrap(BasicDataType.BOOLEAN, BasicSqlDataType.BOOLEAN);
-		addWrap(BasicDataType.INTEGER, BasicSqlDataType.INT);
-		addWrap(BasicDataType.LONG, BasicSqlDataType.BIGINT);
-		addWrap(BasicDataType.DOUBLE, BasicSqlDataType.DOUBLE);
-		addWrap(BasicDataType.FLOAT, BasicSqlDataType.FLOAT);
+		addWrap(wrapBuffer, BasicDataType.STRING, BasicSqlDataType.VARCHAR);
+		addWrap(wrapBuffer, BasicDataType.BOOLEAN, BasicSqlDataType.BOOLEAN);
+		addWrap(wrapBuffer, BasicDataType.INTEGER, BasicSqlDataType.INT);
+		addWrap(wrapBuffer, BasicDataType.LONG, BasicSqlDataType.BIGINT);
+		addWrap(wrapBuffer, BasicDataType.DOUBLE, BasicSqlDataType.DOUBLE);
+		addWrap(wrapBuffer, BasicDataType.FLOAT, BasicSqlDataType.FLOAT);
+		
+		this.wrapable = ImmutableList.of(wrapBuffer);
 		
 		// Creates the conversions
-		this.conversions.add(new Conversion(BasicDataType.DATE, BasicSqlDataType.DATE, 
+		conversionBuffer.add(new Conversion(BasicDataType.DATE, BasicSqlDataType.DATE, 
 				ConversionReliability.PERFECT));
-		this.conversions.add(new Conversion(BasicSqlDataType.DATE, BasicDataType.DATE, 
+		conversionBuffer.add(new Conversion(BasicSqlDataType.DATE, BasicDataType.DATE, 
 				ConversionReliability.PERFECT));
-		this.conversions.add(new Conversion(BasicDataType.TIME, BasicSqlDataType.TIME, 
+		conversionBuffer.add(new Conversion(BasicDataType.TIME, BasicSqlDataType.TIME, 
 				ConversionReliability.PERFECT));
-		this.conversions.add(new Conversion(BasicSqlDataType.TIME, BasicDataType.TIME, 
+		conversionBuffer.add(new Conversion(BasicSqlDataType.TIME, BasicDataType.TIME, 
 				ConversionReliability.PERFECT));
-		this.conversions.add(new Conversion(BasicDataType.DATETIME, BasicSqlDataType.TIMESTAMP, 
+		conversionBuffer.add(new Conversion(BasicDataType.DATETIME, BasicSqlDataType.TIMESTAMP, 
 				ConversionReliability.PERFECT));
-		this.conversions.add(new Conversion(BasicSqlDataType.TIMESTAMP, BasicDataType.DATETIME, 
+		conversionBuffer.add(new Conversion(BasicSqlDataType.TIMESTAMP, BasicDataType.DATETIME, 
 				ConversionReliability.PERFECT));
-		this.conversions.add(new Conversion(BasicDataType.STRING, BasicSqlDataType.TIMESTAMP, 
+		conversionBuffer.add(new Conversion(BasicDataType.STRING, BasicSqlDataType.TIMESTAMP, 
 				ConversionReliability.DANGEROUS));
-		this.conversions.add(new Conversion(BasicDataType.STRING, BasicDataType.DATETIME, 
+		conversionBuffer.add(new Conversion(BasicDataType.STRING, BasicDataType.DATETIME, 
 				ConversionReliability.DANGEROUS));
 		
 		for (Pair<DataType, DataType> wrap : this.wrapable)
 		{
-			this.conversions.add(new Conversion(wrap.getFirst(), wrap.getSecond(), 
-					ConversionReliability.NO_CONVERSION));
-			this.conversions.add(new Conversion(wrap.getSecond(), wrap.getFirst(), 
-					ConversionReliability.NO_CONVERSION));
+			conversionBuffer.add(new Conversion(wrap.getFirst(), wrap.getSecond(), ConversionReliability.NO_CONVERSION));
+			conversionBuffer.add(new Conversion(wrap.getSecond(), wrap.getFirst(), ConversionReliability.NO_CONVERSION));
 		}
+		
+		this.conversions = ImmutableList.of(conversionBuffer);
 	}
 	
 	/**
@@ -76,9 +82,7 @@ public class SqlValueParser implements ValueParser
 	 */
 	public static SqlValueParser getInstance()
 	{
-		if (instance == null)
-			instance = new SqlValueParser();
-		return instance;
+		return INSTANCE.get();
 	}
 	
 	
@@ -186,7 +190,7 @@ public class SqlValueParser implements ValueParser
 	}
 
 	@Override
-	public Collection<? extends Conversion> getConversions()
+	public ImmutableList<Conversion> getConversions()
 	{
 		return this.conversions;
 	}
@@ -199,8 +203,8 @@ public class SqlValueParser implements ValueParser
 		return new Value(value.getObjectValue(), to);
 	}
 	
-	private void addWrap(DataType first, DataType second)
+	private static void addWrap(List<Pair<DataType, DataType>> buffer, DataType first, DataType second)
 	{
-		this.wrapable.add(new Pair<>(first, second));
+		buffer.add(new Pair<>(first, second));
 	}
 }
