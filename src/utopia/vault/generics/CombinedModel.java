@@ -44,6 +44,7 @@ public class CombinedModel
 	 * @param table The table the model uses
 	 * @param databaseVariables The database-specific model attributes (optional)
 	 * @param otherVariables The general model attributes (optional)
+	 * @deprecated Please use immutableList instead of collection classes
 	 */
 	public CombinedModel(Table table, 
 			Collection<? extends ColumnVariable> databaseVariables, 

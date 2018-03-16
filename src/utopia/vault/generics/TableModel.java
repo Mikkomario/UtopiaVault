@@ -39,6 +39,7 @@ public class TableModel extends Model<ColumnVariable>
 	 * Creates a new model with existing set of attributes
 	 * @param table The table the model uses
 	 * @param variables The variables stored in the model
+	 * @deprecated ImmutableList implementation replaces this method
 	 */
 	public TableModel(Table table, Collection<? extends ColumnVariable> variables)
 	{
@@ -49,11 +50,11 @@ public class TableModel extends Model<ColumnVariable>
 	/**
 	 * Creates a new model with existing set of attributes
 	 * @param table The table the model uses
-	 * @param variables The variables stored in the model
+	 * @param variables The variables stored in the model (only table specific variables will be added)
 	 */
 	public TableModel(Table table, ImmutableList<ColumnVariable> variables)
 	{
-		super(new ColumnVariableParser(table), variables);
+		super(new ColumnVariableParser(table), variables.filter(v -> table.containsColumnForVariable(v.getName())));
 		this.table = table;
 	}
 
