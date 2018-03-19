@@ -1,5 +1,7 @@
 package utopia.vault.database;
 
+import utopia.flow.structure.ImmutableList;
+import utopia.flow.structure.Pair;
 import utopia.vault.generics.Column;
 
 /**
@@ -11,11 +13,20 @@ public class OrderBy
 {
 	// ATTRIBUTES	----------------
 	
-	private Column[] columns;
-	private boolean[] ascs;
+	// Column, ascending
+	private ImmutableList<Pair<Column, Boolean>> columns;
 	
 	
 	// CONSTRUCTOR	----------------
+	
+	/**
+	 * Creates a new order
+	 * @param columns The columns used in the order, plus whether the order shuold be ascending per column
+	 */
+	public OrderBy(ImmutableList<Pair<Column, Boolean>> columns)
+	{
+		this.columns = columns;
+	}
 	
 	/**
 	 * Creates a new order by statement
@@ -24,13 +35,13 @@ public class OrderBy
 	 * a separate value can be given for each column. Ascending order is used by default. 
 	 * (optional)
 	 */
-	public OrderBy(Column[] columns, boolean[] ascending)
+	public OrderBy(Column[] columns, Boolean[] ascending)
 	{
-		this.columns = columns;
-		this.ascs = ascending;
+		ImmutableList<Boolean> asc = ImmutableList.of(ascending);
+		if (asc.size() < columns.length)
+			asc = asc.plus(ImmutableList.filledWith(columns.length - asc.size(), true));
 		
-		if (this.ascs == null)
-			this.ascs = new boolean[0];
+		this.columns = ImmutableList.of(columns).mergedWith(asc);
 	}
 
 	/**
@@ -41,8 +52,7 @@ public class OrderBy
 	 */
 	public OrderBy(boolean ascending, Column... columns)
 	{
-		this.columns = columns;
-		this.ascs = new boolean[] {ascending};
+		this.columns = ImmutableList.of(columns).mergedWith(ImmutableList.filledWith(columns.length, ascending));
 	}
 	
 	/**
@@ -52,8 +62,7 @@ public class OrderBy
 	 */
 	public OrderBy(Column column, boolean ascending)
 	{
-		this.columns = new Column[] {column};
-		this.ascs = new boolean[] {ascending};
+		this.columns = ImmutableList.withValue(new Pair<>(column, ascending));
 	}
 	
 	/**
@@ -63,8 +72,7 @@ public class OrderBy
 	 */
 	public OrderBy(Column... columns)
 	{
-		this.columns = columns;
-		this.ascs = new boolean[0];
+		this.columns = ImmutableList.of(columns).mergedWith(ImmutableList.filledWith(columns.length, true));
 	}
 	
 	
@@ -84,24 +92,17 @@ public class OrderBy
 	 */
 	public String toSql()
 	{
-		if (this.columns.length == 0)
+		if (this.columns.isEmpty())
 			return "";
 		
 		StringBuilder sql = new StringBuilder(" ORDER BY ");
-		for (int i = 0; i < this.columns.length; i++)
-		{
-			if (i != 0)
-				sql.append(", ");
-			sql.append(this.columns[i].getColumnName());
-			if (this.ascs.length > i)
-			{
-				if (this.ascs[i])
-					sql.append(" ASC");
-				else
-					sql.append(" DESC");
-			}
-		}
+		sql.append(this.columns.map(OrderBy::columnAscToString).reduce((total, part) -> total + ", " + part));
 		
 		return sql.toString();
+	}
+	
+	private static String columnAscToString(Pair<Column, Boolean> data)
+	{
+		return data.getFirst().getColumnNameWithTable() + (data.getSecond() ? " ASC" : " DESC");
 	}
 }
