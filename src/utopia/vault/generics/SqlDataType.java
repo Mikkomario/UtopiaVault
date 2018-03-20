@@ -7,6 +7,7 @@ import utopia.flow.generics.DataType;
 import utopia.flow.generics.DataTypes;
 import utopia.flow.generics.SubTypeSet;
 import utopia.flow.generics.Value;
+import utopia.flow.util.Option;
 
 /**
  * These data types work like any other, except that they can be used in sql operations
@@ -26,27 +27,27 @@ public interface SqlDataType extends DataType
 	 * type is already a sql data type or if the type is a basic data type identical to one 
 	 * of the sql types
 	 * @param type A data type
-	 * @return The sql data type equivalent of the provided data type. Null if the type 
+	 * @return The sql data type equivalent of the provided data type. None if the type 
 	 * is not an sql data type or comparable
 	 */
-	public static SqlDataType castToSqlDataType(DataType type)
+	public static Option<SqlDataType> castToSqlDataType(DataType type)
 	{
 		if (type instanceof SqlDataType)
-			return (SqlDataType) type;
+			return Option.some((SqlDataType) type);
 		else
 		{
 			if (type.equals(BasicDataType.STRING))
-				return BasicSqlDataType.VARCHAR;
+				return Option.some(BasicSqlDataType.VARCHAR);
 			else if (type.equals(BasicDataType.BOOLEAN))
-				return BasicSqlDataType.BOOLEAN;
+				return Option.some(BasicSqlDataType.BOOLEAN);
 			else if (type.equals(BasicDataType.INTEGER))
-				return BasicSqlDataType.INT;
+				return Option.some(BasicSqlDataType.INT);
 			else if (type.equals(BasicDataType.LONG))
-				return BasicSqlDataType.BIGINT;
+				return Option.some(BasicSqlDataType.BIGINT);
 			else if (type.equals(BasicDataType.DOUBLE))
-				return BasicSqlDataType.DOUBLE;
+				return Option.some(BasicSqlDataType.DOUBLE);
 			
-			return null;
+			return Option.none();
 		}
 	}
 	
@@ -81,10 +82,10 @@ public interface SqlDataType extends DataType
 	/**
 	 * Finds the sql data type corresponding to the provided type value
 	 * @param sqlType The sql type value of {@link Types}
-	 * @return The data type represented by the type. Null if the type isn't represented by 
+	 * @return The data type represented by the type. None if the type isn't represented by 
 	 * an introduced data type
 	 */
-	public static SqlDataType getDataType(int sqlType)
+	public static Option<SqlDataType> getDataType(int sqlType)
 	{
 		for (DataType type : DataTypes.getInstance().getIntroducedDataTypes())
 		{
@@ -92,10 +93,10 @@ public interface SqlDataType extends DataType
 			{
 				SqlDataType sqlDataType = (SqlDataType) type;
 				if (sqlDataType.getSqlType() == sqlType)
-					return sqlDataType;
+					return Option.some(sqlDataType);
 			}
 		}
 		
-		return null;
+		return Option.none();
 	}
 }

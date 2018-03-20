@@ -393,11 +393,13 @@ public class Database implements AutoCloseable
 					from.getColumns().plus(joins.flatMap(join -> join.getJoinedTable().getColumns())) : select.getColumns();
 			
 			// Matches the columns to the result indices. Also reads the data types
-			Column[] rowColumns = new Column[meta.getColumnCount()];
-			DataType[] columnTypes = new DataType[rowColumns.length];
-			for (int i = 0; i < rowColumns.length; i++)
+			int columnCount = meta.getColumnCount();
+			List<Option<Column>> rowColumnsBuffer = new ArrayList<>(columnCount);
+			List<Option<? extends DataType>> columnTypesBuffer = new ArrayList<>(columnCount);
+			for (int i = 0; i < columnCount; i++)
 			{
-				columnTypes[i] = SqlDataType.getDataType(meta.getColumnType(i + 1));
+				Option<? extends DataType> type = SqlDataType.getDataType(meta.getColumnType(i + 1));
+				Option<Column> matchingColumn = Option.none();
 				
 				// Finds the column matching the column name
 				String columnName = meta.getColumnName(i + 1);
@@ -411,14 +413,20 @@ public class Database implements AutoCloseable
 						{
 							// Remembers the column and makes sure data type is defined
 							// If the matching column is not found, it won't be assigned
-							rowColumns[i] = column;
-							if (columnTypes[i] == null && column != null)
-								columnTypes[i] = column.getType();
+							matchingColumn = Option.some(column);
+							if (type.isEmpty())
+								type = Option.some(matchingColumn.get().getType());
 							break;
 						}
 					}
 				}
+				
+				rowColumnsBuffer.add(matchingColumn);
+				columnTypesBuffer.add(type);
 			}
+			
+			ImmutableList<Option<Column>> rowColumns = ImmutableList.of(rowColumnsBuffer);
+			ImmutableList<Option<? extends DataType>> columnTypes = ImmutableList.of(columnTypesBuffer);
 			
 			// Reads the data
 			List<ImmutableList<ColumnVariable>> rows = new ArrayList<>();
@@ -426,10 +434,13 @@ public class Database implements AutoCloseable
 			{
 				// Assigns column values to each row
 				List<ColumnVariable> row = new ArrayList<>();
-				for (int i = 0; i < rowColumns.length; i++)
+				for (int i = 0; i < rowColumns.size(); i++)
 				{
-					if (rowColumns[i] != null)
-						row.add(rowColumns[i].assignValue(new Value(results.getObject(i + 1), columnTypes[i])));
+					Option<Column> column = rowColumns.get(i);
+					Option<? extends DataType> type = columnTypes.get(i);
+					
+					if (column.isDefined() && type.isDefined())
+						row.add(column.get().assignValue(new Value(results.getObject(i + 1), type.get())));
 				}
 				rows.add(ImmutableList.of(row));
 			}
@@ -1147,7 +1158,8 @@ public class Database implements AutoCloseable
 				try
 				{
 					Value castValue = value.castTo(sqlTypes);
-					SqlDataType type = SqlDataType.castToSqlDataType(castValue.getType());
+					SqlDataType type = SqlDataType.castToSqlDataType(castValue.getType()).getOrFail(
+							() -> new ValueInsertFailedException("No SQL counterpart for type: " + castValue.getType()));
 					
 					statement.setObject(index, castValue.getObjectValue(), type.getSqlType());
 					index ++;
@@ -1203,6 +1215,11 @@ public class Database implements AutoCloseable
 	{
 		private static final long serialVersionUID = -5237257223474389560L;
 
+		public ValueInsertFailedException(String message)
+		{
+			super(message);
+		}
+		
 		public ValueInsertFailedException(String message, Throwable cause)
 		{
 			super(message, cause);
