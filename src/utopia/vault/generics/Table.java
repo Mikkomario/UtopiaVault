@@ -3,6 +3,7 @@ package utopia.vault.generics;
 import utopia.flow.generics.ModelDeclaration;
 import utopia.flow.structure.ImmutableList;
 import utopia.flow.structure.ImmutableMap;
+import utopia.flow.util.Lazy;
 import utopia.flow.util.Option;
 
 /**
@@ -20,17 +21,10 @@ public class Table
 	private ColumnInitialiser columnInitialiser;
 	private Option<TableReferenceReader> referenceReader;
 	
-	private ImmutableList<Column> columns = null;
-	private Option<Column> primaryColumn = null;
-	private ModelDeclaration declaration = null;
+	private final Lazy<ImmutableList<Column>> columns = new Lazy<>(this::readColumns);
+	private final Lazy<Option<Column>> primaryColumn = new Lazy<>(() -> getColumns().find(column -> column.isPrimary()));
+	private final Lazy<ModelDeclaration> declaration = new Lazy<>(() -> new ModelDeclaration(ImmutableList.of(getColumns())));
 	private ImmutableMap<Table, ImmutableList<TableReference>> references = ImmutableMap.empty();
-	
-	// TODO: Add fuzzy logic for column search
-	// TODO: Add table references:
-	// http://stackoverflow.com/questions/201621/how-do-i-see-all-foreign-keys-to-a-table-or-column
-	// SELECT COLUMN_NAME, REFERENCED_COLUMN_NAME FROM INFORMATION_SCHEMA.KEY_COLUMN_USAGE WHERE 
-	// TABLE_SCHEMA = 'test_db' AND TABLE_NAME = 'users' AND REFERENCED_TABLE_SCHEMA = 'test_db' 
-	// AND REFERENCED_TABLE_NAME = 'roles';
 	
 	
 	// CONSTRUCTOR	-------------
@@ -46,13 +40,13 @@ public class Table
 	 * necessary (Optional)
 	 */
 	public Table(String databaseName, String name, VariableNameMapping nameMapping, 
-			ColumnInitialiser columnInitialiser, TableReferenceReader referenceReader)
+			ColumnInitialiser columnInitialiser, Option<TableReferenceReader> referenceReader)
 	{
 		this.databaseName = databaseName;
 		this.name = name;
 		this.nameMapping = nameMapping;
 		this.columnInitialiser = columnInitialiser;
-		this.referenceReader = new Option<>(referenceReader);
+		this.referenceReader = referenceReader;
 	}
 	
 	
@@ -137,14 +131,7 @@ public class Table
 	public ImmutableList<Column> getColumns() throws TableInitialisationException
 	{
 		// Reads the column data from the database when first requested
-		if (this.columns == null)
-		{
-			this.columns = ImmutableList.of(this.columnInitialiser.generateColumns(this));
-			// Also initialises the mappings
-			getNameMapping().addMappingForEachColumnWherePossible(this.columns);
-		}
-		
-		return this.columns;
+		return this.columns.get();
 	}
 	
 	/**
@@ -187,10 +174,7 @@ public class Table
 	 */
 	public Option<Column> findPrimaryColumn()
 	{
-		if (this.primaryColumn == null)
-			this.primaryColumn = getColumns().find(column -> column.isPrimary());
-		
-		return this.primaryColumn;
+		return this.primaryColumn.get();
 	}
 	
 	/**
@@ -198,9 +182,7 @@ public class Table
 	 */
 	public ModelDeclaration toModelDeclaration()
 	{
-		if (this.declaration == null)
-			this.declaration = new ModelDeclaration(ImmutableList.of(getColumns()));
-		return this.declaration;
+		return this.declaration.get();
 	}
 	
 	
@@ -383,6 +365,15 @@ public class Table
 		}
 		
 		return s.toString();
+	}
+	
+	private ImmutableList<Column> readColumns()
+	{
+		ImmutableList<Column> columns = this.columnInitialiser.generateColumns(this);
+		// Also initialises the mappings
+		getNameMapping().addMappingForEachColumnWherePossible(columns);
+		
+		return columns;
 	}
 	
 	

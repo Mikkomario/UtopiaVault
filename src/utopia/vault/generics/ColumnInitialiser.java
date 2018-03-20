@@ -1,6 +1,6 @@
 package utopia.vault.generics;
 
-import java.util.Collection;
+import utopia.flow.structure.ImmutableList;
 
 /**
  * Classes implementing this interface are able to initialise column data in a database 
@@ -17,6 +17,5 @@ public interface ColumnInitialiser
 	 * @return The columns for the table
 	 * @throws TableInitialisationException If the initialisation failed
 	 */
-	public Collection<? extends Column> generateColumns(Table table) 
-			throws TableInitialisationException;
+	public ImmutableList<Column> generateColumns(Table table) throws TableInitialisationException;
 }

@@ -4,11 +4,12 @@ import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.ArrayList;
-import java.util.Collection;
 import java.util.List;
 
 import utopia.flow.generics.DataType;
 import utopia.flow.generics.Value;
+import utopia.flow.structure.ImmutableList;
+import utopia.flow.util.Option;
 import utopia.vault.generics.BasicSqlDataType;
 import utopia.vault.generics.Column;
 import utopia.vault.generics.ColumnInitialiser;
@@ -26,7 +27,7 @@ public class ReadFromDatabaseColumnInitialiser implements ColumnInitialiser
 {
 	// ATTRIBUTES	----------------------
 	
-	private ColumnTypeInterpreter parser = null;
+	private ColumnTypeInterpreter parser;
 	
 	
 	// CONSTRUCTOR	----------------------
@@ -37,9 +38,12 @@ public class ReadFromDatabaseColumnInitialiser implements ColumnInitialiser
 	 * Types introduced in {@link BasicSqlDataType} don't need to be handled by this parser. 
 	 * Optional, should be used when additional data types are stored in the database.
 	 */
-	public ReadFromDatabaseColumnInitialiser(ColumnTypeInterpreter typeParser)
+	public ReadFromDatabaseColumnInitialiser(Option<ColumnTypeInterpreter> typeParser)
 	{
-		this.parser = typeParser;
+		// Null check due to legacy code
+		if (typeParser == null)
+			this.parser = BasicSqlDataType::parseSqlType;
+		this.parser = typeParser.getOrElse(() -> BasicSqlDataType::parseSqlType);
 	}
 	
 	
@@ -47,19 +51,19 @@ public class ReadFromDatabaseColumnInitialiser implements ColumnInitialiser
 
 	@SuppressWarnings("resource")
 	@Override
-	public Collection<? extends Column> generateColumns(Table table) throws 
-			TableInitialisationException
+	public ImmutableList<Column> generateColumns(Table table) throws TableInitialisationException
 	{
 		Database accessor = new Database(table);
 		PreparedStatement statement = null;
 		ResultSet result = null;
-		List<Column> columns = new ArrayList<>();
-		TableInitialisationException exception = null;
 		
 		try
 		{
 			statement = accessor.getPreparedStatement("DESCRIBE " + table.getName());
 			result = statement.executeQuery();
+			
+			List<Column> buffer = new ArrayList<>();
+			
 			// Reads the field names
 			while (result.next())
 			{
@@ -69,22 +73,11 @@ public class ReadFromDatabaseColumnInitialiser implements ColumnInitialiser
 				
 				// Parses the data type using the provided parser (if possible)
 				String typeString = result.getString("Type");
-				DataType type = null;//DataTypes.parseType(typeString); // TODO: Doesn't work
-				if (this.parser != null)
-					type = this.parser.getColumnType(typeString);
-				// If there was no parser or if the parser couldn't read the type, tries the 
-				// basic implementation
-				if (type == null)
-				{
-					// Fails if the type can't be parsed
-					type = BasicSqlDataType.parseSqlType(typeString);
-					if (type == null)
-						throw new TableInitialisationException(typeString + 
-								" can't be parsed to a data type");
-				}
+				DataType type = this.parser.getColumnType(typeString).getOrFail(
+						() -> new TableInitialisationException(typeString + " can't be parsed to a data type"));
 				
 				boolean nullAllowed = "YES".equalsIgnoreCase(result.getString("Null"));
-				Value defaultValue = null;
+				Value defaultValue;
 				String defaultString = result.getString("Default");
 				if ("NULL".equalsIgnoreCase(defaultString))
 					defaultValue = Value.NullValue(type);
@@ -96,14 +89,14 @@ public class ReadFromDatabaseColumnInitialiser implements ColumnInitialiser
 					defaultValue = stringValue.castTo(type);
 				}
 				
-				columns.add(new Column(table, name, type, nullAllowed, primary, autoInc, 
-						defaultValue));
+				buffer.add(new Column(table, name, type, nullAllowed, primary, autoInc, defaultValue));
 			}
+			
+			return ImmutableList.of(buffer);
 		}
 		catch (DatabaseUnavailableException | SQLException | NoVariableForColumnException e)
 		{
-			exception = new TableInitialisationException(
-					"Failed to read columns for table " + table.getName(), e);
+			throw new TableInitialisationException("Failed to read columns for table " + table.getName(), e);
 		}
 		finally
 		{
@@ -112,11 +105,6 @@ public class ReadFromDatabaseColumnInitialiser implements ColumnInitialiser
 			Database.closeStatement(statement);
 			accessor.closeConnection();
 		}
-		
-		if (exception == null)
-			return columns;
-		else
-			throw exception;
 	}
 	
 	
@@ -127,6 +115,7 @@ public class ReadFromDatabaseColumnInitialiser implements ColumnInitialiser
 	 * @author Mikko Hilpinen
 	 * @since 24.7.2016
 	 */
+	@FunctionalInterface
 	public static interface ColumnTypeInterpreter
 	{
 		/**
@@ -136,6 +125,6 @@ public class ReadFromDatabaseColumnInitialiser implements ColumnInitialiser
 		 * @return The data type represented by the string. Null if the string couldn't be 
 		 * interpreted
 		 */
-		public DataType getColumnType(String typeString);
+		public Option<? extends DataType> getColumnType(String typeString);
 	}
 }
