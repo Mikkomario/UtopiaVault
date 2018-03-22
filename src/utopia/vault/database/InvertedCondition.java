@@ -1,6 +1,7 @@
 package utopia.vault.database;
 
 import utopia.flow.generics.Value;
+import utopia.flow.structure.ImmutableList;
 
 /**
  * This condition wraps and inverts another. The logical value of this condition will always 
@@ -30,7 +31,7 @@ public class InvertedCondition extends Condition
 	// IMPLEMENTED METHODS	---------
 
 	@Override
-	public Value[] getValues()
+	public ImmutableList<Value> getValues()
 	{
 		return this.condition.getValues();
 	}

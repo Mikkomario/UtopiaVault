@@ -1,9 +1,8 @@
 package utopia.vault.database;
 
-import java.util.ArrayList;
-import java.util.List;
-
 import utopia.flow.generics.Value;
+import utopia.flow.structure.ImmutableList;
+import utopia.flow.util.Option;
 
 /**
  * A combined condition is a set of conditions that must be met. The clause can be used in 
@@ -15,7 +14,7 @@ public class CombinedCondition extends Condition
 {	
 	// ATTRIBUTES	-----------------
 	
-	private List<Condition> conditions;
+	private ImmutableList<? extends Condition> conditions;
 	private CombinationOperator operator;
 	
 	
@@ -30,26 +29,27 @@ public class CombinedCondition extends Condition
 			throw new IllegalArgumentException("Operator " + operator + 
 					" doesn't work with " + conditions.length + " operands");
 		
-		this.conditions = new ArrayList<>();
-		for (Condition condition : conditions)
-		{
-			this.conditions.add(condition);
-		}
+		this.conditions = ImmutableList.of(conditions);
 	}
 	
-	private CombinedCondition(CombinationOperator operator, 
-			Condition firstCondition, Condition secondCondition, 
+	private CombinedCondition(CombinationOperator operator, ImmutableList<? extends Condition> conditions) throws IllegalArgumentException
+	{
+		this.operator = operator;
+		
+		// Checks that enough conditions were provided
+		if (conditions.size() < 2 || (this.operator == CombinationOperator.XOR && conditions.size() > 2))
+			throw new IllegalArgumentException("Operator " + operator + 
+					" doesn't work with " + conditions.size() + " operands");
+		
+		this.conditions = conditions;
+	}
+	
+	private CombinedCondition(CombinationOperator operator, Condition firstCondition, Condition secondCondition, 
 			Condition... additionalConditions)
 	{
 		this.operator = operator;
-		this.conditions = new ArrayList<>();
-		this.conditions.add(firstCondition);
-		this.conditions.add(secondCondition);
-		
-		for (Condition condition : additionalConditions)
-		{
-			this.conditions.add(condition);
-		}
+		this.conditions = ImmutableList.withValues(firstCondition, secondCondition).plus(
+				ImmutableList.of(additionalConditions));
 	}
 	
 	/**
@@ -60,15 +60,29 @@ public class CombinedCondition extends Condition
 	 * condition was provided, a combined condition if multiple conditions were provided
 	 * @throws IllegalArgumentException If XOR was used with more than 2 conditions
 	 */
-	public static Condition combineConditions(CombinationOperator operator, 
+	public static Option<Condition> combineConditions(CombinationOperator operator, 
 			Condition... conditions) throws IllegalArgumentException
 	{
-		if (conditions.length == 0)
-			return null;
-		else if (conditions.length == 1)
-			return conditions[0];
+		return combineConditions(operator, ImmutableList.of(conditions));
+	}
+	
+	/**
+	 * Combines a bunch of conditions together
+	 * @param operator The operator that separates the conditions
+	 * @param conditions The conditions that are combined (0 or more)
+	 * @return Null if no conditions were provided, a single condition if only one 
+	 * condition was provided, a combined condition if multiple conditions were provided
+	 * @throws IllegalArgumentException If XOR was used with more than 2 conditions
+	 */
+	public static Option<Condition> combineConditions(CombinationOperator operator, 
+			ImmutableList<? extends Condition> conditions) throws IllegalArgumentException
+	{
+		if (conditions.isEmpty())
+			return Option.none();
+		else if (conditions.size() == 1)
+			return Option.some(conditions.head());
 		else
-			return new CombinedCondition(operator, conditions);
+			return Option.some(new CombinedCondition(operator, conditions));
 	}
 	
 	/**
@@ -137,19 +151,9 @@ public class CombinedCondition extends Condition
 	}
 	
 	@Override
-	public Value[] getValues()
+	public ImmutableList<Value> getValues()
 	{
-		// Collects the values from each condition
-		List<Value> values = new ArrayList<>();
-		for (Condition condition : this.conditions)
-		{
-			 for (Value value : condition.getValues())
-			 {
-				 values.add(value);
-			 }
-		}
-		
-		return values.toArray(new Value[0]);
+		return this.conditions.flatMap(condition -> condition.getValues());
 	}
 	
 	/*

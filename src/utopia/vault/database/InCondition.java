@@ -3,6 +3,7 @@ package utopia.vault.database;
 import java.util.List;
 
 import utopia.flow.generics.Value;
+import utopia.flow.structure.ImmutableList;
 import utopia.vault.generics.Column;
 
 /**
@@ -44,6 +45,17 @@ public class InCondition extends SingleCondition
 	
 	/**
 	 * Creates a new condition
+	 * @param column The checked column
+	 * @param inValues The accepted values
+	 */
+	public InCondition(Column column, ImmutableList<Value> inValues)
+	{
+		super(inValues);
+		initialise(column, inValues.size());
+	}
+	
+	/**
+	 * Creates a new condition
 	 * @param value The searched value
 	 * @param inColumns The columns the value is searched from
 	 */
@@ -62,6 +74,17 @@ public class InCondition extends SingleCondition
 	{
 		super(value);
 		initialise(inColumns.toArray(new Column[0]));
+	}
+	
+	/**
+	 * Creates a new condition
+	 * @param value The searched value
+	 * @param inColumns The columns the value is searched from
+	 */
+	public InCondition(Value value, ImmutableList<Column> inColumns)
+	{
+		super(value);
+		initialise(inColumns.toMutableList().toArray(new Column[0]));
 	}
 	
 	

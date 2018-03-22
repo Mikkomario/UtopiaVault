@@ -1,9 +1,6 @@
 package utopia.vault.generics;
 
-import java.util.ArrayList;
 import java.util.Collection;
-import java.util.List;
-import java.util.Set;
 
 import utopia.flow.generics.BasicVariableParser;
 import utopia.flow.generics.DeclarationVariableParser;
@@ -13,7 +10,9 @@ import utopia.vault.generics.Table.NoSuchColumnException;
 import utopia.flow.generics.ModelDeclaration;
 import utopia.flow.generics.Value;
 import utopia.flow.generics.Variable;
-import utopia.flow.generics.VariableDeclaration;
+import utopia.flow.structure.ImmutableList;
+import utopia.flow.structure.ImmutableMap;
+import utopia.flow.util.Option;
 
 /**
  * A combined model may contain both "normal" and database specific variables
@@ -45,10 +44,30 @@ public class CombinedModel
 	 * @param table The table the model uses
 	 * @param databaseVariables The database-specific model attributes (optional)
 	 * @param otherVariables The general model attributes (optional)
+	 * @deprecated Please use immutableList instead of collection classes
 	 */
 	public CombinedModel(Table table, 
 			Collection<? extends ColumnVariable> databaseVariables, 
 			Collection<? extends Variable> otherVariables)
+	{
+		if (otherVariables == null)
+			this.baseModel = Model.createBasicModel();
+		else
+			this.baseModel = new Model<>(new BasicVariableParser(), otherVariables);
+		
+		if (databaseVariables == null)
+			this.dbModel = new TableModel(table);
+		else
+			this.dbModel = new TableModel(table, databaseVariables);
+	}
+	
+	/**
+	 * Creates a new model with existing attributes
+	 * @param table The table the model uses
+	 * @param databaseVariables The database-specific model attributes (optional)
+	 * @param otherVariables The general model attributes (optional)
+	 */
+	public CombinedModel(Table table, ImmutableList<ColumnVariable> databaseVariables, ImmutableList<Variable> otherVariables)
 	{
 		if (otherVariables == null)
 			this.baseModel = Model.createBasicModel();
@@ -66,6 +85,10 @@ public class CombinedModel
 	@Override
 	public String toString()
 	{
+		return ImmutableMap.withValue("Database attributes", this.dbModel.getValuesMap(false)).plus(
+				"Other attributes", this.baseModel.getValuesMap(false)).toString();
+		
+		/*
 		StringBuilder s = new StringBuilder();
 		s.append("Model (");
 		s.append(getTable());
@@ -85,6 +108,7 @@ public class CombinedModel
 		}
 		
 		return s.toString();
+		*/
 	}
 	
 	
@@ -124,7 +148,7 @@ public class CombinedModel
 	/**
 	 * @return The model attributes which aren't database attributes
 	 */
-	public Set<Variable> getGeneralAttributes()
+	public ImmutableList<Variable> getGeneralAttributes()
 	{
 		return this.baseModel.getAttributes();
 	}
@@ -132,7 +156,7 @@ public class CombinedModel
 	/**
 	 * @return The model's database attributes
 	 */
-	public Set<ColumnVariable> getDatabaseAttributes()
+	public ImmutableList<ColumnVariable> getDatabaseAttributes()
 	{
 		return this.dbModel.getAttributes();
 	}
@@ -140,11 +164,56 @@ public class CombinedModel
 	/**
 	 * @return Both the models database attributes and the other attributes
 	 */
-	public Set<Variable> getAttributes()
+	public ImmutableList<Variable> getAttributes()
 	{
-		Set<Variable> attributes = getGeneralAttributes();
-		attributes.addAll(getDatabaseAttributes());
-		return attributes;
+		return getGeneralAttributes().plus(getDatabaseAttributes());
+	}
+	
+	/**
+	 * Finds an attribute value, if one exists
+	 * @param attributeName The name of the attribute
+	 * @return The value for the attribute or None if no such attribute exists
+	 */
+	public Option<Value> find(String attributeName)
+	{
+		Option<Value> dbValue = this.dbModel.find(attributeName);
+		if (dbValue.isDefined())
+			return dbValue;
+		else
+			return this.baseModel.find(attributeName);
+	}
+	
+	/**
+	 * Finds an attribute, if one exists
+	 * @param attributeName The name of the attribute
+	 * @return The attribute or None if no such attribute exists
+	 */
+	public Option<? extends Variable> findAttribute(String attributeName)
+	{
+		Option<ColumnVariable> dbAtt = this.dbModel.findAttribute(attributeName);
+		if (dbAtt.isDefined())
+			return dbAtt;
+		else
+			return this.baseModel.findAttribute(attributeName);
+	}
+	
+	/**
+	 * Gets the attribute value or an empty value
+	 * @param attributeName The name of the attribute
+	 * @return The value for the attribute or an empty value
+	 */
+	public Value get(String attributeName)
+	{
+		return find(attributeName).getOrElse(Value.EMPTY);
+	}
+	
+	/**
+	 * @param attributeName The name of the attribute
+	 * @return A database-related value for the attribute or an empty value if no such attribute exists
+	 */
+	public Value getDatabaseValue(String attributeName)
+	{
+		return this.dbModel.get(attributeName);
 	}
 	
 	/**
@@ -178,11 +247,11 @@ public class CombinedModel
 	 */
 	public Variable getAttribute(String attributeName) throws NoSuchColumnException
 	{
-		Variable var = this.baseModel.findAttribute(attributeName);
-		if (var == null)
+		Option<Variable> var = this.baseModel.findAttribute(attributeName);
+		if (var.isEmpty())
 			return getDatabaseAttribute(attributeName);
 		else
-			return var;
+			return var.get();
 	}
 	
 	/**
@@ -238,12 +307,55 @@ public class CombinedModel
 	}
 	
 	/**
+	 * @return The model's index attribute's value or none if no such attribute exists
+	 */
+	public Option<Value> getIndexOption()
+	{
+		return this.dbModel.getIndexOption();
+	}
+	
+	/**
 	 * Changes the value of the model's index attribute
 	 * @param index The new index for the model
 	 */
 	public void setIndex(Value index)
 	{
 		this.dbModel.setIndex(index);
+	}
+	
+	/**
+	 * Changes an attribute value of the model. The targeted value may be a database attribute 
+	 * or a general attribute
+	 * @param attName The name of the attribute
+	 * @param value The new value assigned to the attribute
+	 * @throws NoSuchAttributeException If the table doesn't contain the attribute and it 
+	 * couldn't be generated either
+	 */
+	public void set(String attName, Value value)
+	{
+		setAttributeValue(attName, value);
+	}
+	
+	/**
+	 * Changes an attribute value of the model. The targeted value may be a database attribute 
+	 * or a general attribute
+	 * @param attName The name of the attribute
+	 * @param value The new value assigned to the attribute
+	 * @throws NoSuchAttributeException If the table doesn't contain the attribute and it 
+	 * couldn't be generated either
+	 */
+	public void set(String attName, Option<Value> value)
+	{
+		Option<Variable> var = this.baseModel.findAttribute(attName);
+		if (var.isEmpty())
+		{
+			if (getTable().containsColumnForVariable(attName))
+				this.dbModel.set(attName, value);
+			else
+				this.baseModel.set(attName, value);
+		}
+		else
+			var.get().setValue(value.getOrElse(() -> Value.NullValue(var.get().getType())));
 	}
 	
 	/**
@@ -256,8 +368,8 @@ public class CombinedModel
 	 */
 	public void setAttributeValue(String attributeName, Value value) throws NoSuchAttributeException
 	{
-		Variable var = this.baseModel.findAttribute(attributeName);
-		if (var == null)
+		Option<Variable> var = this.baseModel.findAttribute(attributeName);
+		if (var.isEmpty())
 		{
 			if (getTable().containsColumnForVariable(attributeName))
 				this.dbModel.setAttributeValue(attributeName, value);
@@ -265,7 +377,7 @@ public class CombinedModel
 				this.baseModel.setAttributeValue(attributeName, value);
 		}
 		else
-			var.setValue(value);
+			var.get().setValue(value);
 	}
 	
 	/**
@@ -289,17 +401,21 @@ public class CombinedModel
 	}
 	
 	/**
+	 * This metod adds multiple new general attributes to the model. If the model already 
+	 * contains some of the attributes, the previous attributes get overwritten
+	 * @param attributes The attributes that are added to the model
+	 */
+	public void addGeneralAttributes(ImmutableList<? extends Variable> attributes)
+	{
+		this.baseModel.addAttributes(attributes, true);
+	}
+	
+	/**
 	 * @return A model declaration of this model. The declaration contains declarations for 
 	 * all attributes used by this model.
 	 */
 	public ModelDeclaration getModelDeclaration()
 	{
-		List<VariableDeclaration> declarations = new ArrayList<>();
-		for (Variable var : getAttributes())
-		{
-			declarations.add(var.getDeclaration());
-		}
-		
-		return new ModelDeclaration(declarations);
+		return this.baseModel.getDeclaration().plus(this.dbModel.getDeclaration());
 	}
 }

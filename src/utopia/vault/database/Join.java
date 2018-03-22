@@ -1,6 +1,7 @@
 package utopia.vault.database;
 
 import utopia.flow.generics.Value;
+import utopia.flow.structure.ImmutableList;
 import utopia.vault.database.CombinedCondition.CombinationOperator;
 import utopia.vault.generics.Column;
 import utopia.vault.generics.NoSuchReferenceException;
@@ -122,10 +123,10 @@ public class Join implements PreparedSQLClause
 	 * @return A collection of joins
 	 * @throws NoSuchReferenceException If there wasn't a reference between some two tables
 	 */
-	public static Join[] createReferenceJoins(Table... tables) throws NoSuchReferenceException
+	public static ImmutableList<Join> createReferenceJoins(Table... tables) throws NoSuchReferenceException
 	{
 		if (tables.length < 2)
-			return new Join[0];
+			return ImmutableList.empty();
 		else
 		{
 			Join[] joins = new Join[tables.length - 1];
@@ -134,7 +135,7 @@ public class Join implements PreparedSQLClause
 				joins[i] = new Join(tables[i], tables[i + 1]);
 			}
 			
-			return joins;
+			return ImmutableList.of(joins);
 		}
 	}
 	
@@ -142,7 +143,7 @@ public class Join implements PreparedSQLClause
 	// IMPLEMENTED METHODS	------------
 	
 	@Override
-	public Value[] getValues()
+	public ImmutableList<Value> getValues()
 	{
 		return this.condition.getValues();
 	}
@@ -200,31 +201,26 @@ public class Join implements PreparedSQLClause
 	private static Condition getReferenceCondition(Table from, Table to) throws NoSuchReferenceException
 	{
 		// Finds possible references from the first table to the joined table
-		TableReference[] references = from.getReferencesToTable(to);
+		ImmutableList<TableReference> references = from.getReferencesToTable(to);
 		
 		// If there weren't any references, tries the other way instead
-		if (references.length == 0)
+		if (references.isEmpty())
 			references = to.getReferencesToTable(from);
 		
 		// If there aren't any references, fails
-		if (references.length == 0)
+		if (references.isEmpty())
 			throw new NoSuchReferenceException(from, to);
 		
 		// In case there is a single reference only, the columns are compared
-		if (references.length == 1)
-			return new ComparisonCondition(references[0].getReferencingColumn(), 
-					references[0].getReferencedColumn());
+		if (references.size() == 1)
+			return new ComparisonCondition(references.head().getReferencingColumn(), 
+					references.head().getReferencedColumn());
 		// Otherwise each reference is joined
 		else
 		{
-			Condition[] conditions = new Condition[references.length];
-			for (int i = 0; i < references.length; i++)
-			{
-				conditions[i] = new ComparisonCondition(references[i].getReferencingColumn(), 
-						references[i].getReferencedColumn());
-			}
-			
-			return CombinedCondition.combineConditions(CombinationOperator.OR, conditions);
+			ImmutableList<Condition> conditions = references.map(ref -> 
+					new ComparisonCondition(ref.getReferencingColumn(), ref.getReferencedColumn()));
+			return CombinedCondition.combineConditions(CombinationOperator.OR, conditions).get();
 		}
 	}
 	

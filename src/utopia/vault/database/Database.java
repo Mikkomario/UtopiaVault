@@ -8,14 +8,14 @@ import java.sql.ResultSetMetaData;
 import java.sql.SQLException;
 import java.sql.Statement;
 import java.util.ArrayList;
-import java.util.Collection;
 import java.util.List;
 
 import utopia.flow.generics.DataType;
 import utopia.flow.generics.DataTypeException;
 import utopia.flow.generics.SubTypeSet;
 import utopia.flow.generics.Value;
-import utopia.vault.database.DatabaseSettings.UninitializedSettingsException;
+import utopia.flow.structure.ImmutableList;
+import utopia.flow.util.Option;
 import utopia.vault.generics.Column;
 import utopia.vault.generics.ColumnVariable;
 import utopia.vault.generics.SqlDataType;
@@ -28,7 +28,7 @@ import utopia.vault.generics.Table.NoSuchColumnException;
  * @author Mikko Hilpinen
  * @since 17.1.2016
  */
-public class Database
+public class Database implements AutoCloseable
 {
 	// ATTRIBUTES	-----------------
 	
@@ -66,6 +66,15 @@ public class Database
 	public Database()
 	{
 		this.name = null;
+	}
+	
+	
+	// IMPLEMENTED METHODS	---------
+	
+	@Override
+	public void close()
+	{
+		closeConnection();
 	}
 	
 	
@@ -125,12 +134,13 @@ public class Database
 			if (this.connection != null && !this.connection.isClosed())
 				return;
 			
-			String driver = DatabaseSettings.getDriver();
-			if (driver != null)
+			Option<String> driver = DatabaseSettings.getDriver();
+			if (driver.isDefined())
 			{
 				try
 				{
-					Class.forName(driver).newInstance();
+					// Was previously Class.forName(...).newInstance();
+					Class.forName(driver.get()).getDeclaredConstructor().newInstance();
 				}
 				catch (Exception e)
 				{
@@ -139,9 +149,9 @@ public class Database
 			}
 			this.connection = DriverManager.getConnection(
 					DatabaseSettings.getConnectionTarget() + getName(), 
-					DatabaseSettings.getUser(), DatabaseSettings.getPassword());
+					DatabaseSettings.getUser(), DatabaseSettings.getPassword().getValue());
 		}
-		catch (SQLException | UninitializedSettingsException e)
+		catch (SQLException e)
 		{
 			throw new DatabaseUnavailableException(e);
 		}
@@ -319,13 +329,11 @@ public class Database
 	/**
 	 * Performs a select query, selecting certain column value(s) from certain row(s) in certain 
 	 * table(s)
-	 * @param select The column values that are selected from each row. Null if the whole row 
-	 * should be selected. Use an empty list if no variables should be selected.
+	 * @param select The selected columns
 	 * @param from The table the selection is made on
 	 * @param joins The joins that are inserted to the query (optional)
-	 * @param where The condition that specifies which rows are selected. Null if each row 
-	 * should be selected.
-	 * @param limit The limit on how many rows should be selected at maximum. < 0 if no limit 
+	 * @param where The condition that specifies which rows are selected. None if all rows should be selected.
+	 * @param limit The limit on how many rows should be selected at maximum. None if no limit 
 	 * should be set
 	 * @param orderBy The method the returned rows are sorted with (optional)
 	 * @param connection A database connection that should be used in the query. Null if a 
@@ -336,33 +344,31 @@ public class Database
 	 * @throws DatabaseException If the query failed
 	 */
 	@SuppressWarnings("resource")
-	public static List<List<ColumnVariable>> select(Collection<? extends Column> select, 
-			Table from, Join[] joins, Condition where, int limit, 
-			OrderBy orderBy, Database connection) throws DatabaseUnavailableException, DatabaseException
+	public static ImmutableList<ImmutableList<ColumnVariable>> select(Selection select, 
+			Table from, ImmutableList<Join> joins, Option<Condition> where, Option<Integer> limit, 
+			Option<OrderBy> orderBy, Database connection) throws DatabaseUnavailableException, DatabaseException
 	{
-		List<List<ColumnVariable>> rows = new ArrayList<>();
-		
 		StringBuilder sql = new StringBuilder();
 		appendSelect(sql, select);
 		sql.append(" FROM ");
 		sql.append(from.getName());
 		if (joins != null)
 			appendJoin(sql, joins);
-		if (where != null)
+		if (where != null && where.isDefined())
 		{
 			try
 			{
-				sql.append(where.toWhereClause());
+				sql.append(where.get().toWhereClause());
 			}
 			catch (StatementParseException e)
 			{
-				throw new DatabaseException(e, where);
+				throw new DatabaseException(e, where.get());
 			}
 		}
-		if (orderBy != null)
-			sql.append(orderBy.toSql());
-		if (limit >= 0)
-			sql.append(" LIMIT " + limit);
+		if (orderBy != null && orderBy.isDefined())
+			sql.append(orderBy.get().toSql());
+		if (limit != null)
+			limit.forEach(l -> sql.append(" LIMIT " + l));
 		
 		Database db = null;
 		PreparedStatement statement = null;
@@ -373,7 +379,7 @@ public class Database
 			
 			// Prepares the statement
 			statement = db.getPreparedStatement(sql.toString());
-			setStatementValues(statement, joins, where);
+			setStatementValues(statement, joins, where.toList());
 			
 			// Executes the query
 			results = statement.executeQuery();
@@ -383,28 +389,17 @@ public class Database
 			
 			// Determines which columns are read
 			// If it was select *, all rows from all tables are read
-			List<Column> readColumns = new ArrayList<>();
-			if (select == null)
-			{
-				readColumns.addAll(from.getColumns());
-				if (joins != null)
-				{
-					for (Join join : joins)
-					{
-						readColumns.addAll(join.getJoinedTable().getColumns());
-					}
-				}
-			}
-			// Otherwise only selected rows are read
-			else
-				readColumns.addAll(select);
+			ImmutableList<Column> readColumns = select == null || select.selectsAll() ? 
+					from.getColumns().plus(joins.flatMap(join -> join.getJoinedTable().getColumns())) : select.getColumns();
 			
 			// Matches the columns to the result indices. Also reads the data types
-			Column[] rowColumns = new Column[meta.getColumnCount()];
-			DataType[] columnTypes = new DataType[rowColumns.length];
-			for (int i = 0; i < rowColumns.length; i++)
+			int columnCount = meta.getColumnCount();
+			List<Option<Column>> rowColumnsBuffer = new ArrayList<>(columnCount);
+			List<Option<? extends DataType>> columnTypesBuffer = new ArrayList<>(columnCount);
+			for (int i = 0; i < columnCount; i++)
 			{
-				columnTypes[i] = SqlDataType.getDataType(meta.getColumnType(i + 1));
+				Option<? extends DataType> type = SqlDataType.getDataType(meta.getColumnType(i + 1));
+				Option<Column> matchingColumn = Option.none();
 				
 				// Finds the column matching the column name
 				String columnName = meta.getColumnName(i + 1);
@@ -418,28 +413,39 @@ public class Database
 						{
 							// Remembers the column and makes sure data type is defined
 							// If the matching column is not found, it won't be assigned
-							rowColumns[i] = column;
-							if (columnTypes[i] == null && column != null)
-								columnTypes[i] = column.getType();
+							matchingColumn = Option.some(column);
+							if (type.isEmpty())
+								type = Option.some(matchingColumn.get().getType());
 							break;
 						}
 					}
 				}
+				
+				rowColumnsBuffer.add(matchingColumn);
+				columnTypesBuffer.add(type);
 			}
 			
+			ImmutableList<Option<Column>> rowColumns = ImmutableList.of(rowColumnsBuffer);
+			ImmutableList<Option<? extends DataType>> columnTypes = ImmutableList.of(columnTypesBuffer);
+			
 			// Reads the data
+			List<ImmutableList<ColumnVariable>> rows = new ArrayList<>();
 			while (results.next())
 			{
 				// Assigns column values to each row
 				List<ColumnVariable> row = new ArrayList<>();
-				for (int i = 0; i < rowColumns.length; i++)
+				for (int i = 0; i < rowColumns.size(); i++)
 				{
-					if (rowColumns[i] != null)
-						row.add(rowColumns[i].assignValue(new Value(results.getObject(i + 1), 
-								columnTypes[i])));
+					Option<Column> column = rowColumns.get(i);
+					Option<? extends DataType> type = columnTypes.get(i);
+					
+					if (column.isDefined() && type.isDefined())
+						row.add(column.get().assignValue(new Value(results.getObject(i + 1), type.get())));
 				}
-				rows.add(row);
+				rows.add(ImmutableList.of(row));
 			}
+			
+			return ImmutableList.of(rows);
 		}
 		catch (SQLException | ValueInsertFailedException e)
 		{
@@ -451,33 +457,120 @@ public class Database
 			closeStatement(statement);
 			closeIfTemporary(db, connection);
 		}
-		
-		return rows;
 	}
 	
 	/**
 	 * Performs a select query, selecting certain column value(s) from certain row(s) in certain 
 	 * table(s)
-	 * @param select The column values that are selected from each row. Null if the whole row 
-	 * should be selected. Use an empty list if no variables should be selected.
+	 * @param select The selected columns
 	 * @param from The table the selection is made on
-	 * @param where The condition that specifies which rows are selected. Null if each row 
+	 * @param where The condition that specifies which rows are selected. None if each row 
 	 * should be selected.
-	 * @param limit The limit on how many rows should be selected at maximum. < 0 if no limit 
+	 * @param limit The limit on how many rows should be selected at maximum. None if no limit 
 	 * should be set
 	 * @param orderBy The method the returned rows are sorted with (optional)
-	 * @param connection A database connection that should be used in the query. Null if a 
+	 * @param connection A database connection that should be used in the query. None if a 
 	 * temporary connection should be used. Only temporary connections are closed in this method.
 	 * @return A list containing each selected row. Each row contains the selected column 
 	 * values.
 	 * @throws DatabaseUnavailableException If the database couldn't be accessed
 	 * @throws DatabaseException If the query failed
 	 */
-	public static List<List<ColumnVariable>> select(Collection<? extends Column> select, 
-			Table from, Condition where, int limit, OrderBy orderBy, Database connection) 
+	public static ImmutableList<ImmutableList<ColumnVariable>> select(Selection select, 
+			Table from, Option<Condition> where, Option<Integer> limit, Option<OrderBy> orderBy, Database connection) 
 			throws DatabaseUnavailableException, DatabaseException
 	{
-		return select(select, from, null, where, limit, orderBy, connection);
+		return select(select, from, ImmutableList.empty(), where, limit, orderBy, connection);
+	}
+	
+	/**
+	 * Performs a select query, selecting certain column value(s) from certain row(s) in a certain 
+	 * table
+	 * @param select The selected columns
+	 * @param from The table the selection is made on
+	 * @param where The condition that specifies which rows are selected.
+	 * @param connection A database connection that should be used in the query. None if a 
+	 * temporary connection should be used. Only temporary connections are closed in this method.
+	 * @return A list containing each selected row. Each row contains the selected column 
+	 * values.
+	 * @throws DatabaseUnavailableException If the database couldn't be accessed
+	 * @throws DatabaseException If the query failed
+	 */
+	public static ImmutableList<ImmutableList<ColumnVariable>> select(Selection select, Table from, Condition where, 
+			Database connection) throws DatabaseUnavailableException, DatabaseException
+	{
+		return select(select, from, ImmutableList.empty(), Option.some(where), Option.none(), Option.none(), connection);
+	}
+	
+	/**
+	 * Selects a single row
+	 * @param select The selected columns
+	 * @param from The table the selection is made on
+	 * @param where The condition that specifies the rows selected
+	 * @param order The order which determines the first row. None if default order (row id).
+	 * @param connection The database connection used
+	 * @return The first row accepted by the condition. None if no such row exists
+	 * @throws DatabaseException If query failed
+	 * @throws DatabaseUnavailableException If database couldn't be accessed
+	 */
+	public static Option<ImmutableList<ColumnVariable>> selectSingle(Selection select, Table from, Condition where, 
+			Option<OrderBy> order, Database connection) throws DatabaseException, DatabaseUnavailableException
+	{
+		return select(select, from, new Option<>(where), Option.some(1), order, connection).headOption();
+	}
+	
+	/**
+	 * Selects a single value from a single row
+	 * @param from The table the value is read from
+	 * @param varName The name of the variable which is read
+	 * @param where The condition used for finding the row
+	 * @param order The ordering used (optional)
+	 * @param connection The database connection used
+	 * @return The read value. Empty value if no such row existed.
+	 * @throws DatabaseException If query failed
+	 * @throws DatabaseUnavailableException If database couldn't be accessed
+	 */
+	public static Value selectSingleValue(Table from, String varName, Condition where, Option<OrderBy> order, 
+			Database connection) throws DatabaseException, DatabaseUnavailableException
+	{
+		return selectSingle(new Selection(from, varName), from, where, order, connection).map(row -> 
+				row.head().getValue()).getOrElse(() -> Value.NullValue(from.getColumnWithVariableName(varName).getType()));
+	}
+	
+	/**
+	 * Selects a single row based on row index
+	 * @param select The selected columns
+	 * @param from The table the selection is made on
+	 * @param index The index that is selected
+	 * @param connection The database connection used
+	 * @return A row matching the index or none if no such index exists
+	 * @throws DatabaseException Id query failed
+	 * @throws NoSuchColumnException If table has no index
+	 * @throws DatabaseUnavailableException If database couldn't be accessed
+	 */
+	public static Option<ImmutableList<ColumnVariable>> selectIndex(Selection select, Table from, Value index, 
+			Database connection) throws DatabaseException, NoSuchColumnException, DatabaseUnavailableException
+	{
+		return selectSingle(select, from, ComparisonCondition.createIndexEqualsCondition(from, index), Option.none(), 
+				connection);
+	}
+	
+	/**
+	 * Fills a new model with new data and returns the model
+	 * @param model An (empty) model
+	 * @param where A condition with which the model is found
+	 * @param connection A database connection used
+	 * @return The updated model or none if data couldn't be read
+	 * @throws DatabaseException If query failed
+	 * @throws DatabaseUnavailableException If database couldn't be accessed
+	 */
+	public static <T extends TableModel> Option<T> selectModel(T model, Condition where, Database connection) throws 
+			DatabaseException, DatabaseUnavailableException
+	{
+		if (readModelAttributes(model, where, connection))
+			return Option.some(model);
+		else
+			return Option.none();
 	}
 	
 	/**
@@ -495,13 +588,13 @@ public class Database
 			Database connection) throws DatabaseException, DatabaseUnavailableException
 	{
 		// The index value is used as a where condition
-		List<List<ColumnVariable>> result = select(null, model.getTable(), null, 
-				where, 1, null, connection);
+		ImmutableList<ImmutableList<ColumnVariable>> result = select(Selection.ALL, model.getTable(), 
+				ImmutableList.empty(), Option.some(where), Option.some(1), Option.none(), connection);
 		if (result.isEmpty())
 			return false;
 		else
 		{
-			model.addAttributes(result.get(0), true);
+			model.addAttributes(result.head(), true);
 			return true;
 		}
 	}
@@ -525,13 +618,13 @@ public class Database
 		
 		// The index value is used as a where condition
 		Condition where = new ComparisonCondition(model.getTable().getPrimaryColumn(), index);
-		List<List<ColumnVariable>> result = select(null, model.getTable(), null, 
-				where, 1, null, connection);
+		ImmutableList<ImmutableList<ColumnVariable>> result = select(Selection.ALL, model.getTable(), 
+				ImmutableList.empty(), Option.some(where), Option.some(1), Option.none(), connection);
 		if (result.isEmpty())
 			return false;
 		else
 		{
-			model.addAttributes(result.get(0), true);
+			model.addAttributes(result.head(), true);
 			return true;
 		}
 	}
@@ -661,7 +754,7 @@ public class Database
 	 * Deletes row(s) from a database table
 	 * @param from The table the row(s) are deleted from
 	 * @param joins The joins that are performed in the query (optional)
-	 * @param where The condition which determines, which rows are deleted
+	 * @param where The condition which determines, which rows are deleted. None if all rows should be deleted.
 	 * @param deleteFromJoined Should the joined rows be deleted as well
 	 * @param connection A database connection that should be used in the query. Null if a 
 	 * temporary connection should be used. Only temporary connections are closed in this method.
@@ -669,7 +762,7 @@ public class Database
 	 * @throws DatabaseException If the query failed / was misused
 	 */
 	@SuppressWarnings("resource")
-	public static void delete(Table from, Join[] joins, Condition where, 
+	public static void delete(Table from, ImmutableList<Join> joins, Option<Condition> where, 
 			boolean deleteFromJoined, Database connection) throws DatabaseUnavailableException, 
 			DatabaseException
 	{
@@ -691,15 +784,15 @@ public class Database
 		if (joins != null)
 			appendJoin(sql, joins);
 		
-		if (where != null)
+		if (where != null && where.isDefined())
 		{
 			try
 			{
-				sql.append(where.toWhereClause());
+				sql.append(where.get().toWhereClause());
 			}
 			catch (StatementParseException e)
 			{
-				throw new DatabaseException(e, where);
+				throw new DatabaseException(e, where.get());
 			}
 		}
 		
@@ -710,7 +803,7 @@ public class Database
 			db = openIfTemporary(from, connection);
 			// Prepares the statement
 			statement = db.getPreparedStatement(sql.toString());
-			setStatementValues(statement, joins, where);
+			setStatementValues(statement, joins, where.toList());
 			
 			// Executes
 			statement.executeUpdate();
@@ -729,32 +822,32 @@ public class Database
 	/**
 	 * Deletes row(s) from a database table
 	 * @param from The table the row(s) are deleted from
-	 * @param where The condition which determines, which rows are deleted
+	 * @param where The condition which determines, which rows are deleted. None if all rows should be deleted
 	 * @param connection A database connection that should be used in the query. Null if a 
 	 * temporary connection should be used. Only temporary connections are closed in this method.
 	 * @throws DatabaseUnavailableException If the database couldn't be accessed
 	 * @throws DatabaseException If the query failed / was misused
 	 */
-	public static void delete(Table from, Condition where, Database connection) 
+	public static void delete(Table from, Option<Condition> where, Database connection) 
 			throws DatabaseUnavailableException, DatabaseException
 	{
-		delete(from, null, where, false, connection);
+		delete(from, ImmutableList.empty(), where, false, connection);
 	}
 	
 	/**
 	 * Updates certain row(s) in the provided table
 	 * @param table The table that is updated
 	 * @param set The variable values that are set
-	 * @param where The condition which determines which rows are updated
+	 * @param where The condition which determines which rows are updated. None if all rows should be updated.
 	 * @param connection A database connection that should be used in the query. Null if a 
 	 * temporary connection should be used. Only temporary connections are closed in this method.
 	 * @throws DatabaseException If the operation failed
 	 * @throws DatabaseUnavailableException If the database couldn't be accessed
 	 */
-	public static void update(Table table, ValueAssignment set, Condition where, 
+	public static void update(Table table, ValueAssignment set, Option<Condition> where, 
 			Database connection) throws DatabaseException, DatabaseUnavailableException
 	{
-		update(table, null, set, where, connection);
+		update(table, ImmutableList.empty(), set, where, connection);
 	}
 	
 	/**
@@ -763,19 +856,18 @@ public class Database
 	 * @param joins The joins used in this query
 	 * @param set The variable values that are set (non-table variables and  
 	 * indices are automatically filtered)
-	 * @param where The condition which determines which rows are updated
+	 * @param where The condition which determines which rows are updated. None if all rows should be updated
 	 * @param connection A database connection that should be used in the query. Null if a 
 	 * temporary connection should be used. Only temporary connections are closed in this method.
 	 * @throws DatabaseException If the operation failed
 	 * @throws DatabaseUnavailableException If the database couldn't be accessed
 	 */
 	@SuppressWarnings("resource")
-	public static void update(Table table, Join[] joins, ValueAssignment set, 
-			Condition where, Database connection) throws DatabaseException, DatabaseUnavailableException
+	public static void update(Table table, ImmutableList<Join> joins, ValueAssignment set, 
+			Option<Condition> where, Database connection) throws DatabaseException, DatabaseUnavailableException
 	{
 		// Only updates attributes that belong to the target table(s) and are not primary 
 		// keys / auto-increment keys
-		// TODO: Add filter for primary keys as well?
 		ValueAssignment actualSet = set.filterToTables(table, joins, true);
 		
 		if (actualSet.isEmpty())
@@ -789,15 +881,15 @@ public class Database
 			appendJoin(sql, joins);
 		sql.append(actualSet.toSetClause());
 		
-		if (where != null)
+		if (where != null && where.isDefined())
 		{
 			try
 			{
-				sql.append(where.toWhereClause());
+				sql.append(where.get().toWhereClause());
 			}
 			catch (StatementParseException e)
 			{
-				throw new DatabaseException(e, where);
+				throw new DatabaseException(e, where.get());
 			}
 		}
 		
@@ -810,7 +902,7 @@ public class Database
 			statement = db.getPreparedStatement(sql.toString());
 			
 			// Prepares the values
-			setStatementValues(statement, joins, actualSet, where);
+			setStatementValues(statement, ImmutableList.flatten(joins, ImmutableList.withValue(actualSet), where.toList()));
 			
 			// Executes the update
 			statement.executeUpdate();
@@ -830,14 +922,14 @@ public class Database
 	 * Updates a models data into the database
 	 * @param model The model who's attributes are written into the database
 	 * @param joins The joins used in this query
-	 * @param where The condition with which the updated rows are selected
+	 * @param where The condition with which the updated rows are selected. None if all rows should be updated
 	 * @param skipNullUpdates Should null value attributes be skipped
 	 * @param connection A database connection that should be used in the query. Null if a 
 	 * temporary connection should be used. Only temporary connections are closed in this method.
 	 * @throws DatabaseException If the process failed
 	 * @throws DatabaseUnavailableException If the database couldn't be accessed
 	 */
-	public static void update(TableModel model, Join[] joins, Condition where, 
+	public static void update(TableModel model, ImmutableList<Join> joins, Option<Condition> where, 
 			boolean skipNullUpdates, Database connection) throws 
 			DatabaseException, DatabaseUnavailableException
 	{
@@ -848,18 +940,17 @@ public class Database
 	/**
 	 * Updates a models data into the database
 	 * @param model The model who's attributes are written into the database
-	 * @param where The condition with which the updated rows are selected
+	 * @param where The condition with which the updated rows are selected. None if all rows should be updated
 	 * @param skipNullUpdates Should null value attributes be skipped
 	 * @param connection A database connection that should be used in the query. Null if a 
 	 * temporary connection should be used. Only temporary connections are closed in this method.
 	 * @throws DatabaseException If the process failed
 	 * @throws DatabaseUnavailableException If the database couldn't be accessed
 	 */
-	public static void update(TableModel model, Condition where, boolean skipNullUpdates, 
-			Database connection) throws 
-			DatabaseException, DatabaseUnavailableException
+	public static void update(TableModel model, Option<Condition> where, boolean skipNullUpdates, 
+			Database connection) throws DatabaseException, DatabaseUnavailableException
 	{
-		update(model, null, where, skipNullUpdates, connection);
+		update(model, ImmutableList.empty(), where, skipNullUpdates, connection);
 	}
 	
 	/**
@@ -877,7 +968,7 @@ public class Database
 			Database connection) throws DatabaseException, NoSuchColumnException, 
 			DatabaseUnavailableException
 	{
-		update(model, new ComparisonCondition(model.getTable().getPrimaryColumn(), index), 
+		update(model, Option.some(new ComparisonCondition(model.getTable().getPrimaryColumn(), index)), 
 				skipNullUpdates, connection);
 	}
 	
@@ -895,25 +986,24 @@ public class Database
 	public static void update(TableModel model, boolean skipNullUpdates, Database connection) 
 			throws DatabaseException, DatabaseUnavailableException, NoSuchColumnException
 	{
-		update(model, ComparisonCondition.createIndexEqualsCondition(model), 
-				skipNullUpdates, connection);
+		update(model, Option.some(ComparisonCondition.createIndexEqualsCondition(model)), skipNullUpdates, connection);
 	}
 	
 	/**
 	 * Checks whether a row can be found from the database
 	 * @param table The table that is searched
-	 * @param where The condition that is used for finding the row(s)
+	 * @param where The condition that is used for finding the row(s). None if there should be no filter.
 	 * @param connection The database connection used (optional, temporary connection will be used 
 	 * if null)
 	 * @return Are there any rows that match the provided condition
 	 * @throws DatabaseException If the query failed
 	 * @throws DatabaseUnavailableException If the database couldn't be accessed
 	 */
-	public static boolean rowExists(Table table, Condition where, Database connection) throws 
+	public static boolean rowExists(Table table, Option<Condition> where, Database connection) throws 
 			DatabaseException, DatabaseUnavailableException
 	{
-		List<List<ColumnVariable>> results = select(new ArrayList<>(), table, null, 
-				where, 1, null, connection);
+		ImmutableList<ImmutableList<ColumnVariable>> results = select(Selection.NONE, table, ImmutableList.empty(), 
+				where, Option.some(1), Option.none(), connection);
 		
 		return !results.isEmpty();
 	}
@@ -932,7 +1022,7 @@ public class Database
 	public static boolean indexExists(Table table, Value index, Database connection) throws 
 			DatabaseException, NoSuchColumnException, DatabaseUnavailableException
 	{
-		return rowExists(table, ComparisonCondition.createIndexEqualsCondition(table, index), 
+		return rowExists(table, Option.some(ComparisonCondition.createIndexEqualsCondition(table, index)), 
 				connection);
 	}
 	
@@ -985,30 +1075,27 @@ public class Database
 			usedConnection.closeConnection();
 	}
 	
-	private static void appendSelect(StringBuilder sql, Collection<? extends Column> selection)
+	private static void appendSelect(StringBuilder sql, Selection selection)
 	{
 		sql.append("SELECT ");
-		if (selection == null)
+		if (selection == null || selection.selectsAll())
 			sql.append("*");
 		else if (selection.isEmpty())
 			sql.append("NULL");
 		else
-			appendColumnNames(sql, selection);
+			appendColumnNames(sql, selection.getColumns());
 	}
 	
-	private static void appendColumnNames(StringBuilder sql, Collection<? extends Column> columns)
+	private static void appendColumnNames(StringBuilder sql, ImmutableList<? extends Column> columns)
 	{
-		boolean first = true;
-		for (Column column : columns)
+		if (!columns.isEmpty())
 		{
-			if (!first)
-				sql.append(", ");
-			sql.append(column.getColumnNameWithTable());
-			first = false;
+			sql.append(columns.head().getColumnNameWithTable());
+			columns.tail().forEach(c -> sql.append(", " + c.getColumnNameWithTable()));
 		}
 	}
 	
-	private static void appendJoin(StringBuilder sql, Join[] joins) throws DatabaseException
+	private static void appendJoin(StringBuilder sql, Iterable<Join> joins) throws DatabaseException
 	{
 		for (Join join : joins)
 		{
@@ -1023,28 +1110,19 @@ public class Database
 		}
 	}
 	
-	private static void setStatementValues(PreparedStatement statement, Join[] joins, 
-			PreparedSQLClause... otherClauses) throws ValueInsertFailedException
+	private static void setStatementValues(PreparedStatement statement, ImmutableList<Join> joins, 
+			ImmutableList<? extends PreparedSQLClause> otherClauses) throws ValueInsertFailedException
 	{
-		if (joins == null || joins.length == 0)
+		if (joins == null || joins.isEmpty())
 			setStatementValues(statement, otherClauses);
 		else
-		{
-			PreparedSQLClause[] clauses = new PreparedSQLClause[joins.length + otherClauses.length];
-			int i = 0;
-			for (Join join : joins)
-			{
-				clauses[i] = join;
-				i++;
-			}
-			for (PreparedSQLClause clause : otherClauses)
-			{
-				clauses[i] = clause;
-				i++;
-			}
-			
-			setStatementValues(statement, clauses);
-		}
+			setStatementValues(statement, ImmutableList.flatten(joins, otherClauses));
+	}
+	
+	private static void setStatementValues(PreparedStatement statement, PreparedSQLClause... clauses) 
+			throws ValueInsertFailedException
+	{
+		setStatementValues(statement, ImmutableList.of(clauses));
 	}
 	
 	/**
@@ -1056,85 +1134,76 @@ public class Database
 	 * data types
 	 * @throws ValueInsertFailedException If insertion of a value failed
 	 */
-	private static void setStatementValues(PreparedStatement statement, PreparedSQLClause... clauses) 
+	private static void setStatementValues(PreparedStatement statement, ImmutableList<? extends PreparedSQLClause> clauses) 
 			throws ValueInsertFailedException
 	{
+		// some clauses may be null (for example, no specified where condition, in which 
+		// case they are skipped
+		ImmutableList<? extends PreparedSQLClause> nonNullClauses = clauses.filter(c -> c != null);
+		
 		// May skip the whole process if no clauses have been specified
-		boolean clausesFound = false;
-		for (Object clause : clauses)
+		if (nonNullClauses.isEmpty())
+			return;
+		
+		// Collects required information
+		SubTypeSet sqlTypes = SqlDataType.getSqlTypes();
+		
+		// Performs the value insert
+		int index = 1;
+		for (PreparedSQLClause clause : nonNullClauses)
 		{
-			if (clause != null)
+			for (Value value : clause.getValues())
 			{
-				clausesFound = true;
-				break;
-			}
-		}
-		if (clausesFound)
-		{
-			// Collects required information
-			SubTypeSet sqlTypes = SqlDataType.getSqlTypes();
-			
-			// Performs the value insert
-			int index = 1;
-			for (PreparedSQLClause clause : clauses)
-			{
-				// some clauses may be null (for example, no specified where condition, in which 
-				// case they are skipped
-				if (clause != null)
+				// Casts each inserted value to a compatible data type
+				try
 				{
-					for (Value value : clause.getValues())
+					Value castValue = value.castTo(sqlTypes);
+					SqlDataType type = SqlDataType.castToSqlDataType(castValue.getType()).getOrFail(
+							() -> new ValueInsertFailedException("No SQL counterpart for type: " + castValue.getType()));
+					
+					statement.setObject(index, castValue.getObjectValue(), type.getSqlType());
+					index ++;
+				}
+				catch (DataTypeException e)
+				{
+					// Creates an exception if the value casting failed
+					StringBuilder s = new StringBuilder();
+					s.append("Value ");
+					s.append(value.getDescription());
+					s.append(" of clause ");
+					try
 					{
-						// Casts each inserted value to a compatible data type
-						try
-						{
-							Value castValue = value.castTo(sqlTypes);
-							SqlDataType type = SqlDataType.castToSqlDataType(castValue.getType());
-							
-							statement.setObject(index, castValue.getObjectValue(), type.getSqlType());
-							index ++;
-						}
-						catch (DataTypeException e)
-						{
-							// Creates an exception if the value casting failed
-							StringBuilder s = new StringBuilder();
-							s.append("Value ");
-							s.append(value.getDescription());
-							s.append(" of clause ");
-							try
-							{
-								s.append(clause.toSql());
-							}
-							catch (StatementParseException e1)
-							{
-								s.append("-- PARSING FAILED --");
-							}
-							s.append(" can't be cast to sql data type");
-							
-							throw new ValueInsertFailedException(s.toString(), e);
-						}
-						catch (SQLException e)
-						{
-							StringBuilder s = new StringBuilder();
-							s.append("Failed to assign value ");
-							s.append(value.getDescription());
-							s.append("to clause ");
-							s.append(clause.toString());
-							s.append(" at index ");
-							s.append(index);
-							
-							int valueAmount = 0;
-							for (PreparedSQLClause sqlClause : clauses)
-							{
-								valueAmount += sqlClause.getValues().length;
-							}
-							
-							s.append(". There are ");
-							s.append(valueAmount);
-							s.append(" values to set in total.");
-							
-							throw new ValueInsertFailedException(s.toString(), e);
-						}
+						s.append(clause.toSql());
 					}
+					catch (StatementParseException e1)
+					{
+						s.append("-- PARSING FAILED --");
+					}
+					s.append(" can't be cast to sql data type");
+					
+					throw new ValueInsertFailedException(s.toString(), e);
+				}
+				catch (SQLException e)
+				{
+					StringBuilder s = new StringBuilder();
+					s.append("Failed to assign value ");
+					s.append(value.getDescription());
+					s.append("to clause ");
+					s.append(clause.toString());
+					s.append(" at index ");
+					s.append(index);
+					
+					int valueAmount = 0;
+					for (PreparedSQLClause sqlClause : clauses)
+					{
+						valueAmount += sqlClause.getValues().size();
+					}
+					
+					s.append(". There are ");
+					s.append(valueAmount);
+					s.append(" values to set in total.");
+					
+					throw new ValueInsertFailedException(s.toString(), e);
 				}
 			}
 		}
@@ -1146,6 +1215,11 @@ public class Database
 	{
 		private static final long serialVersionUID = -5237257223474389560L;
 
+		public ValueInsertFailedException(String message)
+		{
+			super(message);
+		}
+		
 		public ValueInsertFailedException(String message, Throwable cause)
 		{
 			super(message, cause);

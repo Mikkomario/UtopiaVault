@@ -9,6 +9,7 @@ import utopia.flow.generics.DataType;
 import utopia.flow.generics.DataTypeTreeNode;
 import utopia.flow.generics.DataTypes;
 import utopia.flow.generics.Value;
+import utopia.flow.util.Option;
 
 /**
  * These are the data types used in the sql operations. Remember to initialise the data types 
@@ -194,36 +195,36 @@ public enum BasicSqlDataType implements SqlDataType
 	 * @return The data type represented by the string
 	 * @see Types
 	 */
-	public static SqlDataType parseSqlType(String s)
+	public static Option<SqlDataType> parseSqlType(String s)
 	{
 		String lower = s.toLowerCase();
 		
 		switch (lower)
 		{
 			case "string":
-			case "char":	return VARCHAR;
-			case "long":	return BIGINT;
-			case "integer": return INT;
-			case "boolean": return BOOLEAN;
+			case "char":	return Option.some(VARCHAR);
+			case "long":	return Option.some(BIGINT);
+			case "integer": return Option.some(INT);
+			case "boolean": return Option.some(BOOLEAN);
 			case "decimal":
-			case "double":	return DOUBLE;
-			case "float":	return FLOAT;
+			case "double":	return Option.some(DOUBLE);
+			case "float":	return Option.some(FLOAT);
 			case "timestamp":
-			case "datetime": return TIMESTAMP;
-			case "date": 	return DATE;
-			case "time":	return TIME;
+			case "datetime": return Option.some(TIMESTAMP);
+			case "date": 	return Option.some(DATE);
+			case "time":	return Option.some(TIME);
 		}
 		
 		if (lower.startsWith("bigint"))
-			return BIGINT;
+			return Option.some(BIGINT);
 		else if (lower.startsWith("tinyint"))
 		{
 			// tinyint(1) is considered a boolean, a larger tinyint will be considered an 
 			// integer
 			if (lower.equals("tinyint(1)"))
-				return BOOLEAN;
+				return Option.some(BOOLEAN);
 			else
-				return INT;
+				return Option.some(INT);
 		}
 		
 		String modified;
@@ -243,18 +244,18 @@ public enum BasicSqlDataType implements SqlDataType
 		switch (modified)
 		{
 			case "text": 
-			case "blob":	return VARCHAR;
+			case "blob":	return Option.some(VARCHAR);
 		}
 		
 		if (modified.startsWith("varchar"))
-			return VARCHAR;
+			return Option.some(VARCHAR);
 		else if (modified.startsWith("int"))
-			return INT;
+			return Option.some(INT);
 		
 		DataType anyType = DataTypes.parseType(s);
 		if (anyType instanceof SqlDataType)
-			return (SqlDataType) anyType;
+			return Option.some((SqlDataType) anyType);
 		else
-			return null;
+			return Option.none();
 	}
 }

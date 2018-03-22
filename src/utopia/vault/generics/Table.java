@@ -1,12 +1,10 @@
 package utopia.vault.generics;
 
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-
 import utopia.flow.generics.ModelDeclaration;
+import utopia.flow.structure.ImmutableList;
+import utopia.flow.structure.ImmutableMap;
+import utopia.flow.util.Lazy;
+import utopia.flow.util.Option;
 
 /**
  * A database table represents a table in a database and contains the necessary column 
@@ -21,19 +19,12 @@ public class Table
 	private String databaseName, name;
 	private VariableNameMapping nameMapping;
 	private ColumnInitialiser columnInitialiser;
-	private TableReferenceReader referenceReader;
+	private Option<TableReferenceReader> referenceReader;
 	
-	private List<Column> columns = null;
-	private Column primaryColumn = null;
-	private ModelDeclaration declaration = null;
-	private Map<Table, TableReference[]> references = new HashMap<>();
-	
-	// TODO: Add fuzzy logic for column search
-	// TODO: Add table references:
-	// http://stackoverflow.com/questions/201621/how-do-i-see-all-foreign-keys-to-a-table-or-column
-	// SELECT COLUMN_NAME, REFERENCED_COLUMN_NAME FROM INFORMATION_SCHEMA.KEY_COLUMN_USAGE WHERE 
-	// TABLE_SCHEMA = 'test_db' AND TABLE_NAME = 'users' AND REFERENCED_TABLE_SCHEMA = 'test_db' 
-	// AND REFERENCED_TABLE_NAME = 'roles';
+	private final Lazy<ImmutableList<Column>> columns = new Lazy<>(this::readColumns);
+	private final Lazy<Option<Column>> primaryColumn = new Lazy<>(() -> getColumns().find(column -> column.isPrimary()));
+	private final Lazy<ModelDeclaration> declaration = new Lazy<>(() -> new ModelDeclaration(ImmutableList.of(getColumns())));
+	private ImmutableMap<Table, ImmutableList<TableReference>> references = ImmutableMap.empty();
 	
 	
 	// CONSTRUCTOR	-------------
@@ -49,7 +40,7 @@ public class Table
 	 * necessary (Optional)
 	 */
 	public Table(String databaseName, String name, VariableNameMapping nameMapping, 
-			ColumnInitialiser columnInitialiser, TableReferenceReader referenceReader)
+			ColumnInitialiser columnInitialiser, Option<TableReferenceReader> referenceReader)
 	{
 		this.databaseName = databaseName;
 		this.name = name;
@@ -137,17 +128,10 @@ public class Table
 	 * @throws TableInitialisationException If the columns couldn't be initialised, 
 	 * for some reason
 	 */
-	public List<? extends Column> getColumns() throws TableInitialisationException
+	public ImmutableList<Column> getColumns() throws TableInitialisationException
 	{
 		// Reads the column data from the database when first requested
-		if (this.columns == null)
-		{
-			this.columns = new ArrayList<>(this.columnInitialiser.generateColumns(this));
-			// Also initialises the mappings
-			getNameMapping().addMappingForEachColumnWherePossible(this.columns);
-		}
-		
-		return this.columns;
+		return this.columns.get();
 	}
 	
 	/**
@@ -156,22 +140,9 @@ public class Table
 	 * @return A list of columns containing a column for each of the provided variable names 
 	 * that has a corresponding column in this table
 	 */
-	public List<Column> getVariableColumns(Collection<String> variableNames)
+	public ImmutableList<Column> getVariableColumns(ImmutableList<String> variableNames)
 	{
-		List<Column> columns = new ArrayList<>();
-		for (Column column : getColumns())
-		{
-			for (String variableName : variableNames)
-			{
-				if (variableName.equalsIgnoreCase(column.getName()))
-				{
-					columns.add(column);
-					break;
-				}
-			}
-		}
-		
-		return columns;
+		return variableNames.flatMap(name -> getColumns().find(column -> column.getName().equalsIgnoreCase(name)));
 	}
 	
 	/**
@@ -180,15 +151,9 @@ public class Table
 	 * @return A list of columns containing a column for each of the provided variable names 
 	 * that has a corresponding column in this table
 	 */
-	public List<Column> getVariableColumns(String... variableNames)
+	public ImmutableList<Column> getVariableColumns(String... variableNames)
 	{
-		List<String> varNames = new ArrayList<>();
-		for (String varName : variableNames)
-		{
-			varNames.add(varName);
-		}
-		
-		return getVariableColumns(varNames);
+		return getVariableColumns(ImmutableList.of(variableNames));
 	}
 	
 	/**
@@ -197,31 +162,19 @@ public class Table
 	 */
 	public Column getPrimaryColumn() throws NoSuchColumnException
 	{
-		Column primary = findPrimaryColumn();
-		if (primary == null)
+		Option<Column> primary = findPrimaryColumn();
+		if (primary.isEmpty())
 			throw new NoSuchColumnException("Table " + this + " doesn't have a primary column");
 		else
-			return primary;
+			return primary.get();
 	}
 	
 	/**
 	 * @return The primary column in this table. Null if there is no primary column
 	 */
-	public Column findPrimaryColumn()
+	public Option<Column> findPrimaryColumn()
 	{
-		if (this.primaryColumn == null)
-		{
-			for (Column column : getColumns())
-			{
-				if (column.isPrimary())
-				{
-					this.primaryColumn = column;
-					break;
-				}
-			}
-		}
-		
-		return this.primaryColumn;
+		return this.primaryColumn.get();
 	}
 	
 	/**
@@ -229,9 +182,7 @@ public class Table
 	 */
 	public ModelDeclaration toModelDeclaration()
 	{
-		if (this.declaration == null)
-			this.declaration = new ModelDeclaration(getColumns());
-		return this.declaration;
+		return this.declaration.get();
 	}
 	
 	
@@ -244,24 +195,21 @@ public class Table
 	 * @throws TableInitialisationException If the references couldn't be read / generated 
 	 * for some reason
 	 */
-	public TableReference[] getReferencesToTable(Table table) throws TableInitialisationException
+	public ImmutableList<TableReference> getReferencesToTable(Table table) throws TableInitialisationException
 	{
-		TableReference[] references = this.references.get(table);
+		Option<ImmutableList<TableReference>> references = this.references.getOption(table);
 		
 		// The reference data may be read if it wasn't already
-		if (references == null)
+		if (references.isEmpty())
 		{
-			TableReference[] readReferences;
-			if (this.referenceReader == null)
-				readReferences = new TableReference[0];
-			else
-				readReferences = this.referenceReader.getReferencesBetween(this, table);
+			ImmutableList<TableReference> newReferences = this.referenceReader.map(reader -> 
+					reader.getReferencesBetween(this, table)).getOrElse(ImmutableList.empty());
 			
-			this.references.put(table, readReferences);
-			return readReferences;
+			this.references = this.references.plus(table, newReferences);
+			return newReferences;
 		}
 		else
-			return references;
+			return references.get();
 	}
 	
 	/**
@@ -272,7 +220,18 @@ public class Table
 	 */
 	public void setReferences(Table to, TableReference... references)
 	{
-		this.references.put(to, references);
+		setReferences(to, ImmutableList.of(references));
+	}
+	
+	/**
+	 * Defines the references from this table to another table. This will overwrite any existing 
+	 * reference to the targeted table
+	 * @param to The table that is referenced
+	 * @param references References to that table
+	 */
+	public void setReferences(Table to, ImmutableList<TableReference> references)
+	{
+		this.references = this.references.plus(to, references);
 	}
 	
 	/**
@@ -283,7 +242,7 @@ public class Table
 	 */
 	public boolean references(Table table) throws TableInitialisationException
 	{
-		return getReferencesToTable(table).length > 0;
+		return !getReferencesToTable(table).isEmpty();
 	}
 	
 	/**
@@ -291,73 +250,71 @@ public class Table
 	 */
 	public boolean usesAutoIncrementIndexing()
 	{
-		Column primary = findPrimaryColumn();
-		if (primary == null)
-			return false;
-		else
-			return primary.usesAutoIncrementIndexing();
+		return findPrimaryColumn().exists(column -> column.usesAutoIncrementIndexing());
 	}
 	
 	/**
 	 * @return A list containing the name of each column in the table
 	 */
-	public List<String> getColumnNames()
+	public ImmutableList<String> getColumnNames()
 	{
-		List<String> names = new ArrayList<>();
-		for (Column column : getColumns())
-		{
-			names.add(column.getColumnName());
-		}
-		
-		return names;
+		return getColumns().map(c -> c.getColumnName());
 	}
 	
 	/**
 	 * @return A list containing the variable names of the columns in the table
 	 */
-	public List<String> getColumnVariableNames()
+	public ImmutableList<String> getColumnVariableNames()
 	{
-		List<String> names = new ArrayList<>();
-		for (Column column : getColumns())
-		{
-			names.add(column.getName());
-		}
-		
-		return names;
+		return getColumns().map(c -> c.getName());
 	}
 	
 	/**
 	 * Finds a column in this table that has the provided variable name
 	 * @param variableName The name of the column variable
-	 * @return A column in this table with the provided name.
-	 * @throws NoSuchColumnException If the column can't be found
+	 * @return A column in this table with the provided name. None if no such column exists.
 	 */
-	public Column findColumnWithVariableName(String variableName) throws NoSuchColumnException
+	public Option<Column> findColumnWithVariableName(String variableName)
 	{
-		for (Column column : getColumns())
-		{
-			if (column.getName().equalsIgnoreCase(variableName))
-				return column;
-		}
-		
-		throw new NoSuchColumnException(this, variableName, true);
+		return getColumns().find(c -> c.getName().equalsIgnoreCase(variableName));
 	}
 	
 	/**
 	 * Finds a column in this table that has the provided column name
 	 * @param columnName The name of a column in the database
-	 * @return A column in this table with the provided column name.
-	 * @throws NoSuchColumnException If the column can't be found
+	 * @return A column in this table with the provided column name. None if no such column exists.
 	 */
-	public Column findColumnWithColumnName(String columnName) throws NoSuchColumnException
+	public Option<Column> findColumnWithColumnName(String columnName)
 	{
-		for (Column column : getColumns())
-		{
-			if (column.getColumnName().equalsIgnoreCase(columnName))
-				return column;
-		}
-		
-		throw new NoSuchColumnException(this, columnName, false);
+		return getColumns().find(c -> c.getColumnName().equalsIgnoreCase(columnName));
+	}
+	
+	/**
+	 * @param varName The name of the variable
+	 * @return A column matching the variable
+	 * @throws NoSuchColumnException If no such column exists
+	 */
+	public Column getColumnWithVariableName(String varName) throws NoSuchColumnException
+	{
+		Option<Column> column = findColumnWithVariableName(varName);
+		if (column.isDefined())
+			return column.get();
+		else
+			throw new NoSuchColumnException(this, varName, true);
+	}
+	
+	/**
+	 * @param columnName The name of the column
+	 * @return A column matching the name
+	 * @throws NoSuchColumnException If no such column exists
+	 */
+	public Column getColumnWithColumnName(String columnName) throws NoSuchColumnException
+	{
+		Option<Column> column = findColumnWithColumnName(columnName);
+		if (column.isDefined())
+			return column.get();
+		else
+			throw new NoSuchColumnException(this, columnName, false);
 	}
 	
 	/**
@@ -367,13 +324,7 @@ public class Table
 	 */
 	public boolean containsColumn(String columnName)
 	{
-		for (Column column : getColumns())
-		{
-			if (column.getColumnName().equalsIgnoreCase(columnName))
-				return true;
-		}
-		
-		return false;
+		return getColumns().exists(c -> c.getColumnName().equalsIgnoreCase(columnName));
 	}
 	
 	/**
@@ -383,13 +334,7 @@ public class Table
 	 */
 	public boolean containsColumnForVariable(String variableName)
 	{
-		for (Column column : getColumns())
-		{
-			if (column.getName().equalsIgnoreCase(variableName))
-				return true;
-		}
-		
-		return false;
+		return getColumns().exists(c -> c.getName().equalsIgnoreCase(variableName));
 	}
 	
 	/**
@@ -398,16 +343,9 @@ public class Table
 	 * @return A subset of the provided variables so that the subset contains only variables 
 	 * based on this table
 	 */
-	public List<ColumnVariable> filterTableVariables(Collection<? extends ColumnVariable> variables)
+	public ImmutableList<ColumnVariable> filterTableVariables(ImmutableList<ColumnVariable> variables)
 	{
-		List<ColumnVariable> tableVars = new ArrayList<>();
-		for (ColumnVariable variable : variables)
-		{
-			if (this.equals(variable.getColumn().getTable()))
-				tableVars.add(variable);
-		}
-		
-		return tableVars;
+		return variables.filter(var -> equals(var.getColumn().getTable()));
 	}
 	
 	/**
@@ -427,6 +365,15 @@ public class Table
 		}
 		
 		return s.toString();
+	}
+	
+	private ImmutableList<Column> readColumns()
+	{
+		ImmutableList<Column> columns = this.columnInitialiser.generateColumns(this);
+		// Also initialises the mappings
+		getNameMapping().addMappingForEachColumnWherePossible(columns);
+		
+		return columns;
 	}
 	
 	

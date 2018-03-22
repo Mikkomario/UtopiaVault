@@ -6,6 +6,8 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import utopia.flow.structure.ImmutableList;
+
 /**
  * This map connects column names to variable names. All names are case-insensitive. 
  * "STRING" would be considered equal with "string"
@@ -142,6 +144,30 @@ public class VariableNameMapping
 	 * @param columns The columns that should get mapped.
 	 */
 	public void addMappingForEachColumnWherePossible(Collection<? extends Column> columns)
+	{
+		if (columns != null)
+		{
+			for (Column column : columns)
+			{
+				try
+				{
+					getVariableName(column.getColumnName());
+				}
+				catch (NoVariableForColumnException e)
+				{
+					// Ignored
+				}
+			}
+		}
+	}
+	
+	/**
+	 * This method adds a mapping for each of the columns in the provided collection using the 
+	 * rules affecting this mapping. If there is already a mapping or no rule can be applied, 
+	 * doesn't create a mapping for the column.
+	 * @param columns The columns that should get mapped.
+	 */
+	public void addMappingForEachColumnWherePossible(ImmutableList<? extends Column> columns)
 	{
 		if (columns != null)
 		{

@@ -1,13 +1,12 @@
 package utopia.vault.database;
 
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.List;
-
 import utopia.flow.generics.Value;
+import utopia.flow.structure.ImmutableList;
+import utopia.flow.util.Option;
 import utopia.vault.database.CombinedCondition.CombinationOperator;
 import utopia.vault.generics.Column;
 import utopia.vault.generics.ColumnVariable;
+import utopia.vault.generics.CombinedModel;
 import utopia.vault.generics.Table;
 import utopia.vault.generics.TableModel;
 import utopia.vault.generics.Table.NoSuchColumnException;
@@ -148,8 +147,7 @@ public class ComparisonCondition extends SingleCondition
 	 * @param skipNullVariables Should null variables be skipped entirely
 	 * @return A combined condition based on the variables and the provided operator
 	 */
-	public static Condition createVariableSetEqualsCondition(
-			Collection<? extends ColumnVariable> variables, 
+	public static Option<Condition> createVariableSetEqualsCondition(ImmutableList<? extends ColumnVariable> variables, 
 			CombinationOperator combinationOperator, boolean skipNullVariables)
 	{
 		return createVariableSetCondition(variables, combinationOperator, Operator.EQUALS, 
@@ -164,35 +162,12 @@ public class ComparisonCondition extends SingleCondition
 	 * @param skipNullVariables Should null attributes be skipped entirely
 	 * @return A combined condition based on the variables and the provided operator
 	 */
-	public static Condition createVariableSetCondition(
-			Collection<? extends ColumnVariable> variables, 
-			CombinationOperator combinationOperator, Operator comparisonOperator, 
-			boolean skipNullVariables)
+	public static Option<Condition> createVariableSetCondition(ImmutableList<? extends ColumnVariable> variables, 
+			CombinationOperator combinationOperator, Operator comparisonOperator, boolean skipNullVariables)
 	{
-		List<ColumnVariable> targetVariables = new ArrayList<>();
-		if (skipNullVariables)
-		{
-			for (ColumnVariable var : variables)
-			{
-				if (!var.isNull())
-					targetVariables.add(var);
-			}
-		}
-		else
-			targetVariables.addAll(variables);
-		
-		if (targetVariables.isEmpty())
-			return null;
-		
-		Condition[] conditions = new Condition[targetVariables.size()];
-		int i = 0;
-		for (ColumnVariable variable : targetVariables)
-		{
-			conditions[i] = new ComparisonCondition(variable, comparisonOperator);
-			i ++;
-		}
-		
-		return CombinedCondition.combineConditions(combinationOperator, conditions);
+		return CombinedCondition.combineConditions(combinationOperator, 
+				(skipNullVariables ? variables.filter(var -> !var.isNull()) : variables).map(var -> 
+				new ComparisonCondition(var, comparisonOperator)));
 	}
 	
 	/**
@@ -203,8 +178,8 @@ public class ComparisonCondition extends SingleCondition
 	 * @param skipNullVariables Should null variables be skipped entirely
 	 * @return A combined condition based on the variables
 	 */
-	public static Condition createVariableSetEqualsCondition(
-			Collection<? extends ColumnVariable> variables, boolean skipNullVariables)
+	public static Option<Condition> createVariableSetEqualsCondition(
+			ImmutableList<? extends ColumnVariable> variables, boolean skipNullVariables)
 	{
 		return createVariableSetEqualsCondition(variables, CombinationOperator.AND, 
 				skipNullVariables);
@@ -217,10 +192,21 @@ public class ComparisonCondition extends SingleCondition
 	 * @param skipNullVariables Should model's null attributes be skipped
 	 * @return a condition
 	 */
-	public static Condition createModelEqualsCondition(TableModel model, 
-			boolean skipNullVariables)
+	public static Option<Condition> createModelEqualsCondition(TableModel model, boolean skipNullVariables)
 	{
 		return createVariableSetEqualsCondition(model.getAttributes(), skipNullVariables);
+	}
+	
+	/**
+	 * Creates a condition that only selects rows that have state identical to the model's 
+	 * declared attributes
+	 * @param model a model
+	 * @param skipNullVariables Should model's null attributes be skipped
+	 * @return a condition
+	 */
+	public static Option<Condition> createModelEqualsCondition(CombinedModel model, boolean skipNullVariables)
+	{
+		return createModelEqualsCondition(model.toDatabaseModel(), skipNullVariables);
 	}
 	
 	
@@ -357,19 +343,9 @@ public class ComparisonCondition extends SingleCondition
 		 * @param values The values used with this operator
 		 * @return Are the values valid for this operator
 		 */
-		public boolean acceptsValues(Value[] values)
+		public boolean acceptsValues(ImmutableList<Value> values)
 		{
-			if (allowsNull())
-				return true;
-			
-			// Checks for null comparisons
-			for (Value value : values)
-			{
-				if (value.isNull())
-					return false;
-			}
-			
-			return true;
+			return allowsNull() || values.forAll(value -> !value.isNull());
 		}
 	}
 }

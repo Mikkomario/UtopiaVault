@@ -28,6 +28,7 @@ public class ExampleRoleModel extends TableModel
 	 * Creates a new role model with existing attributes
 	 * @param variables The attributes assigned to the model
 	 */
+	@SuppressWarnings("deprecation")
 	public ExampleRoleModel(Collection<? extends ColumnVariable> variables)
 	{
 		super(ExampleTables.ROLES, variables);

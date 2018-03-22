@@ -43,7 +43,7 @@ public class ExampleConditions
 		// In the case of user model, the database model part must be separated from the 
 		// combined model
 		return ComparisonCondition.createModelEqualsCondition(
-				whereModel.toDatabaseModel(), false);
+				whereModel.toDatabaseModel(), false).get();
 	}
 	
 	/**
@@ -65,7 +65,7 @@ public class ExampleConditions
 		// The returned where condition is actually a CombinedWhereCondition where the two 
 		// conditions are combined with AND
 		return ComparisonCondition.createModelEqualsCondition(
-				whereModel.toDatabaseModel(), false);
+				whereModel.toDatabaseModel(), false).get();
 	}
 	
 	/**
@@ -78,7 +78,7 @@ public class ExampleConditions
 	{
 		ExampleRoleModel whereRoleModel = new ExampleRoleModel();
 		whereRoleModel.setName(roleName);
-		return ComparisonCondition.createModelEqualsCondition(whereRoleModel, false);
+		return ComparisonCondition.createModelEqualsCondition(whereRoleModel, false).get();
 	}
 	
 	/**
@@ -89,7 +89,7 @@ public class ExampleConditions
 	 */
 	public static Condition createUserNameStartsWithCondition(String nameStart)
 	{
-		return LikeCondition.startsWith(ExampleTables.USERS.findColumnWithVariableName(
+		return LikeCondition.startsWith(ExampleTables.USERS.getColumnWithVariableName(
 				"name"), nameStart);
 	}
 	
@@ -116,7 +116,7 @@ public class ExampleConditions
 	 */
 	public static Join createRoleIndexJoin()
 	{
-		Column userRoleColumn = ExampleTables.USERS.findColumnWithVariableName("roleId");
+		Column userRoleColumn = ExampleTables.USERS.getColumnWithVariableName("roleId");
 		Column roleIndexColumn = ExampleTables.ROLES.getPrimaryColumn();
 		
 		return new Join(userRoleColumn, roleIndexColumn);

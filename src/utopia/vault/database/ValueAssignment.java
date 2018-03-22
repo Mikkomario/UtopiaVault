@@ -1,11 +1,11 @@
 package utopia.vault.database;
 
-import java.util.ArrayList;
 import java.util.Collection;
-import java.util.List;
 
 import utopia.flow.generics.Value;
+import utopia.flow.structure.ImmutableList;
 import utopia.flow.structure.Pair;
+import utopia.flow.util.Option;
 import utopia.vault.generics.Column;
 import utopia.vault.generics.ColumnVariable;
 import utopia.vault.generics.Table;
@@ -20,7 +20,7 @@ public class ValueAssignment implements PreparedSQLClause
 {
 	// ATTRIBUTES	------------------
 	
-	private List<Assignment> assignments = new ArrayList<>();
+	private ImmutableList<Assignment> assignments = ImmutableList.empty();
 	private boolean removeNulls = false;
 	
 	
@@ -32,6 +32,17 @@ public class ValueAssignment implements PreparedSQLClause
 	 * @param values The values set by this clause
 	 */
 	public ValueAssignment(boolean removeNullAssignments, Collection<? extends ColumnVariable> values)
+	{
+		this.removeNulls = removeNullAssignments;
+		appendValues(values);
+	}
+	
+	/**
+	 * Creates a new set clause
+	 * @param removeNullAssignments Should the assignment filter out any null values
+	 * @param values The values set by this clause
+	 */
+	public ValueAssignment(boolean removeNullAssignments, ImmutableList<? extends ColumnVariable> values)
 	{
 		this.removeNulls = removeNullAssignments;
 		appendValues(values);
@@ -75,10 +86,10 @@ public class ValueAssignment implements PreparedSQLClause
 		append(column, value);
 	}
 	
-	private ValueAssignment(boolean noNulls, List<Assignment> assignments)
+	private ValueAssignment(ImmutableList<Assignment> assignments, boolean noNulls)
 	{
 		this.removeNulls = noNulls;
-		this.assignments.addAll(assignments);
+		this.assignments = assignments;
 	}
 
 	
@@ -91,16 +102,9 @@ public class ValueAssignment implements PreparedSQLClause
 	}
 
 	@Override
-	public Value[] getValues()
+	public ImmutableList<Value> getValues()
 	{
-		List<Value> values = new ArrayList<>();
-		for (Assignment assignment : this.assignments)
-		{
-			if (assignment.getValue() != null)
-				values.add(assignment.getValue());
-		}
-		
-		return values.toArray(new Value[0]);
+		return this.assignments.flatMap(a -> a.getValue());
 	}
 	
 	
@@ -114,7 +118,7 @@ public class ValueAssignment implements PreparedSQLClause
 	public void append(Column column, Value value)
 	{
 		if (!this.removeNulls || !value.isNull())
-			this.assignments.add(new Assignment(column, value));
+			this.assignments = this.assignments.plus(new Assignment(column, value));
 	}
 	
 	/**
@@ -124,7 +128,7 @@ public class ValueAssignment implements PreparedSQLClause
 	public void append(ColumnVariable setValue)
 	{
 		if (!this.removeNulls || !setValue.isNull())
-			this.assignments.add(new Assignment(setValue));
+			this.assignments = this.assignments.plus(new Assignment(setValue));
 	}
 	
 	/**
@@ -134,14 +138,14 @@ public class ValueAssignment implements PreparedSQLClause
 	 */
 	public void append(Column target, Column source)
 	{
-		this.assignments.add(new Assignment(target, source));
+		this.assignments = this.assignments.plus(new Assignment(target, source));
 	}
 	
 	/**
 	 * Adds multiple value assignments to the set
 	 * @param setValues The value assignments added to the set
 	 */
-	public void appendValues(Collection<? extends ColumnVariable> setValues)
+	public void appendValues(Iterable<? extends ColumnVariable> setValues)
 	{
 		for (ColumnVariable var : setValues)
 		{
@@ -151,14 +155,20 @@ public class ValueAssignment implements PreparedSQLClause
 	
 	/**
 	 * Adds multiple value assignments to the set
+	 * @param setValues The value assignments added to the set
+	 */
+	public void appendValues(ImmutableList<? extends ColumnVariable> setValues)
+	{
+		this.assignments = this.assignments.plus(setValues.map(s -> new Assignment(s)));
+	}
+	
+	/**
+	 * Adds multiple value assignments to the set
 	 * @param setColumns The target and source columns used in the set
 	 */
-	public void appendColumns(Collection<? extends Pair<Column, Column>> setColumns)
+	public void appendColumns(ImmutableList<? extends Pair<Column, Column>> setColumns)
 	{
-		for (Pair<Column, Column> columnPair : setColumns)
-		{
-			append(columnPair.getFirst(), columnPair.getSecond());
-		}
+		this.assignments = this.assignments.plus(setColumns.map(pair -> new Assignment(pair.getFirst(), pair.getSecond())));
 	}
 	
 	/**
@@ -243,18 +253,8 @@ public class ValueAssignment implements PreparedSQLClause
 	 */
 	public boolean containsColumn(Column column, boolean ignoreNullAssignments)
 	{
-		for (Assignment assignment : this.assignments)
-		{
-			// Null values may be filtered
-			if (assignment.getTargetColumn().equals(column))
-			{
-				if (!ignoreNullAssignments || 
-						(assignment.getValue() == null || !assignment.getValue().isNull()))
-					return true;
-			}
-		}
-		
-		return false;
+		return this.assignments.exists(a -> a.getTargetColumn().equals(column) && 
+				(!ignoreNullAssignments || (a.getValue().exists(value -> !value.isNull()))));
 	}
 	
 	/**
@@ -263,21 +263,12 @@ public class ValueAssignment implements PreparedSQLClause
 	 * @param removeAutoIncrementKeys Should auto-increment keys be removed as well
 	 * @return A filtered version of this assignment
 	 */
-	public ValueAssignment filterToTables(Collection<? extends Table> tables, boolean removeAutoIncrementKeys)
+	public ValueAssignment filterToTables(ImmutableList<? extends Table> tables, boolean removeAutoIncrementKeys)
 	{
-		List<Assignment> filtered = new ArrayList<>();
-		for (Assignment assignment : this.assignments)
-		{
-			// The target column table must match one of the targeted tables
-			if (tables.contains(assignment.getTargetColumn().getTable()))
-			{
-				// Auto-increment keys may be filtered as well
-				if (!removeAutoIncrementKeys || !assignment.getTargetColumn().usesAutoIncrementIndexing())
-					filtered.add(assignment);
-			}
-		}
-		
-		return new ValueAssignment(this.removeNulls, filtered);
+		// The target column table must match one of the targeted tables
+		// Auto-increment keys may be filtered as well
+		return new ValueAssignment(this.assignments.filter(a -> tables.contains(a.getTargetColumn().getTable()) && 
+				(!removeAutoIncrementKeys || !a.getTargetColumn().usesAutoIncrementIndexing())), this.removeNulls);
 	}
 	
 	/**
@@ -287,19 +278,10 @@ public class ValueAssignment implements PreparedSQLClause
 	 * @param removeAutoIncrementKeys Should auto-increment keys be removed as well
 	 * @return A filtered version of this assignment
 	 */
-	public ValueAssignment filterToTables(Table table, Join[] joins, boolean removeAutoIncrementKeys)
+	public ValueAssignment filterToTables(Table table, ImmutableList<Join> joins, boolean removeAutoIncrementKeys)
 	{
-		List<Table> tables = new ArrayList<>();
-		tables.add(table);
-		if (joins != null)
-		{
-			for (Join join : joins)
-			{
-				tables.add(join.getJoinedTable());
-			}
-		}
-		
-		return filterToTables(tables, removeAutoIncrementKeys);
+		return filterToTables((joins == null ? ImmutableList.empty() : 
+				joins.map(join -> join.getJoinedTable()).plus(table)), removeAutoIncrementKeys);
 	}
 	
 	/**
@@ -310,9 +292,7 @@ public class ValueAssignment implements PreparedSQLClause
 	 */
 	public ValueAssignment filterToTable(Table table, boolean removeAutoIncrementKeys)
 	{
-		List<Table> tables = new ArrayList<>();
-		tables.add(table);
-		return filterToTables(tables, removeAutoIncrementKeys);
+		return filterToTables(ImmutableList.withValue(table), removeAutoIncrementKeys);
 	}
 	
 	/**
@@ -349,8 +329,8 @@ public class ValueAssignment implements PreparedSQLClause
 		// ATTRIBUTES	-------------------
 		
 		private Column targetColumn;
-		private Column sourceColumn = null;
-		private Value value = null;
+		private Option<Column> sourceColumn = Option.none();
+		private Option<Value> value = Option.none();
 		
 		
 		// CONSTRUCTOR	-------------------
@@ -358,19 +338,19 @@ public class ValueAssignment implements PreparedSQLClause
 		public Assignment(Column targetColumn, Column sourceColumn)
 		{
 			this.targetColumn = targetColumn;
-			this.sourceColumn = sourceColumn;
+			this.sourceColumn = Option.some(sourceColumn);
 		}
 		
 		public Assignment(Column targetColumn, Value value)
 		{
 			this.targetColumn = targetColumn;
-			this.value = value;
+			this.value = Option.some(value);
 		}
 		
 		public Assignment(ColumnVariable var)
 		{
 			this.targetColumn = var.getColumn();
-			this.value = var.getValue();
+			this.value = Option.some(var.getValue());
 		}
 		
 		// IMPLEMENTED METHODS	----------
@@ -389,7 +369,7 @@ public class ValueAssignment implements PreparedSQLClause
 			return this.targetColumn;
 		}
 		
-		public Value getValue()
+		public Option<Value> getValue()
 		{
 			return this.value;
 		}
@@ -399,10 +379,10 @@ public class ValueAssignment implements PreparedSQLClause
 		
 		public String getSecondPartSQL(boolean debugVersion)
 		{
-			if (getValue() == null)
-				return this.sourceColumn.getColumnNameWithTable();
+			if (getValue().isEmpty())
+				return this.sourceColumn.get().getColumnNameWithTable();
 			else if (debugVersion)
-				return this.value.getDescription();
+				return this.value.get().getDescription();
 			else
 				return "?";
 		}

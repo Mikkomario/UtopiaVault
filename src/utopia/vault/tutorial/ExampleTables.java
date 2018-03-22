@@ -1,5 +1,6 @@
 package utopia.vault.tutorial;
 
+import utopia.flow.util.Option;
 import utopia.vault.database.DatabaseReferenceReader;
 import utopia.vault.database.ReadFromDatabaseColumnInitialiser;
 import utopia.vault.generics.Table;
@@ -35,6 +36,6 @@ public class ExampleTables
 		mapping.addRule(UnderlinesToCamelCaseRule.getInstance());
 		
 		return new Table("test_db", name, mapping, new ReadFromDatabaseColumnInitialiser(null), 
-				new DatabaseReferenceReader());
+				Option.some(new DatabaseReferenceReader()));
 	}
 }

@@ -4,9 +4,10 @@ import java.util.Collection;
 
 import utopia.flow.generics.Model;
 import utopia.flow.generics.Value;
-import utopia.flow.generics.Variable;
 import utopia.flow.generics.VariableDeclaration;
 import utopia.flow.generics.VariableParser;
+import utopia.flow.structure.ImmutableList;
+import utopia.flow.util.Option;
 import utopia.vault.generics.Table.NoSuchColumnException;
 
 /**
@@ -38,10 +39,22 @@ public class TableModel extends Model<ColumnVariable>
 	 * Creates a new model with existing set of attributes
 	 * @param table The table the model uses
 	 * @param variables The variables stored in the model
+	 * @deprecated ImmutableList implementation replaces this method
 	 */
 	public TableModel(Table table, Collection<? extends ColumnVariable> variables)
 	{
 		super(new ColumnVariableParser(table), variables);
+		this.table = table;
+	}
+	
+	/**
+	 * Creates a new model with existing set of attributes
+	 * @param table The table the model uses
+	 * @param variables The variables stored in the model (only table specific variables will be added)
+	 */
+	public TableModel(Table table, ImmutableList<ColumnVariable> variables)
+	{
+		super(new ColumnVariableParser(table), variables.filter(v -> table.containsColumnForVariable(v.getName())));
 		this.table = table;
 	}
 
@@ -136,18 +149,27 @@ public class TableModel extends Model<ColumnVariable>
 	}
 	
 	/**
+	 * @return The index attribute for the model or None if no such attribute exists
+	 */
+	public Option<ColumnVariable> getIndexAttributeOption()
+	{
+		return getTable().findPrimaryColumn().flatMap(column -> findAttribute(column.getName()));
+	}
+	
+	/**
+	 * @return The index value for the model or none if no such attribute exists
+	 */
+	public Option<Value> getIndexOption()
+	{
+		return getIndexAttributeOption().map(att -> att.getValue());
+	}
+	
+	/**
 	 * Checks whether the model has a specified index attribute and that attribute is not null
 	 * @return Does the model have a specified index attribute
 	 */
 	public boolean hasIndex()
 	{
-		Column primaryColumn = getTable().findPrimaryColumn();
-		if (primaryColumn == null)
-			return false;
-		else
-		{
-			Variable attribute = findAttribute(primaryColumn.getName());
-			return attribute != null && !attribute.isNull();
-		}
+		return getIndexAttributeOption().exists(att -> !att.isNull());
 	}
 }

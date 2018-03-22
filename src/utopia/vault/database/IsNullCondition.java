@@ -1,6 +1,7 @@
 package utopia.vault.database;
 
 import utopia.flow.generics.Value;
+import utopia.flow.structure.ImmutableList;
 import utopia.vault.generics.Column;
 
 /**
@@ -36,10 +37,10 @@ public class IsNullCondition extends Condition
 	}
 	
 	@Override
-	public Value[] getValues()
+	public ImmutableList<Value> getValues()
 	{
 		// Null conditions don't contain values
-		return new Value[0];
+		return ImmutableList.empty();
 	}
 
 	@Override

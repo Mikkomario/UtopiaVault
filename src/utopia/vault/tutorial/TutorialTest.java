@@ -1,7 +1,6 @@
 package utopia.vault.tutorial;
 
-import java.util.Collection;
-
+import utopia.flow.util.Option;
 import utopia.vault.database.Database;
 import utopia.vault.database.DatabaseException;
 import utopia.vault.database.DatabaseSettings;
@@ -39,22 +38,21 @@ public class TutorialTest
 		}
 		
 		// Parses the arguments
-		String password = args[0];
-		String user = null;
-		String connection = null;
+		Option<String> password = args.length == 0 ? Option.none() : Option.some(args[0]);
+		Option<String> user = Option.none();
+		Option<String> connection = Option.none();
 		
 		if (args.length > 1)
-			user = args[1];
+			user = Option.some(args[1]);
 		if (args.length > 2)
-			connection = args[2];
+			connection = Option.some(args[2]);
 		
 		// uses a single connection through the test
 		long startMillis = System.currentTimeMillis();
-		Database db = new Database();
-		try
+		try (Database db = new Database())
 		{
 			// Initialises the database settings
-			DatabaseSettings.initialize(connection, user, password, null);
+			DatabaseSettings.initialize(connection, user, password, Option.none());
 			
 			// Prints the table's current state
 			/*
@@ -125,7 +123,6 @@ public class TutorialTest
 		}
 		finally
 		{
-			db.closeConnection();
 			long duration = System.currentTimeMillis() - startMillis;
 			System.out.println(duration + " ms");
 		}
@@ -134,7 +131,7 @@ public class TutorialTest
 	
 	// OTHER METHODS	------------------
 	
-	private static void printUsers(Collection<? extends ExampleUserModel> users)
+	private static void printUsers(Iterable<? extends ExampleUserModel> users)
 	{
 		for (ExampleUserModel user : users)
 		{

@@ -2,6 +2,7 @@ package utopia.vault.database;
 
 import utopia.flow.generics.DataType;
 import utopia.flow.generics.Value;
+import utopia.flow.structure.ImmutableList;
 
 /**
  * This condition has only a single condition
@@ -12,8 +13,9 @@ public abstract class SingleCondition extends Condition
 {
 	// ATTRIBUTES	------------------
 	
-	private Value[] values;
+	private ImmutableList<Value> values;
 	private DataType targetType = null;
+	private boolean valuesCasted = false;
 	
 	
 	// CONSTRUCTOR	------------------
@@ -23,6 +25,15 @@ public abstract class SingleCondition extends Condition
 	 * @param values The value(s) used in the condition (optional)
 	 */
 	public SingleCondition(Value... values)
+	{
+		this.values = ImmutableList.of(values);
+	}
+	
+	/**
+	 * Creates a new where condition
+	 * @param values The values used in the condition
+	 */
+	public SingleCondition(ImmutableList<Value> values)
 	{
 		this.values = values;
 	}
@@ -45,21 +56,16 @@ public abstract class SingleCondition extends Condition
 	 * made to it won't affect the condition.
 	 */
 	@Override
-	public Value[] getValues()
+	public ImmutableList<Value> getValues()
 	{
 		// If a specific data type has been specified, the values are casted first
-		if (this.targetType == null)
-			return this.values.clone();
-		else
+		if (this.targetType != null && !this.valuesCasted)
 		{
-			Value[] castValues = new Value[this.values.length];
-			for (int i = 0; i < castValues.length; i++)
-			{
-				castValues[i] = this.values[i].castTo(this.targetType);
-			}
-			
-			return castValues;
+			this.values = this.values.map(value -> value.castTo(this.targetType));
+			this.valuesCasted = true;
 		}
+		
+		return this.values;
 	}
 	
 	/*
@@ -125,7 +131,7 @@ public abstract class SingleCondition extends Condition
 		{
 			StringBuilder s = new StringBuilder(getDebugSqlWithNoParsing());
 			
-			if (this.values.length == 0)
+			if (this.values.isEmpty())
 				s.append("\n No values used");
 			else
 			{
