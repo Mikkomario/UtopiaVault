@@ -1,6 +1,7 @@
 package utopia.vault.generics;
 
 import utopia.flow.generics.ModelDeclaration;
+import utopia.flow.generics.Value;
 import utopia.flow.structure.ImmutableList;
 import utopia.flow.structure.ImmutableMap;
 import utopia.flow.util.Lazy;
@@ -346,6 +347,17 @@ public class Table
 	public ImmutableList<ColumnVariable> filterTableVariables(ImmutableList<ColumnVariable> variables)
 	{
 		return variables.filter(var -> equals(var.getColumn().getTable()));
+	}
+	
+	/**
+	 * Finds an index for this table from the provided set of variables
+	 * @param vars a set of variables
+	 * @return An index for this table. An empty value if the set didn't contain the index
+	 */
+	public Value getIndexFrom(ImmutableList<? extends ColumnVariable> vars)
+	{
+		return vars.find(var -> var.getColumn().isPrimary() && var.getColumn().getTable().equals(this)).map(
+				var -> var.getValue()).getOrElse(Value.EMPTY);
 	}
 	
 	/**
