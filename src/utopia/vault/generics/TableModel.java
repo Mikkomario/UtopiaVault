@@ -81,8 +81,40 @@ public class TableModel extends Model<ColumnVariable>
 	}
 	
 	
-	// ACCESSORS	-------------------
+	// IMPLEMENTED METHODS	-----------
 	
+	@Override
+	public int hashCode()
+	{
+		final int prime = 31;
+		int result = super.hashCode();
+		result = prime * result + ((this.table == null) ? 0 : this.table.hashCode());
+		return result;
+	}
+
+	@Override
+	public boolean equals(Object obj)
+	{
+		if (this == obj)
+			return true;
+		if (!super.equals(obj))
+			return false;
+		if (!(obj instanceof TableModel))
+			return false;
+		TableModel other = (TableModel) obj;
+		if (this.table == null)
+		{
+			if (other.table != null)
+				return false;
+		}
+		else if (!this.table.equals(other.table))
+			return false;
+		return true;
+	}
+	
+	
+	// ACCESSORS	-------------------
+
 	/**
 	 * @return The database table the model uses
 	 */
