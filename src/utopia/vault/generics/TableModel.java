@@ -54,7 +54,7 @@ public class TableModel extends Model<ColumnVariable>
 	 */
 	public TableModel(Table table, ImmutableList<ColumnVariable> variables)
 	{
-		super(new ColumnVariableParser(table), variables.filter(v -> table.containsColumnForVariable(v.getName())));
+		super(new ColumnVariableParser(table), variables.filter(v -> table.equals(v.getColumn().getTable())));
 		this.table = table;
 	}
 
