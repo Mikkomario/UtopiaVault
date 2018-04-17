@@ -406,7 +406,11 @@ public class Table
 					"name " + name);
 		}
 		
-		private NoSuchColumnException(String message)
+		/**
+		 * Creates a new exception
+		 * @param message The exception message
+		 */
+		public NoSuchColumnException(String message)
 		{
 			super(message);
 		}
