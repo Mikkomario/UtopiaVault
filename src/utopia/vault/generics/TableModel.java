@@ -16,7 +16,7 @@ import utopia.vault.generics.Table.NoSuchColumnException;
  * @author Mikko Hilpinen
  * @since 9.1.2016
  */
-public class TableModel extends Model<ColumnVariable>
+public class TableModel extends Model<ColumnVariable> implements IndexedModel
 {
 	// ATTRIBUTES	---------------
 	
@@ -54,7 +54,7 @@ public class TableModel extends Model<ColumnVariable>
 	 */
 	public TableModel(Table table, ImmutableList<ColumnVariable> variables)
 	{
-		super(new ColumnVariableParser(table), variables.filter(v -> table.containsColumnForVariable(v.getName())));
+		super(new ColumnVariableParser(table), variables.filter(v -> table.equals(v.getColumn().getTable())));
 		this.table = table;
 	}
 
@@ -81,8 +81,60 @@ public class TableModel extends Model<ColumnVariable>
 	}
 	
 	
-	// ACCESSORS	-------------------
+	// IMPLEMENTED METHODS	-----------
 	
+	@Override
+	public int hashCode()
+	{
+		final int prime = 31;
+		int result = super.hashCode();
+		result = prime * result + ((this.table == null) ? 0 : this.table.hashCode());
+		return result;
+	}
+
+	@Override
+	public boolean equals(Object obj)
+	{
+		if (this == obj)
+			return true;
+		if (!super.equals(obj))
+			return false;
+		if (!(obj instanceof TableModel))
+			return false;
+		TableModel other = (TableModel) obj;
+		if (this.table == null)
+		{
+			if (other.table != null)
+				return false;
+		}
+		else if (!this.table.equals(other.table))
+			return false;
+		return true;
+	}
+	
+	/**
+	 * Changes the model's index
+	 * @param index The new index value for the model
+	 * @throws NoSuchColumnException If the model's table doesn't have an index attribute
+	 */
+	@Override
+	public void setIndex(Value index) throws NoSuchColumnException
+	{
+		addAttribute(getTable().getPrimaryColumn().assignValue(index), true);
+	}
+	
+	/**
+	 * @return The index value for the model or none if no such attribute exists
+	 */
+	@Override
+	public Option<Value> getIndexOption()
+	{
+		return getIndexAttributeOption().map(att -> att.getValue());
+	}
+	
+	
+	// ACCESSORS	-------------------
+
 	/**
 	 * @return The database table the model uses
 	 */
@@ -114,26 +166,6 @@ public class TableModel extends Model<ColumnVariable>
 	}
 	
 	/**
-	 * Changes the model's index
-	 * @param index The new index value for the model
-	 * @throws NoSuchColumnException If the model's table doesn't have an index attribute
-	 */
-	public void setIndex(Value index) throws NoSuchColumnException
-	{
-		addAttribute(getTable().getPrimaryColumn().assignValue(index), true);
-	}
-	
-	/**
-	 * @return The model's index, which is the value of the attribute representing the primary 
-	 * column of the model's table
-	 * @throws NoSuchColumnException If the model's table doesn't have an index attribute
-	 */
-	public Value getIndex() throws NoSuchColumnException
-	{
-		return getIndexAttribute().getValue();
-	}
-	
-	/**
 	 * Finds the model's index value. If there is no index assigned, the provided value is 
 	 * returned instead
 	 * @param defaultValue The value that should be returned when the model doesn't have an 
@@ -154,14 +186,6 @@ public class TableModel extends Model<ColumnVariable>
 	public Option<ColumnVariable> getIndexAttributeOption()
 	{
 		return getTable().findPrimaryColumn().flatMap(column -> findAttribute(column.getName()));
-	}
-	
-	/**
-	 * @return The index value for the model or none if no such attribute exists
-	 */
-	public Option<Value> getIndexOption()
-	{
-		return getIndexAttributeOption().map(att -> att.getValue());
 	}
 	
 	/**

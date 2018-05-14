@@ -79,6 +79,54 @@ public class Column extends VariableDeclaration
 	
 	// ACCESSORS	---------------
 	
+	@Override
+	public int hashCode()
+	{
+		final int prime = 31;
+		int result = super.hashCode();
+		result = prime * result + (this.autoIncrement ? 1231 : 1237);
+		result = prime * result + ((this.columnName == null) ? 0 : this.columnName.hashCode());
+		result = prime * result + (this.nullAllowed ? 1231 : 1237);
+		result = prime * result + (this.primary ? 1231 : 1237);
+		result = prime * result + ((this.table == null) ? 0 : this.table.hashCode());
+		return result;
+	}
+
+
+	@Override
+	public boolean equals(Object obj)
+	{
+		if (this == obj)
+			return true;
+		if (!super.equals(obj))
+			return false;
+		if (!(obj instanceof Column))
+			return false;
+		Column other = (Column) obj;
+		if (this.autoIncrement != other.autoIncrement)
+			return false;
+		if (this.columnName == null)
+		{
+			if (other.columnName != null)
+				return false;
+		}
+		else if (!this.columnName.equals(other.columnName))
+			return false;
+		if (this.nullAllowed != other.nullAllowed)
+			return false;
+		if (this.primary != other.primary)
+			return false;
+		if (this.table == null)
+		{
+			if (other.table != null)
+				return false;
+		}
+		else if (!this.table.equals(other.table))
+			return false;
+		return true;
+	}
+
+
 	/**
 	 * @return The table the column is in
 	 */

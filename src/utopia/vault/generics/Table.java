@@ -1,6 +1,7 @@
 package utopia.vault.generics;
 
 import utopia.flow.generics.ModelDeclaration;
+import utopia.flow.generics.Value;
 import utopia.flow.structure.ImmutableList;
 import utopia.flow.structure.ImmutableMap;
 import utopia.flow.structure.Lazy;
@@ -349,6 +350,17 @@ public class Table
 	}
 	
 	/**
+	 * Finds an index for this table from the provided set of variables
+	 * @param vars a set of variables
+	 * @return An index for this table. An empty value if the set didn't contain the index
+	 */
+	public Value getIndexFrom(ImmutableList<? extends ColumnVariable> vars)
+	{
+		return vars.find(var -> var.getColumn().isPrimary() && var.getColumn().getTable().equals(this)).map(
+				var -> var.getValue()).getOrElse(Value.EMPTY);
+	}
+	
+	/**
 	 * @return a textual description of the table's columns
 	 */
 	public String getDebugDescription()
@@ -394,7 +406,11 @@ public class Table
 					"name " + name);
 		}
 		
-		private NoSuchColumnException(String message)
+		/**
+		 * Creates a new exception
+		 * @param message The exception message
+		 */
+		public NoSuchColumnException(String message)
 		{
 			super(message);
 		}

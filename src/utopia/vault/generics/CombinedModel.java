@@ -19,7 +19,7 @@ import utopia.flow.structure.Option;
  * @author Mikko Hilpinen
  * @since 10.1.2016
  */
-public class CombinedModel
+public class CombinedModel implements IndexedModel
 {
 	// ATTRIBUTES	----------------
 	
@@ -81,6 +81,25 @@ public class CombinedModel
 	}
 	
 	// IMPLEMENTED METHODS	----------
+	
+	/**
+	 * @return The model's index attribute's value or none if no such attribute exists
+	 */
+	@Override
+	public Option<Value> getIndexOption()
+	{
+		return this.dbModel.getIndexOption();
+	}
+	
+	/**
+	 * Changes the value of the model's index attribute
+	 * @param index The new index for the model
+	 */
+	@Override
+	public void setIndex(Value index)
+	{
+		this.dbModel.setIndex(index);
+	}
 	
 	@Override
 	public String toString()
@@ -286,15 +305,6 @@ public class CombinedModel
 	}
 	
 	/**
-	 * Retrieves the model's index attribute's value. Short for using getIndexAttribute().getValue()
-	 * @return The model's index
-	 */
-	public Value getIndex()
-	{
-		return this.dbModel.getIndex();
-	}
-	
-	/**
 	 * Retrieves the model's index attribute's value. If the model doesn't have an index 
 	 * value, the provided default value will be returned instead.
 	 * @param defaultValue The default value that will be returned when the model doesn't 
@@ -304,23 +314,6 @@ public class CombinedModel
 	public Value getIndex(Value defaultValue)
 	{
 		return this.dbModel.getIndex(defaultValue);
-	}
-	
-	/**
-	 * @return The model's index attribute's value or none if no such attribute exists
-	 */
-	public Option<Value> getIndexOption()
-	{
-		return this.dbModel.getIndexOption();
-	}
-	
-	/**
-	 * Changes the value of the model's index attribute
-	 * @param index The new index for the model
-	 */
-	public void setIndex(Value index)
-	{
-		this.dbModel.setIndex(index);
 	}
 	
 	/**
