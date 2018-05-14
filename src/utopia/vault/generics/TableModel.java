@@ -7,7 +7,7 @@ import utopia.flow.generics.Value;
 import utopia.flow.generics.VariableDeclaration;
 import utopia.flow.generics.VariableParser;
 import utopia.flow.structure.ImmutableList;
-import utopia.flow.util.Option;
+import utopia.flow.structure.Option;
 import utopia.vault.generics.Table.NoSuchColumnException;
 
 /**

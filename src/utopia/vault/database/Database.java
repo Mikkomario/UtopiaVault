@@ -15,7 +15,7 @@ import utopia.flow.generics.DataTypeException;
 import utopia.flow.generics.SubTypeSet;
 import utopia.flow.generics.Value;
 import utopia.flow.structure.ImmutableList;
-import utopia.flow.util.Option;
+import utopia.flow.structure.Option;
 import utopia.vault.generics.Column;
 import utopia.vault.generics.ColumnVariable;
 import utopia.vault.generics.SqlDataType;

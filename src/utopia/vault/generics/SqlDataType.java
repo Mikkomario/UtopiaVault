@@ -7,7 +7,7 @@ import utopia.flow.generics.DataType;
 import utopia.flow.generics.DataTypes;
 import utopia.flow.generics.SubTypeSet;
 import utopia.flow.generics.Value;
-import utopia.flow.util.Option;
+import utopia.flow.structure.Option;
 
 /**
  * These data types work like any other, except that they can be used in sql operations

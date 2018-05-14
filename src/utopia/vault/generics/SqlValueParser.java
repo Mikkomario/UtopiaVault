@@ -15,8 +15,8 @@ import utopia.flow.generics.DataType;
 import utopia.flow.generics.Value;
 import utopia.flow.generics.ValueParser;
 import utopia.flow.structure.ImmutableList;
+import utopia.flow.structure.Lazy;
 import utopia.flow.structure.Pair;
-import utopia.flow.util.Lazy;
 
 /**
  * This parser is able to parse values between the basic data types and the sql data types

@@ -1,6 +1,6 @@
 package utopia.vault.tutorial;
 
-import utopia.flow.util.Option;
+import utopia.flow.structure.Option;
 import utopia.vault.database.DatabaseReferenceReader;
 import utopia.vault.database.ReadFromDatabaseColumnInitialiser;
 import utopia.vault.generics.Table;

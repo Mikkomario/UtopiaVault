@@ -1,6 +1,6 @@
 package utopia.vault.database;
 
-import utopia.flow.util.Option;
+import utopia.flow.structure.Option;
 import utopia.vault.generics.BasicSqlDataType;
 
 /**

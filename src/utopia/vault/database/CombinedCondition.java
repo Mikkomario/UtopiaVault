@@ -2,7 +2,7 @@ package utopia.vault.database;
 
 import utopia.flow.generics.Value;
 import utopia.flow.structure.ImmutableList;
-import utopia.flow.util.Option;
+import utopia.flow.structure.Option;
 
 /**
  * A combined condition is a set of conditions that must be met. The clause can be used in 

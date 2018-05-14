@@ -2,7 +2,7 @@ package utopia.vault.tutorial;
 
 import utopia.flow.generics.Value;
 import utopia.flow.structure.ImmutableList;
-import utopia.flow.util.Option;
+import utopia.flow.structure.Option;
 import utopia.vault.database.Condition;
 import utopia.vault.database.Database;
 import utopia.vault.database.DatabaseException;

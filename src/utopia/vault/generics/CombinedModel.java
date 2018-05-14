@@ -12,7 +12,7 @@ import utopia.flow.generics.Value;
 import utopia.flow.generics.Variable;
 import utopia.flow.structure.ImmutableList;
 import utopia.flow.structure.ImmutableMap;
-import utopia.flow.util.Option;
+import utopia.flow.structure.Option;
 
 /**
  * A combined model may contain both "normal" and database specific variables

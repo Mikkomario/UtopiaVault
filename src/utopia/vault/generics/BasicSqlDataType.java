@@ -9,7 +9,7 @@ import utopia.flow.generics.DataType;
 import utopia.flow.generics.DataTypeTreeNode;
 import utopia.flow.generics.DataTypes;
 import utopia.flow.generics.Value;
-import utopia.flow.util.Option;
+import utopia.flow.structure.Option;
 
 /**
  * These are the data types used in the sql operations. Remember to initialise the data types 
