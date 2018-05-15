@@ -9,7 +9,7 @@ import java.util.List;
 import utopia.flow.generics.DataType;
 import utopia.flow.generics.Value;
 import utopia.flow.structure.ImmutableList;
-import utopia.flow.util.Option;
+import utopia.flow.structure.Option;
 import utopia.vault.generics.BasicSqlDataType;
 import utopia.vault.generics.Column;
 import utopia.vault.generics.ColumnInitialiser;

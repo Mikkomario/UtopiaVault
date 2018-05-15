@@ -7,7 +7,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 import utopia.flow.structure.ImmutableList;
-import utopia.flow.util.Option;
+import utopia.flow.structure.Option;
 import utopia.vault.generics.Column;
 import utopia.vault.generics.Table;
 import utopia.vault.generics.TableInitialisationException;

@@ -4,8 +4,8 @@ import utopia.flow.generics.ModelDeclaration;
 import utopia.flow.generics.Value;
 import utopia.flow.structure.ImmutableList;
 import utopia.flow.structure.ImmutableMap;
-import utopia.flow.util.Lazy;
-import utopia.flow.util.Option;
+import utopia.flow.structure.Lazy;
+import utopia.flow.structure.Option;
 
 /**
  * A database table represents a table in a database and contains the necessary column 

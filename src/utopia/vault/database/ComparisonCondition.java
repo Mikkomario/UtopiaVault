@@ -2,7 +2,7 @@ package utopia.vault.database;
 
 import utopia.flow.generics.Value;
 import utopia.flow.structure.ImmutableList;
-import utopia.flow.util.Option;
+import utopia.flow.structure.Option;
 import utopia.vault.database.CombinedCondition.CombinationOperator;
 import utopia.vault.generics.Column;
 import utopia.vault.generics.ColumnVariable;

@@ -1,6 +1,6 @@
 package utopia.vault.tutorial;
 
-import utopia.flow.util.Option;
+import utopia.flow.structure.Option;
 import utopia.vault.database.Database;
 import utopia.vault.database.DatabaseException;
 import utopia.vault.database.DatabaseSettings;
