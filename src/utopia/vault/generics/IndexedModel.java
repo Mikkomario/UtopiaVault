@@ -1,7 +1,7 @@
 package utopia.vault.generics;
 
 import utopia.flow.generics.Value;
-import utopia.flow.util.Option;
+import utopia.flow.structure.Option;
 import utopia.vault.generics.Table.NoSuchColumnException;
 
 /**
