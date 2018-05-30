@@ -61,8 +61,7 @@ public class DatabaseException extends DebuggableException
 	 */
 	public DatabaseException(StatementParseException cause, Condition condition)
 	{
-		super(createMessage(cause), condition == null ? "no condition" : condition.getDebugSql(), 
-				cause);
+		super(createMessage(cause), condition == null ? "no condition" : condition.describe(), cause);
 	}
 	
 	/**
@@ -254,7 +253,7 @@ public class DatabaseException extends DebuggableException
 		if (sqlStatement != null)
 			message.append("SQL: " + sqlStatement);
 		if (where != null && table != null)
-			where.forEach(w -> message.append("\nWhere: " + w.getDebugSql()));
+			where.forEach(w -> message.append("\nWhere: " + w.describe()));
 		if (table != null)
 		{
 			message.append("\nTable used: ");

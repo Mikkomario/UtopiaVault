@@ -20,7 +20,7 @@ public abstract class Condition implements PreparedSQLClause
 	@Override
 	public abstract String toSql() throws StatementParseException;
 	
-	/**
+	/*
 	 * Sets condition values to the prepared sql statement
 	 * @param statement The statement that is being prepared.
 	 * @param startIndex The index where the first value of this condition occurs.
@@ -32,11 +32,11 @@ public abstract class Condition implements PreparedSQLClause
 	//public abstract int setObjectValues(PreparedStatement statement, int startIndex) throws 
 	//		SQLException, StatementParseException;
 	
-	/**
+	/*
 	 * Returns a debug string that mimics the final sql statement created from this condition
 	 * @return A debug sql statement
 	 */
-	public abstract String getDebugSql();
+	// public abstract String getDebugSql();
 	
 	
 	// IMPLEMENTED METHODS	----------------
@@ -44,7 +44,7 @@ public abstract class Condition implements PreparedSQLClause
 	@Override
 	public String toString()
 	{
-		return getDebugSql();
+		return describe();
 	}
 	
 	

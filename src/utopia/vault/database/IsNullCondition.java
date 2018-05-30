@@ -43,9 +43,10 @@ public class IsNullCondition extends Condition
 		return ImmutableList.empty();
 	}
 
+	/*
 	@Override
 	public String getDebugSql()
 	{
 		return this.column.getColumnName() + " IS NULL";
-	}
+	}*/
 }

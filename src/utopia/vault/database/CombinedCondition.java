@@ -170,10 +170,10 @@ public class CombinedCondition extends Condition
 		return i;
 	}*/
 
+	/*
 	@Override
 	public String getDebugSql()
 	{
-		// TODO: WET WET
 		StringBuilder sql = new StringBuilder("(");
 		
 		boolean isFirst = true;
@@ -187,7 +187,7 @@ public class CombinedCondition extends Condition
 		
 		sql.append(")");
 		return sql.toString();
-	}
+	}*/
 	
 	
 	// ENUMERATIONS	------------------
