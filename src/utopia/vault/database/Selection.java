@@ -69,13 +69,25 @@ public class Selection
 	 * Creates a selection that selects certain columns from a specific table
 	 * @param table A table
 	 * @param firstVarName The name of the first selected variable
+	 * @param secondVarName The second variable name
 	 * @param moreVarNames The names of the rest of the selected variables
 	 */
-	public Selection(Table table, String firstVarName, String... moreVarNames)
+	public Selection(Table table, String firstVarName, String secondVarName, String... moreVarNames)
 	{
 		this.selectAll = false;
-		this.selectedColumns = ImmutableList.withValues(firstVarName, moreVarNames).flatMap(name -> 
+		this.selectedColumns = ImmutableList.withValues(firstVarName, secondVarName, moreVarNames).flatMap(name -> 
 				table.findColumnWithVariableName(name));
+	}
+	
+	/**
+	 * Creates a selection that selects a certain column from a specific table
+	 * @param table A table
+	 * @param varName The variable name
+	 */
+	public Selection(Table table, String varName)
+	{
+		this.selectAll = false;
+		this.selectedColumns = table.findColumnWithVariableName(varName).toList();
 	}
 	
 	/**

@@ -1,9 +1,10 @@
 package utopia.vault.database;
 
-import java.util.List;
-
+import utopia.flow.generics.DataType;
 import utopia.flow.generics.Value;
+import utopia.flow.structure.Either;
 import utopia.flow.structure.ImmutableList;
+import utopia.flow.structure.Option;
 import utopia.vault.generics.Column;
 
 /**
@@ -12,11 +13,11 @@ import utopia.vault.generics.Column;
  * @author Mikko Hilpinen
  * @since 21.7.2016
  */
-public class InCondition extends SingleCondition
+public class InCondition extends Condition
 {
 	// ATTRIBUTES	------------------
 	
-	private Column[] parts;
+	private ImmutableList<Either<Column, Value>> parts;
 	
 	
 	// CONSTRUCTOR	------------------
@@ -24,23 +25,16 @@ public class InCondition extends SingleCondition
 	/**
 	 * Creates a new condition
 	 * @param column The checked column
-	 * @param inValues The accepted values
+	 * @param firstValue The first possible value
+	 * @param secondValue The second possible value
+	 * @param moreValues More possible values
 	 */
-	public InCondition(Column column, Value... inValues)
+	public InCondition(Column column, Value firstValue, Value secondValue, Value... moreValues)
 	{
-		super(inValues);
-		initialise(column, inValues.length);
-	}
-	
-	/**
-	 * Creates a new condition
-	 * @param column The checked column
-	 * @param inValues The accepted values
-	 */
-	public InCondition(Column column, List<? extends Value> inValues)
-	{
-		super(inValues.toArray(new Value[0]));
-		initialise(column, inValues.size());
+		ImmutableList<Either<Column, Value>> valueParts = ImmutableList.withValues(firstValue, secondValue, 
+				moreValues).map(Either::right);
+		
+		this.parts = valueParts.prepend(Either.left(column));
 	}
 	
 	/**
@@ -50,30 +44,24 @@ public class InCondition extends SingleCondition
 	 */
 	public InCondition(Column column, ImmutableList<Value> inValues)
 	{
-		super(inValues);
-		initialise(column, inValues.size());
+		ImmutableList<Either<Column, Value>> valueParts = inValues.map(Either::right);
+		
+		this.parts = valueParts.prepend(Either.left(column));
 	}
 	
 	/**
 	 * Creates a new condition
 	 * @param value The searched value
-	 * @param inColumns The columns the value is searched from
+	 * @param firstColumn The first possible column
+	 * @param secondColumn The second possible column
+	 * @param moreColumns More possible columns
 	 */
-	public InCondition(Value value, Column... inColumns)
+	public InCondition(Value value, Column firstColumn, Column secondColumn, Column... moreColumns)
 	{
-		super(value);
-		initialise(inColumns);
-	}
-	
-	/**
-	 * Creates a new condition
-	 * @param value The searched value
-	 * @param inColumns The columns the value is searched from
-	 */
-	public InCondition(Value value, List<? extends Column> inColumns)
-	{
-		super(value);
-		initialise(inColumns.toArray(new Column[0]));
+		ImmutableList<Either<Column, Value>> columnParts = ImmutableList.withValues(firstColumn, secondColumn, 
+				moreColumns).map(Either::left);
+		
+		this.parts = columnParts.prepend(Either.right(value));
 	}
 	
 	/**
@@ -83,69 +71,64 @@ public class InCondition extends SingleCondition
 	 */
 	public InCondition(Value value, ImmutableList<Column> inColumns)
 	{
-		super(value);
-		initialise(inColumns.toMutableList().toArray(new Column[0]));
+		ImmutableList<Either<Column, Value>> columnParts = inColumns.map(Either::left);
+		
+		this.parts = columnParts.prepend(Either.right(value));
+	}
+	
+	/**
+	 * Creates a new condition
+	 * @param column The checked column
+	 * @param firstColumn The first matching column option
+	 * @param secondColumn The second matching column option
+	 * @param moreColumns more matching column options
+	 */
+	public InCondition(Column column, Column firstColumn, Column secondColumn, Column... moreColumns)
+	{
+		ImmutableList<Either<Column, Value>> inParts = ImmutableList.withValues(firstColumn, secondColumn, 
+				moreColumns).map(Either::left);
+		this.parts = inParts.prepend(Either.left(column));
 	}
 	
 	
 	// IMPLEMENTED METHODS	-------------
-
+	
 	@Override
-	protected String getDebugSqlWithNoParsing()
+	public ImmutableList<Value> getValues()
 	{
-		return toSql();
+		// May cast the values to a certain data type
+		Option<DataType> type = this.parts.headOption().flatMap(p -> p.left()).map(c -> c.getType());
+		ImmutableList<Value> values = this.parts.flatMap(e -> e.right());
+		
+		if (type.isDefined())
+			return values.map(v -> v.castTo(type.get()));
+		else
+			return values;
 	}
 
 	@Override
 	public String toSql()
 	{
-		StringBuilder sql = new StringBuilder();
-		appendPart(sql, 0);
-		sql.append(" IN (");
-		
-		for(int i = 1; i < this.parts.length; i++)
+		// If there is 'in' set, cannot be true
+		if (this.parts.size() <= 1)
+			return "0";
+		else
 		{
-			if (i > 1)
-				sql.append(", ");
-			appendPart(sql, i);
+			StringBuilder sql = new StringBuilder();
+			sql.append(partToSql(this.parts.head()));
+			sql.append(" IN (");
+			sql.append(this.parts.map(InCondition::partToSql).reduce((total, part) -> total + ", " + part));
+			sql.append(")");
+			
+			return sql.toString();
 		}
-		
-		sql.append(")");
-		
-		return sql.toString();
 	}
 
 	
 	// OTHER METHODS	----------------
 	
-	private void appendPart(StringBuilder sql, int index)
+	private static String partToSql(Either<Column, Value> part)
 	{
-		Column column = this.parts[index];
-		if (column == null)
-			sql.append("?");
-		else
-			sql.append(column.getColumnNameWithTable());
-	}
-	
-	private void initialise(Column column, int valueAmount)
-	{
-		specifyValueDataType(column.getType());
-		
-		this.parts = new Column[valueAmount + 1];
-		this.parts[0] = column;
-		for (int i = 1; i < this.parts.length; i++)
-		{
-			this.parts[i] = null;
-		}
-	}
-	
-	private void initialise(Column[] columns)
-	{
-		this.parts = new Column[columns.length + 1];
-		this.parts[0] = null;
-		for (int i = 1; i < this.parts.length; i++)
-		{
-			this.parts[i] = columns[i - 1];
-		}
+		return part.toValue(c -> c.getColumnNameWithTable(), v -> "?");
 	}
 }
