@@ -117,7 +117,7 @@ public class InCondition extends Condition
 			StringBuilder sql = new StringBuilder();
 			sql.append(partToSql(this.parts.head()));
 			sql.append(" IN (");
-			sql.append(this.parts.map(InCondition::partToSql).reduce((total, part) -> total + ", " + part));
+			sql.append(this.parts.tail().map(InCondition::partToSql).reduce((total, part) -> total + ", " + part));
 			sql.append(")");
 			
 			return sql.toString();
