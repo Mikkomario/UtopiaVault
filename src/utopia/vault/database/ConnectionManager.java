@@ -3,14 +3,17 @@ package utopia.vault.database;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.function.Consumer;
+import java.util.function.Function;
 
 import utopia.flow.async.Completion;
 import utopia.flow.async.Volatile;
+import utopia.flow.function.ThrowingFunction;
 import utopia.flow.structure.ImmutableList;
 import utopia.flow.structure.ImmutableMap;
 import utopia.flow.structure.ListBuilder;
 import utopia.flow.structure.Option;
 import utopia.flow.structure.Pair;
+import utopia.flow.structure.Try;
 import utopia.flow.util.WaitUtils;
 
 /**
@@ -87,7 +90,50 @@ public class ConnectionManager
 	 */
 	public void getConnection(Consumer<? super Database> client)
 	{
-		ReusableConnection connection = connections.pop(all -> 
+		ReusableConnection connection = getConnection();
+		
+		try
+		{
+			client.accept(connection.connection);
+		}
+		finally
+		{
+			connection.leave();
+		}
+	}
+	
+	/**
+	 * Provides access to a connection for a client
+	 * @param client A client function that uses the provided connection
+	 * @return The return value of the client
+	 */
+	public <T> T mapConnection(Function<? super Database, ? extends T> client)
+	{
+		ReusableConnection connection = getConnection();
+		
+		try
+		{
+			return client.apply(connection.connection);
+		}
+		finally
+		{
+			connection.leave();
+		}
+	}
+	
+	/**
+	 * Provides access to a connection for a client. Caches exceptions
+	 * @param client A client function that uses the provided connection
+	 * @return The return value of the client. Failure if function threw
+	 */
+	public <T> Try<T> tryConnection(ThrowingFunction<? super Database, T, ?> client)
+	{
+		return mapConnection(client);
+	}
+	
+	private ReusableConnection getConnection()
+	{
+		return connections.pop(all -> 
 		{
 			// Finds the maximum clients per connection treshold
 			int maxClients = getMaxClientsPerConnection(all.size());
@@ -105,15 +151,6 @@ public class ConnectionManager
 				return new Pair<>(newConnection, all.plus(newConnection));
 			}
 		});
-		
-		try
-		{
-			client.accept(connection.connection);
-		}
-		finally
-		{
-			connection.leave();
-		}
 	}
 	
 	private void closeUnusedConnections()
