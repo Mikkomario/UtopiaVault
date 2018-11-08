@@ -7,6 +7,7 @@ import java.util.function.Function;
 
 import utopia.flow.async.Completion;
 import utopia.flow.async.Volatile;
+import utopia.flow.async.VolatileFlag;
 import utopia.flow.function.ThrowingFunction;
 import utopia.flow.structure.ImmutableList;
 import utopia.flow.structure.ImmutableMap;
@@ -14,6 +15,7 @@ import utopia.flow.structure.ListBuilder;
 import utopia.flow.structure.Option;
 import utopia.flow.structure.Pair;
 import utopia.flow.structure.Try;
+import utopia.flow.util.Counter;
 import utopia.flow.util.WaitUtils;
 
 /**
@@ -24,6 +26,8 @@ import utopia.flow.util.WaitUtils;
 public class ConnectionManager
 {
 	// ATTRIBUTES	--------------------
+	
+	private Option<Consumer<? super String>> debugLogger = Option.none();
 	
 	// (connection amount, max clients per connection), Ordered by connection amount.
 	private ImmutableList<Pair<Integer, Integer>> maxClientThresholds;
@@ -39,7 +43,7 @@ public class ConnectionManager
 	/**
 	 * Creates a new connection manager
 	 * @param connectionKeepAlive The maximum idle duration of a connection before it is closed
-	 * @param maxClientThresholds Thresholds for each client amount update (connection amount -> max client amount)
+	 * @param maxClientThresholds Thresholds for each client amount update (connection amount -> max client amount per connection)
 	 */
 	public ConnectionManager(Duration connectionKeepAlive, ImmutableMap<Integer, Integer> maxClientThresholds)
 	{
@@ -70,7 +74,7 @@ public class ConnectionManager
 			if (length <= 0)
 				break;
 			
-			buffer.add(new Pair<>(currentMax, start + length));
+			buffer.add(new Pair<>(start + length, currentMax));
 			
 			currentMax ++;
 			start += length;
@@ -131,6 +135,16 @@ public class ConnectionManager
 		return mapConnection(client);
 	}
 	
+	/**
+	 * Sets up debug logging for this manager
+	 * @param logger The new debug logger
+	 */
+	public void enableDebugLogs(Consumer<? super String> logger)
+	{
+		this.debugLogger = Option.some(logger);
+		debugLog("Starting debug logs. Connection max thresholds: " + maxClientThresholds);
+	}
+	
 	private ReusableConnection getConnection()
 	{
 		return connections.pop(all -> 
@@ -147,7 +161,8 @@ public class ConnectionManager
 				return new Pair<>(reusable.get(), all);
 			else
 			{
-				ReusableConnection newConnection = new ReusableConnection(this::closeUnusedConnections);
+				ReusableConnection newConnection = new ReusableConnection(debugLogger, this::closeUnusedConnections);
+				debugLog("New connection (" + newConnection.index + ") created. Now at " + (all.size() + 1) + " connections");
 				return new Pair<>(newConnection, all.plus(newConnection));
 			}
 		});
@@ -163,6 +178,7 @@ public class ConnectionManager
 			{
 				return Completion.ofAsynchronous(() -> 
 				{
+					debugLog("Starting timeout thread");
 					Option<Instant> nextWait = Option.some(Instant.now().plus(connectionKeepAlive));
 					
 					// Closes connections as long as they are queued to be closed
@@ -181,7 +197,9 @@ public class ConnectionManager
 							ImmutableList<ReusableConnection> open = closedAndOpen.get(true);
 							
 							// Terminates connections on closed items
-							closedAndOpen.get(false).forEach(c -> c.connection.close());
+							ImmutableList<ReusableConnection> closing = closedAndOpen.get(false);
+							debugLog("Closing " + closing.size() + " connections. Remaining: " + open.size());
+							closing.forEach(c -> c.tryClose());
 							
 							// Calculates the time when the next connection will be closed
 							Option<Instant> lastLeaveTime = open.filter(c -> !c.isInUse()).mapMin(c -> c.lastLeaveTime);
@@ -189,6 +207,8 @@ public class ConnectionManager
 							return new Pair<>(lastLeaveTime.map(t -> t.plus(connectionKeepAlive)), open);
 						});
 					}
+					
+					debugLog("Closing timeout thread");
 				});
 			}
 			else
@@ -207,6 +227,11 @@ public class ConnectionManager
 					() -> maxClientThresholds.last().get()).getSecond();
 		}
 	}
+	
+	private void debugLog(String message)
+	{
+		debugLogger.forEach(l -> l.accept(message));
+	}
 
 	
 	// NESTED CLASSES	--------------------
@@ -214,6 +239,13 @@ public class ConnectionManager
 	private static class ReusableConnection
 	{
 		// ATTRIBUTES	--------------------
+		
+		private static final Counter INDEX_COUNTER = new Counter(1, 1);
+		
+		private int index;
+		private Option<Consumer<? super String>> debugLogger;
+		
+		private VolatileFlag closed = new VolatileFlag();
 		
 		private Database connection = new Database();
 		private Volatile<Integer> clients = new Volatile<>(1);
@@ -224,8 +256,10 @@ public class ConnectionManager
 		
 		// CONSTRUCTOR	--------------------
 		
-		public ReusableConnection(Runnable onIdleOperation)
+		public ReusableConnection(Option<Consumer<? super String>> debugLogger, Runnable onIdleOperation)
 		{
+			this.index = INDEX_COUNTER.next();
+			this.debugLogger = debugLogger;
 			this.onIdleOperation = onIdleOperation;
 		}
 		
@@ -251,10 +285,13 @@ public class ConnectionManager
 		{
 			return clients.pop(current -> 
 			{
-				if (current >= maxCapacity)
+				if (current >= maxCapacity || closed.isSet())
 					return new Pair<>(false, current);
 				else
+				{
+					debugLog("Registered a new client (now at " + (current + 1) + ")");
 					return new Pair<>(true, current + 1);
+				}
 			});
 		}
 		
@@ -263,10 +300,42 @@ public class ConnectionManager
 			lastLeaveTime = Instant.now();
 			clients.update(current -> 
 			{
+				debugLog("Client left. Remaining: " + (current - 1));
 				if (current == 1)
-					onIdleOperation.run();
+				{
+					if (closed.isSet())
+					{
+						debugLog("Closing connection");
+						connection.close();
+					}
+					else
+					{
+						debugLog("Entering idle mode");
+						onIdleOperation.run();
+					}
+				}
 				return current - 1;
 			});
+		}
+		
+		public void tryClose()
+		{
+			clients.lockWhile(current -> 
+			{
+				if (current <= 0)
+				{
+					debugLog("Closing connection");
+					connection.close();
+				}
+				else
+					debugLog("Closes connection after clients have left");
+			});
+			closed.set();
+		}
+		
+		private void debugLog(String message)
+		{
+			debugLogger.forEach(l -> l.accept(index + ": " + message));
 		}
 	}
 }

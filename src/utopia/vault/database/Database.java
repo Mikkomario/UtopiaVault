@@ -10,12 +10,15 @@ import java.sql.Statement;
 import java.util.ArrayList;
 import java.util.List;
 
+import utopia.flow.async.Volatile;
 import utopia.flow.generics.DataType;
 import utopia.flow.generics.DataTypeException;
 import utopia.flow.generics.SubTypeSet;
 import utopia.flow.generics.Value;
 import utopia.flow.structure.ImmutableList;
 import utopia.flow.structure.Option;
+import utopia.flow.structure.Pair;
+import utopia.flow.structure.Try;
 import utopia.vault.generics.Column;
 import utopia.vault.generics.ColumnVariable;
 import utopia.vault.generics.SqlDataType;
@@ -33,7 +36,7 @@ public class Database implements AutoCloseable
 	// ATTRIBUTES	-----------------
 	
 	private String name;
-	private Connection connection = null;
+	private Volatile<Option<Connection>> connection = new Volatile<>(Option.none());
 	
 	
 	// CONSTRUCTOR	-----------------
@@ -97,24 +100,28 @@ public class Database implements AutoCloseable
 	 * called. Calling this method will cause the connection to be opened
 	 * @return Connection An open connection used by this instance.
 	 * @throws DatabaseUnavailableException If the database can't be accessed
-	 * @throws SQLException If the connection failed
 	 */
-	public Connection getOpenConnection() throws DatabaseUnavailableException, SQLException
+	@SuppressWarnings("resource")
+	public Connection getOpenConnection() throws DatabaseUnavailableException
 	{
-		if (this.connection == null)
-			openConnection();
-		else if (this.connection.isClosed())
+		return connection.<Try<Connection>>pop(old -> 
 		{
-			this.connection = null;
-			openConnection();
-		}
-		else if (!this.connection.isValid(10))
-		{
-			closeConnection();
-			openConnection();				
-		}
-		
-		return this.connection;
+			try
+			{
+				if (old.isDefined() && !old.get().isClosed())
+					return new Pair<>(Try.success(old.get()), old);
+				else
+				{
+					Connection newConnection = openConnection();
+					return new Pair<>(Try.success(newConnection), Option.some(newConnection));
+				}
+			}
+			catch (Exception e)
+			{
+				return new Pair<>(Try.failure(e), Option.none());
+			}
+			
+		}).unwrapThrowing(e -> new DatabaseUnavailableException(e));
 	}
 	
 	/**
@@ -125,6 +132,36 @@ public class Database implements AutoCloseable
 	 * @throws SQLException If the operation failed
 	 * @see #closeConnection()
 	 */
+	private Connection openConnection() throws DatabaseUnavailableException
+	{
+		// Tries to form a connection to the database
+		try
+		{
+			Option<String> driver = DatabaseSettings.getDriver();
+			if (driver.isDefined())
+			{
+				try
+				{
+					// Was previously Class.forName(...).newInstance();
+					Class.forName(driver.get()).getDeclaredConstructor().newInstance();
+				}
+				catch (Exception e)
+				{
+					throw new DatabaseUnavailableException("Can't use driver " + driver, e);
+				}
+			}
+			
+			return DriverManager.getConnection(
+					DatabaseSettings.getConnectionTarget() + getName(), 
+					DatabaseSettings.getUser(), DatabaseSettings.getPassword().getValue());
+		}
+		catch (SQLException e)
+		{
+			throw new DatabaseUnavailableException(e);
+		}
+	}
+	
+	/*
 	private void openConnection() throws DatabaseUnavailableException
 	{
 		// Tries to form a connection to the database
@@ -155,14 +192,33 @@ public class Database implements AutoCloseable
 		{
 			throw new DatabaseUnavailableException(e);
 		}
-	}
+	}*/
 	
 	/**
 	 * Closes a currently open connection to the database.
 	 */
 	public void closeConnection()
 	{
+		connection.update(con -> 
+		{
+			con.forEach(c -> 
+			{
+				try
+				{
+					if (!c.isClosed())
+						c.close();
+				}
+				catch (Exception e)
+				{
+					System.err.println("Couldn't close connection to database " + getName());
+					e.printStackTrace();
+				}
+			});
+			return Option.none();
+		});
+		
 		// Closes the connection
+		/*
 		try
 		{
 			// If there is no connection, quits
@@ -177,7 +233,7 @@ public class Database implements AutoCloseable
 			System.err.println("Couldn't close connection to database " + getName());
 			e.printStackTrace();
 			return;
-		}
+		}*/
 	}
 	
 	/**
@@ -277,7 +333,7 @@ public class Database implements AutoCloseable
 		if (this.name == null || !this.name.equals(newDatabaseName))
 		{
 			// The change is simple when a connection is closed
-			if (this.connection == null || this.connection.isClosed())
+			if (connection.get().forAll(c -> Try.run(() -> c.isClosed()).success().getOrElse(true)))
 				this.name = newDatabaseName;
 			// When a connection is open, informs the server
 			else
