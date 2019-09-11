@@ -82,7 +82,7 @@ public class ConnectionManager
 		
 		buffer.add(new Pair<>(maxConnections, clientsPerConnectionCap));
 		
-		this.maxClientThresholds = buffer.build();
+		this.maxClientThresholds = buffer.result();
 	}
 	
 	
