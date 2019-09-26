@@ -224,7 +224,7 @@ public class ConnectionManager
 		{
 			// Finds the first treshold that hasn't been reached and uses that connection amount
 			return maxClientThresholds.find(p -> p.getFirst() >= openConnections).getOrElse(
-					() -> maxClientThresholds.last().get()).getSecond();
+					() -> maxClientThresholds.last()).getSecond();
 		}
 	}
 	
