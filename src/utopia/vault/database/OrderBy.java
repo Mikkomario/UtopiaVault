@@ -103,6 +103,6 @@ public class OrderBy
 	
 	private static String columnAscToString(Pair<Column, Boolean> data)
 	{
-		return data.getFirst().getColumnNameWithTable() + (data.getSecond() ? " ASC" : " DESC");
+		return data.first().getColumnNameWithTable() + (data.second() ? " ASC" : " DESC");
 	}
 }

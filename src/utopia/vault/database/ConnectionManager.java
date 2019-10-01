@@ -48,7 +48,7 @@ public class ConnectionManager
 	public ConnectionManager(Duration connectionKeepAlive, ImmutableMap<Integer, Integer> maxClientThresholds)
 	{
 		this.connectionKeepAlive = connectionKeepAlive;
-		this.maxClientThresholds = maxClientThresholds.toList().sortedBy(p -> p.getFirst());
+		this.maxClientThresholds = maxClientThresholds.toList().sortedBy(p -> p.first());
 	}
 	
 	/**
@@ -223,8 +223,8 @@ public class ConnectionManager
 		else
 		{
 			// Finds the first treshold that hasn't been reached and uses that connection amount
-			return maxClientThresholds.find(p -> p.getFirst() >= openConnections).getOrElse(
-					() -> maxClientThresholds.last()).getSecond();
+			return maxClientThresholds.find(p -> p.first() >= openConnections).getOrElse(
+					() -> maxClientThresholds.last()).second();
 		}
 	}
 	

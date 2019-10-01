@@ -70,8 +70,8 @@ public class SqlValueParser implements ValueParser
 		
 		for (Pair<DataType, DataType> wrap : this.wrapable)
 		{
-			conversionBuffer.add(new Conversion(wrap.getFirst(), wrap.getSecond(), ConversionReliability.NO_CONVERSION));
-			conversionBuffer.add(new Conversion(wrap.getSecond(), wrap.getFirst(), ConversionReliability.NO_CONVERSION));
+			conversionBuffer.add(new Conversion(wrap.first(), wrap.second(), ConversionReliability.NO_CONVERSION));
+			conversionBuffer.add(new Conversion(wrap.second(), wrap.first(), ConversionReliability.NO_CONVERSION));
 		}
 		
 		this.conversions = ImmutableList.of(conversionBuffer);
@@ -102,8 +102,8 @@ public class SqlValueParser implements ValueParser
 		// Checks if the values are simply wrapable
 		for (Pair<DataType, DataType> pair : this.wrapable)
 		{
-			if ((pair.getFirst().equals(from) && pair.getSecond().equals(to)) || 
-					(pair.getFirst().equals(to) && pair.getSecond().equals(from)))
+			if ((pair.first().equals(from) && pair.second().equals(to)) || 
+					(pair.first().equals(to) && pair.second().equals(from)))
 				return wrap(value, to);
 		}
 		
