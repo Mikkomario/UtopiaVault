@@ -630,6 +630,39 @@ public class Database implements AutoCloseable
 	}
 	
 	/**
+	 * Finds index for the first row that matches specified condition
+	 * @param table Searched table
+	 * @param where Search condition
+	 * @param connection DB Connection
+	 * @return Result index value. May be empty.
+	 * @throws DatabaseException
+	 * @throws DatabaseUnavailableException
+	 */
+	public static Value getIndex(Table table, Condition where, Database connection) 
+			throws DatabaseException, DatabaseUnavailableException
+	{
+		return select(Selection.indexFrom(table), table, Option.some(where), Option.some(1), 
+				Option.none(), connection).headOption()
+				.flatMap(r -> r.headOption().map(var -> var.getValue())).getOrElse(Value.EMPTY);
+	}
+	
+	/**
+	 * Finds all indices that fulfill the specified condition
+	 * @param table Searched table
+	 * @param where Search condition
+	 * @param connection DB Connection
+	 * @return Result index values
+	 * @throws DatabaseException
+	 * @throws DatabaseUnavailableException
+	 */
+	public static ImmutableList<Value> indicesWhere(Table table, Condition where, Database connection) 
+			throws DatabaseException, DatabaseUnavailableException
+	{
+		return select(Selection.indexFrom(table), table, where, connection)
+				.flatMap(r -> r.headOption().map(var -> var.getValue()));
+	}
+	
+	/**
 	 * Updates a model's attributes based on a database query
 	 * @param model The model who's attributes are updated
 	 * @param where The condition with which the model is found. Notice that only the first 
