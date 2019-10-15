@@ -399,10 +399,38 @@ public class Database implements AutoCloseable
 	 * @throws DatabaseUnavailableException If the database couldn't be accessed
 	 * @throws DatabaseException If the query failed
 	 */
+	public static ImmutableList<ImmutableList<ColumnVariable>> select(Selection select, 
+			Table from, ImmutableList<Join> joins, Option<Condition> where, Option<Integer> limit, 
+			Option<OrderBy> orderBy, Database connection) 
+					throws DatabaseUnavailableException, DatabaseException
+	{
+		return select(select, from, joins, where, limit, Option.none(), orderBy, connection);
+	}
+	
+	/**
+	 * Performs a select query, selecting certain column value(s) from certain row(s) in certain 
+	 * table(s)
+	 * @param select The selected columns
+	 * @param from The table the selection is made on
+	 * @param joins The joins that are inserted to the query (optional)
+	 * @param where The condition that specifies which rows are selected. None if all rows should be selected.
+	 * @param limit The limit on how many rows should be selected at maximum. None if no limit 
+	 * should be set
+	 * @param offset Amount of rows dropped from the result's beginning. None if all rows should 
+	 * be returned. If specified, limit must also be present.
+	 * @param orderBy The method the returned rows are sorted with (optional)
+	 * @param connection A database connection that should be used in the query. Null if a 
+	 * temporary connection should be used. Only temporary connections are closed in this method.
+	 * @return A list containing each selected row. Each row contains the selected column 
+	 * values.
+	 * @throws DatabaseUnavailableException If the database couldn't be accessed
+	 * @throws DatabaseException If the query failed
+	 */
 	@SuppressWarnings("resource")
 	public static ImmutableList<ImmutableList<ColumnVariable>> select(Selection select, 
 			Table from, ImmutableList<Join> joins, Option<Condition> where, Option<Integer> limit, 
-			Option<OrderBy> orderBy, Database connection) throws DatabaseUnavailableException, DatabaseException
+			Option<Integer> offset, Option<OrderBy> orderBy, Database connection) 
+					throws DatabaseUnavailableException, DatabaseException
 	{
 		StringBuilder sql = new StringBuilder();
 		appendSelect(sql, select);
@@ -425,6 +453,7 @@ public class Database implements AutoCloseable
 			sql.append(orderBy.get().toSql());
 		if (limit != null)
 			limit.forEach(l -> sql.append(" LIMIT " + l));
+		offset.forEach(o -> sql.append(" OFFSET " + o));
 		
 		Database db = null;
 		PreparedStatement statement = null;
