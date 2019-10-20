@@ -10,12 +10,15 @@ import java.sql.Statement;
 import java.util.ArrayList;
 import java.util.List;
 
+import utopia.flow.async.Volatile;
 import utopia.flow.generics.DataType;
 import utopia.flow.generics.DataTypeException;
 import utopia.flow.generics.SubTypeSet;
 import utopia.flow.generics.Value;
 import utopia.flow.structure.ImmutableList;
 import utopia.flow.structure.Option;
+import utopia.flow.structure.Pair;
+import utopia.flow.structure.Try;
 import utopia.vault.generics.Column;
 import utopia.vault.generics.ColumnVariable;
 import utopia.vault.generics.SqlDataType;
@@ -33,7 +36,7 @@ public class Database implements AutoCloseable
 	// ATTRIBUTES	-----------------
 	
 	private String name;
-	private Connection connection = null;
+	private Volatile<Option<Connection>> connection = new Volatile<>(Option.none());
 	
 	
 	// CONSTRUCTOR	-----------------
@@ -97,24 +100,28 @@ public class Database implements AutoCloseable
 	 * called. Calling this method will cause the connection to be opened
 	 * @return Connection An open connection used by this instance.
 	 * @throws DatabaseUnavailableException If the database can't be accessed
-	 * @throws SQLException If the connection failed
 	 */
-	public Connection getOpenConnection() throws DatabaseUnavailableException, SQLException
+	@SuppressWarnings("resource")
+	public Connection getOpenConnection() throws DatabaseUnavailableException
 	{
-		if (this.connection == null)
-			openConnection();
-		else if (this.connection.isClosed())
+		return connection.<Try<Connection>>pop(old -> 
 		{
-			this.connection = null;
-			openConnection();
-		}
-		else if (!this.connection.isValid(10))
-		{
-			closeConnection();
-			openConnection();				
-		}
-		
-		return this.connection;
+			try
+			{
+				if (old.isDefined() && !old.get().isClosed())
+					return new Pair<>(Try.success(old.get()), old);
+				else
+				{
+					Connection newConnection = openConnection();
+					return new Pair<>(Try.success(newConnection), Option.some(newConnection));
+				}
+			}
+			catch (Exception e)
+			{
+				return new Pair<>(Try.failure(e), Option.none());
+			}
+			
+		}).unwrapThrowing(e -> new DatabaseUnavailableException(e));
 	}
 	
 	/**
@@ -125,6 +132,36 @@ public class Database implements AutoCloseable
 	 * @throws SQLException If the operation failed
 	 * @see #closeConnection()
 	 */
+	private Connection openConnection() throws DatabaseUnavailableException
+	{
+		// Tries to form a connection to the database
+		try
+		{
+			Option<String> driver = DatabaseSettings.getDriver();
+			if (driver.isDefined())
+			{
+				try
+				{
+					// Was previously Class.forName(...).newInstance();
+					Class.forName(driver.get()).getDeclaredConstructor().newInstance();
+				}
+				catch (Exception e)
+				{
+					throw new DatabaseUnavailableException("Can't use driver " + driver, e);
+				}
+			}
+			
+			return DriverManager.getConnection(
+					DatabaseSettings.getConnectionTarget() + getName(), 
+					DatabaseSettings.getUser(), DatabaseSettings.getPassword().getValue());
+		}
+		catch (SQLException e)
+		{
+			throw new DatabaseUnavailableException(e);
+		}
+	}
+	
+	/*
 	private void openConnection() throws DatabaseUnavailableException
 	{
 		// Tries to form a connection to the database
@@ -155,14 +192,33 @@ public class Database implements AutoCloseable
 		{
 			throw new DatabaseUnavailableException(e);
 		}
-	}
+	}*/
 	
 	/**
 	 * Closes a currently open connection to the database.
 	 */
 	public void closeConnection()
 	{
+		connection.update(con -> 
+		{
+			con.forEach(c -> 
+			{
+				try
+				{
+					if (!c.isClosed())
+						c.close();
+				}
+				catch (Exception e)
+				{
+					System.err.println("Couldn't close connection to database " + getName());
+					e.printStackTrace();
+				}
+			});
+			return Option.none();
+		});
+		
 		// Closes the connection
+		/*
 		try
 		{
 			// If there is no connection, quits
@@ -177,7 +233,7 @@ public class Database implements AutoCloseable
 			System.err.println("Couldn't close connection to database " + getName());
 			e.printStackTrace();
 			return;
-		}
+		}*/
 	}
 	
 	/**
@@ -277,7 +333,7 @@ public class Database implements AutoCloseable
 		if (this.name == null || !this.name.equals(newDatabaseName))
 		{
 			// The change is simple when a connection is closed
-			if (this.connection == null || this.connection.isClosed())
+			if (connection.get().forAll(c -> Try.run(() -> c.isClosed()).success().getOrElse(true)))
 				this.name = newDatabaseName;
 			// When a connection is open, informs the server
 			else
@@ -343,10 +399,38 @@ public class Database implements AutoCloseable
 	 * @throws DatabaseUnavailableException If the database couldn't be accessed
 	 * @throws DatabaseException If the query failed
 	 */
+	public static ImmutableList<ImmutableList<ColumnVariable>> select(Selection select, 
+			Table from, ImmutableList<Join> joins, Option<Condition> where, Option<Integer> limit, 
+			Option<OrderBy> orderBy, Database connection) 
+					throws DatabaseUnavailableException, DatabaseException
+	{
+		return select(select, from, joins, where, limit, Option.none(), orderBy, connection);
+	}
+	
+	/**
+	 * Performs a select query, selecting certain column value(s) from certain row(s) in certain 
+	 * table(s)
+	 * @param select The selected columns
+	 * @param from The table the selection is made on
+	 * @param joins The joins that are inserted to the query (optional)
+	 * @param where The condition that specifies which rows are selected. None if all rows should be selected.
+	 * @param limit The limit on how many rows should be selected at maximum. None if no limit 
+	 * should be set
+	 * @param offset Amount of rows dropped from the result's beginning. None if all rows should 
+	 * be returned. If specified, limit must also be present.
+	 * @param orderBy The method the returned rows are sorted with (optional)
+	 * @param connection A database connection that should be used in the query. Null if a 
+	 * temporary connection should be used. Only temporary connections are closed in this method.
+	 * @return A list containing each selected row. Each row contains the selected column 
+	 * values.
+	 * @throws DatabaseUnavailableException If the database couldn't be accessed
+	 * @throws DatabaseException If the query failed
+	 */
 	@SuppressWarnings("resource")
 	public static ImmutableList<ImmutableList<ColumnVariable>> select(Selection select, 
 			Table from, ImmutableList<Join> joins, Option<Condition> where, Option<Integer> limit, 
-			Option<OrderBy> orderBy, Database connection) throws DatabaseUnavailableException, DatabaseException
+			Option<Integer> offset, Option<OrderBy> orderBy, Database connection) 
+					throws DatabaseUnavailableException, DatabaseException
 	{
 		StringBuilder sql = new StringBuilder();
 		appendSelect(sql, select);
@@ -369,6 +453,7 @@ public class Database implements AutoCloseable
 			sql.append(orderBy.get().toSql());
 		if (limit != null)
 			limit.forEach(l -> sql.append(" LIMIT " + l));
+		offset.forEach(o -> sql.append(" OFFSET " + o));
 		
 		Database db = null;
 		PreparedStatement statement = null;
@@ -571,6 +656,39 @@ public class Database implements AutoCloseable
 			return Option.some(model);
 		else
 			return Option.none();
+	}
+	
+	/**
+	 * Finds index for the first row that matches specified condition
+	 * @param table Searched table
+	 * @param where Search condition
+	 * @param connection DB Connection
+	 * @return Result index value. May be empty.
+	 * @throws DatabaseException
+	 * @throws DatabaseUnavailableException
+	 */
+	public static Value getIndex(Table table, Condition where, Database connection) 
+			throws DatabaseException, DatabaseUnavailableException
+	{
+		return select(Selection.indexFrom(table), table, Option.some(where), Option.some(1), 
+				Option.none(), connection).headOption()
+				.flatMap(r -> r.headOption().map(var -> var.getValue())).getOrElse(Value.EMPTY);
+	}
+	
+	/**
+	 * Finds all indices that fulfill the specified condition
+	 * @param table Searched table
+	 * @param where Search condition
+	 * @param connection DB Connection
+	 * @return Result index values
+	 * @throws DatabaseException
+	 * @throws DatabaseUnavailableException
+	 */
+	public static ImmutableList<Value> indicesWhere(Table table, Condition where, Database connection) 
+			throws DatabaseException, DatabaseUnavailableException
+	{
+		return select(Selection.indexFrom(table), table, where, connection)
+				.flatMap(r -> r.headOption().map(var -> var.getValue()));
 	}
 	
 	/**

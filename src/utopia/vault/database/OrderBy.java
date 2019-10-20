@@ -41,7 +41,7 @@ public class OrderBy
 		if (asc.size() < columns.length)
 			asc = asc.plus(ImmutableList.filledWith(columns.length - asc.size(), true));
 		
-		this.columns = ImmutableList.of(columns).mergedWith(asc);
+		this.columns = ImmutableList.of(columns).zip(asc);
 	}
 
 	/**
@@ -52,7 +52,7 @@ public class OrderBy
 	 */
 	public OrderBy(boolean ascending, Column... columns)
 	{
-		this.columns = ImmutableList.of(columns).mergedWith(ImmutableList.filledWith(columns.length, ascending));
+		this.columns = ImmutableList.of(columns).zip(ImmutableList.filledWith(columns.length, ascending));
 	}
 	
 	/**
@@ -72,7 +72,7 @@ public class OrderBy
 	 */
 	public OrderBy(Column... columns)
 	{
-		this.columns = ImmutableList.of(columns).mergedWith(ImmutableList.filledWith(columns.length, true));
+		this.columns = ImmutableList.of(columns).zip(ImmutableList.filledWith(columns.length, true));
 	}
 	
 	
@@ -103,6 +103,6 @@ public class OrderBy
 	
 	private static String columnAscToString(Pair<Column, Boolean> data)
 	{
-		return data.getFirst().getColumnNameWithTable() + (data.getSecond() ? " ASC" : " DESC");
+		return data.first().getColumnNameWithTable() + (data.second() ? " ASC" : " DESC");
 	}
 }

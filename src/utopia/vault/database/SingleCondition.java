@@ -108,6 +108,7 @@ public abstract class SingleCondition extends Condition
 	}
 	*/
 	
+	/*
 	@Override
 	public String getDebugSql()
 	{
@@ -145,7 +146,7 @@ public abstract class SingleCondition extends Condition
 			return s.toString();
 		}
 	}
-	
+	*/
 	
 	// OTHER METHODS	--------------
 	

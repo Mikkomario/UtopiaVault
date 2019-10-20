@@ -168,7 +168,7 @@ public class ValueAssignment implements PreparedSQLClause
 	 */
 	public void appendColumns(ImmutableList<? extends Pair<Column, Column>> setColumns)
 	{
-		this.assignments = this.assignments.plus(setColumns.map(pair -> new Assignment(pair.getFirst(), pair.getSecond())));
+		this.assignments = this.assignments.plus(setColumns.map(pair -> new Assignment(pair.first(), pair.second())));
 	}
 	
 	/**

@@ -42,9 +42,10 @@ public class InvertedCondition extends Condition
 		return "NOT " + this.condition.toSql();
 	}
 
+	/*
 	@Override
 	public String getDebugSql()
 	{
 		return "NOT " + this.condition.getDebugSql();
-	}
+	}*/
 }
