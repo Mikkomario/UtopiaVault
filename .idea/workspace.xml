@@ -1,14 +1,115 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <project version="4">
   <component name="ChangeListManager">
-    <list default="true" id="5a5540c9-bda4-47ae-8f62-1be3017a8103" name="Default Changelist" comment="">
-      <change afterPath="$PROJECT_DIR$/.idea/$PRODUCT_WORKSPACE_FILE$" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/.idea/.gitignore" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/.idea/Utopia-Vault-Java.iml" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/.idea/modules.xml" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/.idea/vcs.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/.gitignore" beforeDir="false" afterPath="$PROJECT_DIR$/.gitignore" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/.idea/misc.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/misc.xml" afterDir="false" />
+    <list default="true" id="5a5540c9-bda4-47ae-8f62-1be3017a8103" name="Default Changelist" comment="Merge branch 'master' into development&#10;&#10;# Conflicts:&#10;#&#9;.idea/misc.xml">
+      <change afterPath="$PROJECT_DIR$/.idea/compiler.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../Utopia-Flow-Java/.idea/Utopia-Flow-Java.iml" beforeDir="false" afterPath="$PROJECT_DIR$/../Utopia-Flow-Java/.idea/Utopia-Flow-Java.iml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../Utopia-Flow-Java/src/utopia/java/flow/async/ActionQueue.java" beforeDir="false" afterPath="$PROJECT_DIR$/../Utopia-Flow-Java/src/utopia/java/flow/async/ActionQueue.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../Utopia-Flow-Java/src/utopia/java/flow/async/Attempt.java" beforeDir="false" afterPath="$PROJECT_DIR$/../Utopia-Flow-Java/src/utopia/java/flow/async/Attempt.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../Utopia-Flow-Java/src/utopia/java/flow/async/BackgroundProcessUtils.java" beforeDir="false" afterPath="$PROJECT_DIR$/../Utopia-Flow-Java/src/utopia/java/flow/async/BackgroundProcessUtils.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../Utopia-Flow-Java/src/utopia/java/flow/async/Breakable.java" beforeDir="false" afterPath="$PROJECT_DIR$/../Utopia-Flow-Java/src/utopia/java/flow/async/Breakable.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../Utopia-Flow-Java/src/utopia/java/flow/async/Completion.java" beforeDir="false" afterPath="$PROJECT_DIR$/../Utopia-Flow-Java/src/utopia/java/flow/async/Completion.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../Utopia-Flow-Java/src/utopia/java/flow/async/DailyTasksLoop.java" beforeDir="false" afterPath="$PROJECT_DIR$/../Utopia-Flow-Java/src/utopia/java/flow/async/DailyTasksLoop.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../Utopia-Flow-Java/src/utopia/java/flow/async/Loop.java" beforeDir="false" afterPath="$PROJECT_DIR$/../Utopia-Flow-Java/src/utopia/java/flow/async/Loop.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../Utopia-Flow-Java/src/utopia/java/flow/async/LoopCloseHook.java" beforeDir="false" afterPath="$PROJECT_DIR$/../Utopia-Flow-Java/src/utopia/java/flow/async/LoopCloseHook.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../Utopia-Flow-Java/src/utopia/java/flow/async/Promise.java" beforeDir="false" afterPath="$PROJECT_DIR$/../Utopia-Flow-Java/src/utopia/java/flow/async/Promise.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../Utopia-Flow-Java/src/utopia/java/flow/async/RepeatableAction.java" beforeDir="false" afterPath="$PROJECT_DIR$/../Utopia-Flow-Java/src/utopia/java/flow/async/RepeatableAction.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../Utopia-Flow-Java/src/utopia/java/flow/async/StaticIntervalLoop.java" beforeDir="false" afterPath="$PROJECT_DIR$/../Utopia-Flow-Java/src/utopia/java/flow/async/StaticIntervalLoop.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../Utopia-Flow-Java/src/utopia/java/flow/async/ThreadPool.java" beforeDir="false" afterPath="$PROJECT_DIR$/../Utopia-Flow-Java/src/utopia/java/flow/async/ThreadPool.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../Utopia-Flow-Java/src/utopia/java/flow/async/ThreadPoolUtils.java" beforeDir="false" afterPath="$PROJECT_DIR$/../Utopia-Flow-Java/src/utopia/java/flow/async/ThreadPoolUtils.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../Utopia-Flow-Java/src/utopia/java/flow/async/Volatile.java" beforeDir="false" afterPath="$PROJECT_DIR$/../Utopia-Flow-Java/src/utopia/java/flow/async/Volatile.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../Utopia-Flow-Java/src/utopia/java/flow/async/VolatileFlag.java" beforeDir="false" afterPath="$PROJECT_DIR$/../Utopia-Flow-Java/src/utopia/java/flow/async/VolatileFlag.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../Utopia-Flow-Java/src/utopia/java/flow/async/VolatileList.java" beforeDir="false" afterPath="$PROJECT_DIR$/../Utopia-Flow-Java/src/utopia/java/flow/async/VolatileList.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../Utopia-Flow-Java/src/utopia/java/flow/async/VolatileOption.java" beforeDir="false" afterPath="$PROJECT_DIR$/../Utopia-Flow-Java/src/utopia/java/flow/async/VolatileOption.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../Utopia-Flow-Java/src/utopia/java/flow/async/package-info.java" beforeDir="false" afterPath="$PROJECT_DIR$/../Utopia-Flow-Java/src/utopia/java/flow/async/package-info.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../Utopia-Flow-Java/src/utopia/java/flow/function/FunctionUtils.java" beforeDir="false" afterPath="$PROJECT_DIR$/../Utopia-Flow-Java/src/utopia/java/flow/function/FunctionUtils.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../Utopia-Flow-Java/src/utopia/java/flow/function/ThrowingBiConsumer.java" beforeDir="false" afterPath="$PROJECT_DIR$/../Utopia-Flow-Java/src/utopia/java/flow/function/ThrowingBiConsumer.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../Utopia-Flow-Java/src/utopia/java/flow/function/ThrowingBiFunction.java" beforeDir="false" afterPath="$PROJECT_DIR$/../Utopia-Flow-Java/src/utopia/java/flow/function/ThrowingBiFunction.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../Utopia-Flow-Java/src/utopia/java/flow/function/ThrowingConsumer.java" beforeDir="false" afterPath="$PROJECT_DIR$/../Utopia-Flow-Java/src/utopia/java/flow/function/ThrowingConsumer.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../Utopia-Flow-Java/src/utopia/java/flow/function/ThrowingFunction.java" beforeDir="false" afterPath="$PROJECT_DIR$/../Utopia-Flow-Java/src/utopia/java/flow/function/ThrowingFunction.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../Utopia-Flow-Java/src/utopia/java/flow/function/ThrowingPredicate.java" beforeDir="false" afterPath="$PROJECT_DIR$/../Utopia-Flow-Java/src/utopia/java/flow/function/ThrowingPredicate.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../Utopia-Flow-Java/src/utopia/java/flow/function/ThrowingRunnable.java" beforeDir="false" afterPath="$PROJECT_DIR$/../Utopia-Flow-Java/src/utopia/java/flow/function/ThrowingRunnable.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../Utopia-Flow-Java/src/utopia/java/flow/function/ThrowingSupplier.java" beforeDir="false" afterPath="$PROJECT_DIR$/../Utopia-Flow-Java/src/utopia/java/flow/function/ThrowingSupplier.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../Utopia-Flow-Java/src/utopia/java/flow/function/package-info.java" beforeDir="false" afterPath="$PROJECT_DIR$/../Utopia-Flow-Java/src/utopia/java/flow/function/package-info.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../Utopia-Flow-Java/src/utopia/java/flow/parse/XmlReader.java" beforeDir="false" afterPath="$PROJECT_DIR$/../Utopia-Flow-Java/src/utopia/java/flow/parse/XmlReader.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../Utopia-Flow-Java/src/utopia/java/flow/parse/XmlWriter.java" beforeDir="false" afterPath="$PROJECT_DIR$/../Utopia-Flow-Java/src/utopia/java/flow/parse/XmlWriter.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../Utopia-Flow-Java/src/utopia/java/flow/structure/BiIterable.java" beforeDir="false" afterPath="$PROJECT_DIR$/../Utopia-Flow-Java/src/utopia/java/flow/structure/BiIterable.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../Utopia-Flow-Java/src/utopia/java/flow/structure/ImmutableList.java" beforeDir="false" afterPath="$PROJECT_DIR$/../Utopia-Flow-Java/src/utopia/java/flow/structure/ImmutableList.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../Utopia-Flow-Java/src/utopia/java/flow/structure/Option.java" beforeDir="false" afterPath="$PROJECT_DIR$/../Utopia-Flow-Java/src/utopia/java/flow/structure/Option.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../Utopia-Flow-Java/src/utopia/java/flow/structure/RichIterable.java" beforeDir="false" afterPath="$PROJECT_DIR$/../Utopia-Flow-Java/src/utopia/java/flow/structure/RichIterable.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../Utopia-Flow-Java/src/utopia/java/flow/structure/Sequence.java" beforeDir="false" afterPath="$PROJECT_DIR$/../Utopia-Flow-Java/src/utopia/java/flow/structure/Sequence.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../Utopia-Flow-Java/src/utopia/java/flow/structure/Try.java" beforeDir="false" afterPath="$PROJECT_DIR$/../Utopia-Flow-Java/src/utopia/java/flow/structure/Try.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../Utopia-Flow-Java/src/utopia/java/flow/test/ActionQueueTest.java" beforeDir="false" afterPath="$PROJECT_DIR$/../Utopia-Flow-Java/src/utopia/java/flow/test/ActionQueueTest.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../Utopia-Flow-Java/src/utopia/java/flow/test/AttemptRetryTest.java" beforeDir="false" afterPath="$PROJECT_DIR$/../Utopia-Flow-Java/src/utopia/java/flow/test/AttemptRetryTest.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../Utopia-Flow-Java/src/utopia/java/flow/test/BackgroundOperationTest.java" beforeDir="false" afterPath="$PROJECT_DIR$/../Utopia-Flow-Java/src/utopia/java/flow/test/BackgroundOperationTest.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../Utopia-Flow-Java/src/utopia/java/flow/test/DailyOperationTest.java" beforeDir="false" afterPath="$PROJECT_DIR$/../Utopia-Flow-Java/src/utopia/java/flow/test/DailyOperationTest.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../Utopia-Flow-Java/src/utopia/java/flow/test/PromiseTest.java" beforeDir="false" afterPath="$PROJECT_DIR$/../Utopia-Flow-Java/src/utopia/java/flow/test/PromiseTest.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../Utopia-Flow-Java/src/utopia/java/flow/test/QueueTest.java" beforeDir="false" afterPath="$PROJECT_DIR$/../Utopia-Flow-Java/src/utopia/java/flow/test/QueueTest.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../Utopia-Flow-Java/src/utopia/java/flow/test/QuickQueueTest.java" beforeDir="false" afterPath="$PROJECT_DIR$/../Utopia-Flow-Java/src/utopia/java/flow/test/QuickQueueTest.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../Utopia-Flow-Java/src/utopia/java/flow/test/RepeatableActionTest.java" beforeDir="false" afterPath="$PROJECT_DIR$/../Utopia-Flow-Java/src/utopia/java/flow/test/RepeatableActionTest.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../Utopia-Flow-Java/src/utopia/java/flow/test/VolatileTest.java" beforeDir="false" afterPath="$PROJECT_DIR$/../Utopia-Flow-Java/src/utopia/java/flow/test/VolatileTest.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../Utopia-Flow-Java/src/utopia/java/flow/test/WaitLoopTest.java" beforeDir="false" afterPath="$PROJECT_DIR$/../Utopia-Flow-Java/src/utopia/java/flow/test/WaitLoopTest.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../Utopia-Flow-Java/src/utopia/java/flow/util/AutoCloseWrapper.java" beforeDir="false" afterPath="$PROJECT_DIR$/../Utopia-Flow-Java/src/utopia/java/flow/util/AutoCloseWrapper.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../Utopia-Flow-Java/src/utopia/java/flow/util/Wait.java" beforeDir="false" afterPath="$PROJECT_DIR$/../Utopia-Flow-Java/src/utopia/java/flow/util/Wait.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/.idea/Utopia-Vault-Java.iml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/Utopia-Vault-Java.iml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/.idea/modules.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/modules.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/utopia/vault/database/CombinedCondition.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/utopia/java/vault/database/CombinedCondition.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/utopia/vault/database/ComparisonCondition.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/utopia/java/vault/database/ComparisonCondition.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/utopia/vault/database/Condition.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/utopia/java/vault/database/Condition.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/utopia/vault/database/ConnectionManager.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/utopia/java/vault/database/ConnectionManager.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/utopia/vault/database/Database.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/utopia/java/vault/database/Database.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/utopia/vault/database/DatabaseException.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/utopia/java/vault/database/DatabaseException.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/utopia/vault/database/DatabaseReferenceReader.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/utopia/java/vault/database/DatabaseReferenceReader.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/utopia/vault/database/DatabaseSettings.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/utopia/java/vault/database/DatabaseSettings.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/utopia/vault/database/DatabaseTableModel.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/utopia/java/vault/database/DatabaseTableModel.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/utopia/vault/database/DatabaseUnavailableException.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/utopia/java/vault/database/DatabaseUnavailableException.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/utopia/vault/database/InCondition.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/utopia/java/vault/database/InCondition.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/utopia/vault/database/InConditionOld.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/utopia/java/vault/database/InConditionOld.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/utopia/vault/database/InvertedCondition.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/utopia/java/vault/database/InvertedCondition.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/utopia/vault/database/IsBetweenCondition.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/utopia/java/vault/database/IsBetweenCondition.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/utopia/vault/database/IsNullCondition.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/utopia/java/vault/database/IsNullCondition.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/utopia/vault/database/Join.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/utopia/java/vault/database/Join.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/utopia/vault/database/LikeColumnCondition.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/utopia/java/vault/database/LikeColumnCondition.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/utopia/vault/database/LikeCondition.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/utopia/java/vault/database/LikeCondition.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/utopia/vault/database/OrderBy.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/utopia/java/vault/database/OrderBy.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/utopia/vault/database/PreparedSQLClause.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/utopia/java/vault/database/PreparedSQLClause.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/utopia/vault/database/ReadFromDatabaseColumnInitialiser.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/utopia/java/vault/database/ReadFromDatabaseColumnInitialiser.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/utopia/vault/database/Selection.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/utopia/java/vault/database/Selection.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/utopia/vault/database/SingleCondition.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/utopia/java/vault/database/SingleCondition.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/utopia/vault/database/StatementParseException.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/utopia/java/vault/database/StatementParseException.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/utopia/vault/database/ValueAssignment.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/utopia/java/vault/database/ValueAssignment.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/utopia/vault/generics/AfterLastUnderLineRule.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/utopia/java/vault/generics/AfterLastUnderLineRule.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/utopia/vault/generics/BasicSqlDataType.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/utopia/java/vault/generics/BasicSqlDataType.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/utopia/vault/generics/Column.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/utopia/java/vault/generics/Column.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/utopia/vault/generics/ColumnInitialiser.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/utopia/java/vault/generics/ColumnInitialiser.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/utopia/vault/generics/ColumnNameIsVariableNameRule.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/utopia/java/vault/generics/ColumnNameIsVariableNameRule.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/utopia/vault/generics/ColumnVariable.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/utopia/java/vault/generics/ColumnVariable.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/utopia/vault/generics/ColumnVariableParser.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/utopia/java/vault/generics/ColumnVariableParser.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/utopia/vault/generics/CombinedModel.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/utopia/java/vault/generics/CombinedModel.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/utopia/vault/generics/CurrentTimestamp.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/utopia/java/vault/generics/CurrentTimestamp.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/utopia/vault/generics/DropFromBeginningRule.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/utopia/java/vault/generics/DropFromBeginningRule.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/utopia/vault/generics/IndexedModel.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/utopia/java/vault/generics/IndexedModel.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/utopia/vault/generics/NameMappingRule.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/utopia/java/vault/generics/NameMappingRule.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/utopia/vault/generics/NoSuchReferenceException.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/utopia/java/vault/generics/NoSuchReferenceException.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/utopia/vault/generics/SqlDataType.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/utopia/java/vault/generics/SqlDataType.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/utopia/vault/generics/SqlValueParser.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/utopia/java/vault/generics/SqlValueParser.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/utopia/vault/generics/Table.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/utopia/java/vault/generics/Table.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/utopia/vault/generics/TableInitialisationException.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/utopia/java/vault/generics/TableInitialisationException.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/utopia/vault/generics/TableModel.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/utopia/java/vault/generics/TableModel.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/utopia/vault/generics/TableReference.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/utopia/java/vault/generics/TableReference.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/utopia/vault/generics/TableReferenceReader.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/utopia/java/vault/generics/TableReferenceReader.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/utopia/vault/generics/UnderlinesToCamelCaseRule.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/utopia/java/vault/generics/UnderlinesToCamelCaseRule.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/utopia/vault/generics/VariableNameMapping.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/utopia/java/vault/generics/VariableNameMapping.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/utopia/vault/test/InConditionTest.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/utopia/java/vault/test/InConditionTest.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/utopia/vault/test/SqlDataTypeConversionTest.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/utopia/java/vault/test/SqlDataTypeConversionTest.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/utopia/vault/tutorial/ExampleConditions.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/utopia/java/vault/tutorial/ExampleConditions.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/utopia/vault/tutorial/ExampleDatabaseQueries.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/utopia/java/vault/tutorial/ExampleDatabaseQueries.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/utopia/vault/tutorial/ExampleRoleModel.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/utopia/java/vault/tutorial/ExampleRoleModel.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/utopia/vault/tutorial/ExampleTables.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/utopia/java/vault/tutorial/ExampleTables.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/utopia/vault/tutorial/ExampleUserModel.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/utopia/java/vault/tutorial/ExampleUserModel.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/utopia/vault/tutorial/TutorialTest.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/utopia/java/vault/tutorial/TutorialTest.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/utopia/vault/util/DebuggableException.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/utopia/java/vault/util/DebuggableException.java" afterDir="false" />
     </list>
     <option name="EXCLUDED_CONVERTED_TO_IGNORED" value="true" />
     <option name="SHOW_DIALOG" value="false" />
@@ -54,10 +155,11 @@
   <component name="PropertiesComponent">
     <property name="ASKED_SHARE_PROJECT_CONFIGURATION_FILES" value="true" />
     <property name="SHARE_PROJECT_CONFIGURATION_FILES" value="true" />
-    <property name="last_opened_file_path" value="$PROJECT_DIR$" />
+    <property name="last_opened_file_path" value="$PROJECT_DIR$/../Utopia-Flow-Java/.idea/Utopia-Flow-Java.iml" />
     <property name="project.structure.last.edited" value="Modules" />
-    <property name="project.structure.proportion" value="0.0" />
+    <property name="project.structure.proportion" value="0.15" />
     <property name="project.structure.side.proportion" value="0.2" />
+    <property name="settings.editor.selected.configurable" value="reference.projectsettings.compiler.javacompiler" />
   </component>
   <component name="RunDashboard">
     <option name="ruleStates">
@@ -101,6 +203,7 @@
   </component>
   <component name="VcsManagerConfiguration">
     <MESSAGE value="Set up project in IntelliJ IDEA" />
-    <option name="LAST_COMMIT_MESSAGE" value="Set up project in IntelliJ IDEA" />
+    <MESSAGE value="Merge branch 'master' into development&#10;&#10;# Conflicts:&#10;#&#9;.idea/misc.xml" />
+    <option name="LAST_COMMIT_MESSAGE" value="Merge branch 'master' into development&#10;&#10;# Conflicts:&#10;#&#9;.idea/misc.xml" />
   </component>
 </project>
